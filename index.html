@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoonCat Globe</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #050507;
+        color: #e8e8e8;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      #scene {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        touch-action: none;
+      }
+
+      #scene:active {
+        cursor: grabbing;
+      }
+
+      #rhombusScene {
+        display: none;
+        width: 100%;
+        height: 100%;
+        cursor: default;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        touch-action: none;
+      }
+
+      #hud {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 44px;
+        padding: 9px 11px;
+        border: 1px solid rgba(255, 105, 180, 0.55);
+        background: rgba(0, 0, 0, 0.72);
+        box-sizing: border-box;
+        pointer-events: none;
+      }
+
+      #catId {
+        min-width: 54px;
+        color: hotpink;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #preview {
+        width: 168px;
+        height: 176px;
+        border: 2px solid hotpink;
+        background-color: #000;
+        background-image: url("img/allcats.png");
+        background-repeat: no-repeat;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      #status {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 2;
+        max-width: min(360px, calc(100vw - 24px));
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.62);
+        color: #bfbfbf;
+        font-size: 13px;
+        line-height: 1.35;
+        pointer-events: none;
+      }
+
+      #tooltip {
+        position: fixed;
+        z-index: 3;
+        display: none;
+        padding: 5px 7px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(255, 105, 180, 0.65);
+        color: hotpink;
+        font-size: 13px;
+        font-weight: 700;
+        pointer-events: none;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #projectionControls {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 4;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+        max-width: min(520px, calc(100vw - 24px));
+        padding: 5px;
+        border: 1px solid rgba(255, 105, 180, 0.45);
+        background: rgba(0, 0, 0, 0.72);
+      }
+
+      #projectionControls button {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: rgba(255, 255, 255, 0.08);
+        color: #e8e8e8;
+        padding: 6px 10px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      #projectionControls button:hover,
+      #projectionControls button:focus-visible {
+        border-color: rgba(255, 105, 180, 0.75);
+        outline: none;
+      }
+
+      #projectionControls button.active {
+        border-color: hotpink;
+        background: hotpink;
+        color: #050507;
+        font-weight: 700;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <canvas id="rhombusScene"></canvas>
+
+    <div id="hud">
+      <div>Cat: <span id="catId">-</span></div>
+      <div id="preview" aria-hidden="true"></div>
+    </div>
+
+    <div id="tooltip"></div>
+    <div id="projectionControls" aria-label="Projection mode">
+      <button id="sphereButton" class="active" type="button">Sphere</button>
+      <button id="cubeButton" type="button">Cube</button>
+      <button id="rhombusGridButton" type="button">Rhombus Grid</button>
+      <button id="packedRhombusButton" type="button">Packed Rhombus</button>
+      <button id="goldenPatternButton" type="button">Golden Pattern</button>
+      <button id="triacontahedronButton" type="button">Triacontahedron</button>
+    </div>
+    <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      const COLS = 160;
+      const ROWS = 159;
+      const TILE_W = 21;
+      const TILE_H = 22;
+      const ATLAS_W = COLS * TILE_W;
+      const ATLAS_H = ROWS * TILE_H;
+      const MAX_ID = COLS * ROWS - 1;
+      const PREVIEW_SCALE = 8;
+      const CLICK_MOVE_LIMIT = 6;
+      const PHI = (1 + Math.sqrt(5)) / 2;
+      const FACE_COLS = 80;
+      const FACE_ROWS = 53;
+      const FACE_CAT_COUNT = FACE_COLS * FACE_ROWS;
+      const FACE_TEX_W = FACE_COLS * TILE_W;
+      const FACE_TEX_H = FACE_ROWS * TILE_H;
+      const FACE_ASPECT = FACE_TEX_W / FACE_TEX_H;
+      const RHOMBUS_COLS = 16;
+      const RHOMBUS_ROWS = 53;
+      const RHOMBUS_CAT_COUNT = RHOMBUS_COLS * RHOMBUS_ROWS;
+      const RHOMBUS_GRID_CAT_SCALE = 0.38;
+      const PACKED_RHOMBUS_EDGE_INSET = 0.025;
+      const PACKED_RHOMBUS_CAT_SCALE = 0.85;
+      const PACKED_RHOMBUS_JITTER = 0.04;
+      const GOLDEN_PATTERN_EDGE_INSET = 0.01;
+      const GOLDEN_PATTERN_CAT_SCALE = 0.65;
+      const GOLDEN_PATTERN_RADIUS_POWER = 0.53;
+      const GOLDEN_PATTERN_SIZE_VARIATION = 0.10;
+      const GOLDEN_PATTERN_OUTER_PULL = 0.96;
+      const TRI_FACE_COUNT = 30;
+      const TRI_FACE_SHORT_DIAG = 768;
+      const TRI_FACE_LONG_DIAG = Math.round(TRI_FACE_SHORT_DIAG * PHI);
+      const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
+      const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
+      const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
+      const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
+      const TRI_USE_PRERENDERED_FACE_TEXTURES = true;
+      const TOUCH_TWIST_ROLL_SPEED = 1.0;
+      const DESKTOP_ROLL_DRAG_SPEED = 0.006;
+      const DRAW_RHOMBUS_CELL_OUTLINES = true;
+
+      const canvas = document.getElementById("scene");
+      const rhombusCanvas = document.getElementById("rhombusScene");
+      const catIdEl = document.getElementById("catId");
+      const previewEl = document.getElementById("preview");
+      const tooltipEl = document.getElementById("tooltip");
+      const sphereButton = document.getElementById("sphereButton");
+      const cubeButton = document.getElementById("cubeButton");
+      const rhombusGridButton = document.getElementById("rhombusGridButton");
+      const packedRhombusButton = document.getElementById("packedRhombusButton");
+      const goldenPatternButton = document.getElementById("goldenPatternButton");
+      const triacontahedronButton = document.getElementById("triacontahedronButton");
+      const statusEl = document.getElementById("status");
+      const rhombusContext = rhombusCanvas.getContext("2d");
+      rhombusContext.imageSmoothingEnabled = false;
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: false
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x050507, 1);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      camera.position.set(0, 0, 3.15);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enablePan = false;
+      controls.enableZoom = true;
+      controls.minDistance = 1.45;
+      controls.maxDistance = 7;
+      controls.rotateSpeed = 0.65;
+      controls.zoomSpeed = 0.8;
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const textureLoader = new THREE.TextureLoader();
+
+      let sphere = null;
+      let cube = null;
+      let triacontahedron = null;
+      let activeObject = null;
+      let activeMode = "sphere";
+      let animationStarted = false;
+      let hoveredId = null;
+      let pointerInside = false;
+      let lastClientX = 0;
+      let lastClientY = 0;
+      let downPoint = null;
+      let sourceImage = null;
+      let rhombusSlots = [];
+      let rhombusOuterPolygon = [];
+      const triFaceSlots = [];
+      const triRuntimeFaceCanvases = [];
+      const triTextureStats = {
+        prerenderedLoaded: 0,
+        runtimeFallback: 0
+      };
+      const activePointers = new Map();
+      let twoFingerLastAngle = null;
+      let touchGestureWasTwoFinger = false;
+      let rollDrag = null;
+
+      function pixelRatio() {
+        return Math.min(window.devicePixelRatio || 1, 2);
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function pad2(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function triFaceTextureUrl(faceIndex) {
+        return `${TRI_FACE_TEXTURE_DIR}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
+      }
+
+      function applyPixelTextureSettings(texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.magFilter = THREE.NearestFilter;
+        texture.minFilter = THREE.NearestFilter;
+        texture.generateMipmaps = false;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      function idFromSphereUv(uv) {
+        if (!uv) return null;
+
+        const x = clamp(uv.x * ATLAS_W, 0, ATLAS_W - 0.0001);
+        const y = clamp((1 - uv.y) * ATLAS_H, 0, ATLAS_H - 0.0001);
+        const col = Math.floor(x / TILE_W);
+        const row = Math.floor(y / TILE_H);
+
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return null;
+
+        const id = row * COLS + col;
+        return id >= 0 && id <= MAX_ID ? id : null;
+      }
+
+      function idFromCubeHit(hit) {
+        if (!hit.uv || !hit.object.userData) return null;
+
+        const faceIndex = hit.object.userData.faceIndex;
+        if (faceIndex < 0 || faceIndex > 5) return null;
+
+        const x = clamp(hit.uv.x * FACE_TEX_W, 0, FACE_TEX_W - 0.0001);
+        const y = clamp((1 - hit.uv.y) * FACE_TEX_H, 0, FACE_TEX_H - 0.0001);
+        const col = Math.floor(x / TILE_W);
+        const row = Math.floor(y / TILE_H);
+
+        if (col < 0 || col >= FACE_COLS || row < 0 || row >= FACE_ROWS) return null;
+
+        const localIndex = row * FACE_COLS + col;
+        const id = faceIndex * FACE_CAT_COUNT + localIndex;
+        return id >= 0 && id <= MAX_ID ? id : null;
+      }
+
+      function idFromTriacontahedronHit(hit) {
+        if (!hit.uv || !hit.object.userData) return null;
+
+        const faceIndex = hit.object.userData.faceIndex;
+        const slots = triFaceSlots[faceIndex];
+        if (faceIndex < 0 || faceIndex >= TRI_FACE_COUNT || !slots) return null;
+
+        const x = clamp(hit.uv.x * TRI_FACE_TEX_W, 0, TRI_FACE_TEX_W - 0.0001);
+        const y = clamp((1 - hit.uv.y) * TRI_FACE_TEX_H, 0, TRI_FACE_TEX_H - 0.0001);
+        let closest = null;
+        let closestDistance = Infinity;
+
+        for (let i = slots.length - 1; i >= 0; i -= 1) {
+          const slot = slots[i];
+          const inRect = slot.hitRect
+            && x >= slot.hitRect.x
+            && x <= slot.hitRect.x + slot.hitRect.w
+            && y >= slot.hitRect.y
+            && y <= slot.hitRect.y + slot.hitRect.h;
+
+          if (inRect) {
+            closest = slot;
+            break;
+          }
+
+          const dx = x - slot.x;
+          const dy = y - slot.y;
+          const distance = dx * dx + dy * dy;
+          if (distance < closestDistance) {
+            closest = slot;
+            closestDistance = distance;
+          }
+        }
+
+        if (!closest) return null;
+        const id = faceIndex * RHOMBUS_CAT_COUNT + closest.id;
+        return id >= 0 && id <= MAX_ID ? id : null;
+      }
+
+      function isRhombusMode(mode = activeMode) {
+        return mode === "rhombusGrid" || mode === "packedRhombus" || mode === "goldenPattern";
+      }
+
+      function updatePointerFromClient(clientX, clientY) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+      }
+
+      function updatePreview(id) {
+        if (id === null) {
+          previewEl.style.backgroundPosition = "9999px 9999px";
+          return;
+        }
+
+        const row = Math.floor(id / COLS);
+        const col = id % COLS;
+        previewEl.style.backgroundSize = `${ATLAS_W * PREVIEW_SCALE}px ${ATLAS_H * PREVIEW_SCALE}px`;
+        previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
+      }
+
+      function setHoveredId(id) {
+        hoveredId = id;
+        catIdEl.textContent = id === null ? "-" : String(id);
+        updatePreview(id);
+
+        if (id === null) {
+          tooltipEl.style.display = "none";
+          return;
+        }
+
+        tooltipEl.textContent = `MoonCat ${id}`;
+        tooltipEl.style.left = `${lastClientX + 14}px`;
+        tooltipEl.style.top = `${lastClientY + 14}px`;
+        tooltipEl.style.display = "block";
+      }
+
+      function updateHoverFromPointer() {
+        if (isRhombusMode()) return;
+
+        if (!activeObject || !pointerInside) {
+          setHoveredId(null);
+          return;
+        }
+
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObject(activeObject, true);
+        let id = null;
+
+        if (hits.length) {
+          if (activeMode === "cube") {
+            id = idFromCubeHit(hits[0]);
+          } else if (activeMode === "triacontahedron") {
+            id = idFromTriacontahedronHit(hits[0]);
+          } else {
+            id = idFromSphereUv(hits[0].uv);
+          }
+        }
+
+        setHoveredId(id);
+      }
+
+      function openCat(id) {
+        if (id === null) return;
+        window.open(`https://mooncatrescue.com/mooncats/${id}`, "_blank", "noopener,noreferrer");
+      }
+
+      function canRollActiveObject() {
+        return !isRhombusMode() && activeObject;
+      }
+
+      function rollActiveObject(delta) {
+        if (!canRollActiveObject()) return;
+        const axis = new THREE.Vector3();
+        camera.getWorldDirection(axis);
+        activeObject.rotateOnWorldAxis(axis.normalize(), delta);
+      }
+
+      function pointerAngleFromActiveTouches() {
+        const touches = Array.from(activePointers.values()).filter((pointerInfo) => pointerInfo.pointerType === "touch");
+        if (touches.length !== 2) return null;
+        return Math.atan2(touches[1].y - touches[0].y, touches[1].x - touches[0].x);
+      }
+
+      function updateTouchTwistRoll() {
+        const angle = pointerAngleFromActiveTouches();
+        if (angle === null) {
+          twoFingerLastAngle = null;
+          return;
+        }
+
+        touchGestureWasTwoFinger = true;
+        if (twoFingerLastAngle !== null) {
+          let delta = angle - twoFingerLastAngle;
+          if (delta > Math.PI) delta -= Math.PI * 2;
+          if (delta < -Math.PI) delta += Math.PI * 2;
+          rollActiveObject(delta * TOUCH_TWIST_ROLL_SPEED);
+        }
+
+        twoFingerLastAngle = angle;
+      }
+
+      function resize() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height, false);
+        resizeRhombusCanvas(width, height);
+        updateHoverFromPointer();
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      function copyCatToFace(sourceImage, context, id, destCol, destRow) {
+        const srcCol = id % COLS;
+        const srcRow = Math.floor(id / COLS);
+        context.drawImage(
+          sourceImage,
+          srcCol * TILE_W,
+          srcRow * TILE_H,
+          TILE_W,
+          TILE_H,
+          destCol * TILE_W,
+          destRow * TILE_H,
+          TILE_W,
+          TILE_H
+        );
+      }
+
+      function makeCubeFaceTexture(sourceImage, faceIndex) {
+        const faceCanvas = document.createElement("canvas");
+        faceCanvas.width = FACE_TEX_W;
+        faceCanvas.height = FACE_TEX_H;
+
+        const context = faceCanvas.getContext("2d");
+        context.imageSmoothingEnabled = false;
+
+        const firstId = faceIndex * FACE_CAT_COUNT;
+        for (let localIndex = 0; localIndex < FACE_CAT_COUNT; localIndex += 1) {
+          const id = firstId + localIndex;
+          const destCol = localIndex % FACE_COLS;
+          const destRow = Math.floor(localIndex / FACE_COLS);
+          copyCatToFace(sourceImage, context, id, destCol, destRow);
+        }
+
+        const texture = new THREE.CanvasTexture(faceCanvas);
+        return applyPixelTextureSettings(texture);
+      }
+
+      function makeCube(sourceImage) {
+        const group = new THREE.Group();
+        const faceWidth = 1.75;
+        const faceHeight = faceWidth / FACE_ASPECT;
+        const offset = faceWidth / 2;
+
+        const transforms = [
+          { position: [0, 0, offset], rotation: [0, 0, 0] },
+          { position: [offset, 0, 0], rotation: [0, Math.PI / 2, 0] },
+          { position: [0, 0, -offset], rotation: [0, Math.PI, 0] },
+          { position: [-offset, 0, 0], rotation: [0, -Math.PI / 2, 0] },
+          { position: [0, offset, 0], rotation: [-Math.PI / 2, 0, 0] },
+          { position: [0, -offset, 0], rotation: [Math.PI / 2, 0, 0] }
+        ];
+
+        for (let faceIndex = 0; faceIndex < 6; faceIndex += 1) {
+          const geometry = new THREE.PlaneGeometry(faceWidth, faceHeight);
+          const material = new THREE.MeshBasicMaterial({
+            map: makeCubeFaceTexture(sourceImage, faceIndex),
+            side: THREE.FrontSide
+          });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(...transforms[faceIndex].position);
+          mesh.rotation.set(...transforms[faceIndex].rotation);
+          mesh.userData.faceIndex = faceIndex;
+          group.add(mesh);
+        }
+
+        group.visible = false;
+        return group;
+      }
+
+      function makeIcosahedronData() {
+        const p = PHI;
+        const vertices = [
+          [-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0],
+          [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p],
+          [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]
+        ].map(([x, y, z]) => new THREE.Vector3(x, y, z).normalize());
+
+        const faces = [
+          [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+          [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+          [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+          [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+        ];
+
+        return { vertices, faces };
+      }
+
+      function edgeKey(a, b) {
+        return a < b ? `${a}-${b}` : `${b}-${a}`;
+      }
+
+      function makeRhombicTriacontahedronFaces() {
+        const { vertices, faces } = makeIcosahedronData();
+        const edgeMap = new Map();
+        const vertexNeighbors = Array.from({ length: vertices.length }, () => new Set());
+
+        faces.forEach((face, faceIndex) => {
+          for (let i = 0; i < 3; i += 1) {
+            const a = face[i];
+            const b = face[(i + 1) % 3];
+            const key = edgeKey(a, b);
+            if (!edgeMap.has(key)) {
+              edgeMap.set(key, { a: Math.min(a, b), b: Math.max(a, b), faces: [] });
+            }
+            edgeMap.get(key).faces.push(faceIndex);
+            vertexNeighbors[a].add(b);
+            vertexNeighbors[b].add(a);
+          }
+        });
+
+        const vertexDuals = vertices.map((vertex, index) => {
+          const neighborIndex = vertexNeighbors[index].values().next().value;
+          const planeDistance = vertex.dot(vertices[neighborIndex].clone().add(vertex).multiplyScalar(0.5));
+          return vertex.clone().multiplyScalar(1 / planeDistance);
+        });
+
+        const faceDuals = faces.map((face) => {
+          const a = vertices[face[0]];
+          const b = vertices[face[1]];
+          const c = vertices[face[2]];
+          const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
+          const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
+          if (normal.dot(centroid) < 0) normal.multiplyScalar(-1);
+          const planeDistance = normal.dot(a);
+          return normal.multiplyScalar(1 / planeDistance);
+        });
+
+        return Array.from(edgeMap.values()).map((edge) => {
+          const [faceA, faceB] = edge.faces;
+          console.assert(edge.faces.length === 2, `Icosahedron edge ${edge.a}-${edge.b} has ${edge.faces.length} adjacent faces`);
+          return [
+            vertexDuals[edge.a].clone(),
+            faceDuals[faceA].clone(),
+            vertexDuals[edge.b].clone(),
+            faceDuals[faceB].clone()
+          ];
+        });
+      }
+
+      function sortFaceVertices(points) {
+        const center = points.reduce((acc, point) => acc.add(point), new THREE.Vector3()).multiplyScalar(1 / points.length);
+        const normal = center.clone().normalize();
+        const basisX = points[0].clone().sub(center).normalize();
+        const basisY = normal.clone().cross(basisX).normalize();
+
+        const sorted = [...points].sort((a, b) => {
+          const av = a.clone().sub(center);
+          const bv = b.clone().sub(center);
+          const aa = Math.atan2(av.dot(basisY), av.dot(basisX));
+          const ba = Math.atan2(bv.dot(basisY), bv.dot(basisX));
+          return aa - ba;
+        });
+
+        const faceNormal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0]));
+        if (faceNormal.dot(center) < 0) sorted.reverse();
+        return sorted;
+      }
+
+      function orderRhombusFaceVerticesForDiamondUv(points) {
+        const sorted = sortFaceVertices(points);
+        const center = sorted.reduce((acc, point) => acc.add(point), new THREE.Vector3()).multiplyScalar(1 / sorted.length);
+        const diagonalA = sorted[0].distanceTo(sorted[2]);
+        const diagonalB = sorted[1].distanceTo(sorted[3]);
+        const longPair = diagonalA >= diagonalB ? [sorted[0], sorted[2]] : [sorted[1], sorted[3]];
+        const shortPair = diagonalA >= diagonalB ? [sorted[1], sorted[3]] : [sorted[0], sorted[2]];
+        const normal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0])).normalize();
+        if (normal.dot(center) < 0) normal.multiplyScalar(-1);
+
+        let localUp = new THREE.Vector3(0, 1, 0).projectOnPlane(normal);
+        if (localUp.lengthSq() < 0.000001) {
+          localUp = new THREE.Vector3(0, 0, 1).projectOnPlane(normal);
+        }
+        localUp.normalize();
+        const localRight = localUp.clone().cross(normal).normalize();
+
+        const [top, bottom] = longPair[0].clone().sub(center).dot(localUp) >= longPair[1].clone().sub(center).dot(localUp)
+          ? [longPair[0], longPair[1]]
+          : [longPair[1], longPair[0]];
+        const [right, left] = shortPair[0].clone().sub(center).dot(localRight) >= shortPair[1].clone().sub(center).dot(localRight)
+          ? [shortPair[0], shortPair[1]]
+          : [shortPair[1], shortPair[0]];
+
+        return [top, right, bottom, left];
+      }
+
+      function makeTriFaceRuntimeCanvas(faceIndex) {
+        const faceCanvas = document.createElement("canvas");
+        faceCanvas.width = TRI_FACE_TEX_W;
+        faceCanvas.height = TRI_FACE_TEX_H;
+
+        const context = faceCanvas.getContext("2d");
+        context.imageSmoothingEnabled = false;
+        context.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+
+        const outer = makeCanonicalRhombus(faceCanvas.width, faceCanvas.height);
+        const slots = buildPackedRhombusSlotsFromOuter(outer);
+        slots.sort((a, b) => a.drawOrder - b.drawOrder);
+        console.assert(slots.length === RHOMBUS_CAT_COUNT, `Face texture ${faceIndex} has ${slots.length} slots`);
+
+        drawPolygon(context, outer, "rgba(8, 8, 12, 1)", null);
+        drawPackedGuides(context, outer);
+
+        for (const slot of slots) {
+          const id = faceIndex * RHOMBUS_CAT_COUNT + slot.id;
+          drawCatInRect(context, id, slot.x - slot.w / 2, slot.y - slot.h / 2, slot.w, slot.h);
+          slot.hitRect = { x: slot.x - slot.w / 2, y: slot.y - slot.h / 2, w: slot.w, h: slot.h };
+        }
+
+        drawPolygon(context, outer, null, "rgba(255, 105, 180, 0.72)", 2);
+
+        const texture = new THREE.CanvasTexture(faceCanvas);
+        triRuntimeFaceCanvases[faceIndex] = faceCanvas;
+        return { canvas: faceCanvas, slots, texture: applyPixelTextureSettings(texture) };
+      }
+
+      function makeTriFaceMaterial(faceIndex) {
+        const runtimeFace = makeTriFaceRuntimeCanvas(faceIndex);
+        triFaceSlots[faceIndex] = runtimeFace.slots;
+        triTextureStats.runtimeFallback += 1;
+
+        const material = new THREE.MeshBasicMaterial({
+          map: runtimeFace.texture,
+          side: THREE.DoubleSide
+        });
+
+        if (TRI_USE_PRERENDERED_FACE_TEXTURES) {
+          textureLoader.load(
+            triFaceTextureUrl(faceIndex),
+            (texture) => {
+              applyPixelTextureSettings(texture);
+              material.map = texture;
+              material.needsUpdate = true;
+              triTextureStats.prerenderedLoaded += 1;
+              triTextureStats.runtimeFallback = Math.max(0, triTextureStats.runtimeFallback - 1);
+            },
+            undefined,
+            () => {
+              console.info(`Using runtime tri face texture fallback for ${triFaceTextureUrl(faceIndex)}`);
+            }
+          );
+        }
+
+        return material;
+      }
+
+      function makeTriacontahedron(sourceImage) {
+        const group = new THREE.Group();
+        const faces = makeRhombicTriacontahedronFaces();
+        const uvs = [
+          0.5, 1,
+          1, 0.5,
+          0.5, 0,
+          0, 0.5
+        ];
+
+        console.assert(faces.length === TRI_FACE_COUNT, `Expected ${TRI_FACE_COUNT} triacontahedron faces, got ${faces.length}`);
+        console.assert(TRI_FACE_COUNT * RHOMBUS_CAT_COUNT === MAX_ID + 1, "Triacontahedron face count does not cover the full atlas exactly once");
+
+        faces.forEach((points, faceIndex) => {
+          console.assert(points.length === 4, `Face ${faceIndex} does not have 4 vertices`);
+          const sorted = orderRhombusFaceVerticesForDiamondUv(points);
+          const positions = [];
+          for (const point of sorted) {
+            positions.push(point.x, point.y, point.z);
+          }
+
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+          geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+          geometry.setIndex([0, 1, 2, 0, 2, 3]);
+          geometry.computeVertexNormals();
+
+          const material = makeTriFaceMaterial(faceIndex);
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.userData.faceIndex = faceIndex;
+          group.add(mesh);
+        });
+
+        group.scale.setScalar(0.62);
+        group.visible = false;
+        console.info(`Triacontahedron: ${group.children.length} faces x ${RHOMBUS_CAT_COUNT} cats = ${group.children.length * RHOMBUS_CAT_COUNT}`);
+        return group;
+      }
+
+      // Dev helper: downloads tri-face-00.png through tri-face-29.png.
+      // Place the downloaded files in img/tri-faces/ to use prerendered textures.
+      window.exportTriFacePngs = () => {
+        if (!sourceImage) {
+          console.warn("MoonCat atlas is not loaded yet.");
+          return;
+        }
+
+        for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
+          const canvas = triRuntimeFaceCanvases[faceIndex] || makeTriFaceRuntimeCanvas(faceIndex).canvas;
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.download = `${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }, "image/png");
+        }
+
+        console.info(`Downloaded ${TRI_FACE_COUNT} PNGs. Place them in ${TRI_FACE_TEXTURE_DIR}/`);
+      };
+
+      window.triFaceTextureStats = triTextureStats;
+
+      function pointInPolygon(x, y, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+          const xi = polygon[i].x;
+          const yi = polygon[i].y;
+          const xj = polygon[j].x;
+          const yj = polygon[j].y;
+          const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+          if (intersects) inside = !inside;
+        }
+        return inside;
+      }
+
+      function interpolateRhombusPoint(top, right, bottom, left, colRatio, rowRatio) {
+        const topEdge = {
+          x: top.x + (right.x - top.x) * colRatio,
+          y: top.y + (right.y - top.y) * colRatio
+        };
+        const bottomEdge = {
+          x: left.x + (bottom.x - left.x) * colRatio,
+          y: left.y + (bottom.y - left.y) * colRatio
+        };
+
+        return {
+          x: topEdge.x + (bottomEdge.x - topEdge.x) * rowRatio,
+          y: topEdge.y + (bottomEdge.y - topEdge.y) * rowRatio
+        };
+      }
+
+      function rhombusBounds(polygon) {
+        const xs = polygon.map((point) => point.x);
+        const ys = polygon.map((point) => point.y);
+        return {
+          minX: Math.min(...xs),
+          minY: Math.min(...ys),
+          maxX: Math.max(...xs),
+          maxY: Math.max(...ys)
+        };
+      }
+
+      function makeOuterRhombus(width, height) {
+        const topPad = width < 700 ? 112 : 70;
+        const sidePad = 42;
+        const maxLongDiag = Math.max(240, height - topPad - 56);
+        const maxShortDiag = Math.max(220, width - sidePad * 2);
+        const longDiag = Math.min(maxLongDiag, maxShortDiag * PHI);
+        const shortDiag = longDiag / PHI;
+        const cx = width / 2;
+        const cy = topPad + longDiag / 2;
+
+        return [
+          { x: cx, y: cy - longDiag / 2 },
+          { x: cx + shortDiag / 2, y: cy },
+          { x: cx, y: cy + longDiag / 2 },
+          { x: cx - shortDiag / 2, y: cy }
+        ];
+      }
+
+      function makeCanonicalRhombus(width, height) {
+        return [
+          { x: width / 2, y: 0 },
+          { x: width, y: height / 2 },
+          { x: width / 2, y: height },
+          { x: 0, y: height / 2 }
+        ];
+      }
+
+      function insetPolygon(polygon, insetRatio) {
+        const center = polygon.reduce((acc, point) => ({
+          x: acc.x + point.x / polygon.length,
+          y: acc.y + point.y / polygon.length
+        }), { x: 0, y: 0 });
+
+        return polygon.map((point) => ({
+          x: center.x + (point.x - center.x) * (1 - insetRatio),
+          y: center.y + (point.y - center.y) * (1 - insetRatio)
+        }));
+      }
+
+      function polygonCenter(polygon) {
+        return polygon.reduce((acc, point) => ({
+          x: acc.x + point.x / polygon.length,
+          y: acc.y + point.y / polygon.length
+        }), { x: 0, y: 0 });
+      }
+
+      function polygonArea(polygon) {
+        let area = 0;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+          area += polygon[j].x * polygon[i].y - polygon[i].x * polygon[j].y;
+        }
+        return Math.abs(area) / 2;
+      }
+
+      function rayDistanceToPolygonEdge(center, angle, polygon) {
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        let nearest = Infinity;
+
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+          const ax = polygon[j].x;
+          const ay = polygon[j].y;
+          const bx = polygon[i].x;
+          const by = polygon[i].y;
+          const sx = bx - ax;
+          const sy = by - ay;
+          const denominator = dx * sy - dy * sx;
+
+          if (Math.abs(denominator) < 0.000001) continue;
+
+          const qx = ax - center.x;
+          const qy = ay - center.y;
+          const t = (qx * sy - qy * sx) / denominator;
+          const u = (qx * dy - qy * dx) / denominator;
+
+          if (t >= 0 && u >= 0 && u <= 1) {
+            nearest = Math.min(nearest, t);
+          }
+        }
+
+        return Number.isFinite(nearest) ? nearest : 0;
+      }
+
+      function deterministicJitter(index, salt) {
+        const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+        return value - Math.floor(value);
+      }
+
+      function drawCatInRect(context, id, x, y, w, h) {
+        const srcCol = id % COLS;
+        const srcRow = Math.floor(id / COLS);
+        context.drawImage(
+          sourceImage,
+          srcCol * TILE_W,
+          srcRow * TILE_H,
+          TILE_W,
+          TILE_H,
+          x,
+          y,
+          w,
+          h
+        );
+      }
+
+      function drawCatInSlot(context, slot) {
+        const bounds = rhombusBounds(slot.polygon);
+        const pad = Math.max(0.5, Math.min(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * 0.1);
+        const maxW = Math.max(1, bounds.maxX - bounds.minX - pad * 2);
+        const maxH = Math.max(1, bounds.maxY - bounds.minY - pad * 2);
+        const scale = Math.min(maxW / TILE_W, maxH / TILE_H);
+        const drawW = TILE_W * scale * RHOMBUS_GRID_CAT_SCALE;
+        const drawH = TILE_H * scale * RHOMBUS_GRID_CAT_SCALE;
+        const x = slot.x - drawW / 2;
+        const y = slot.y - drawH / 2;
+
+        drawCatInRect(context, slot.id, x, y, drawW, drawH);
+        slot.hitRect = { x, y, w: drawW, h: drawH };
+      }
+
+      function drawPolygon(context, polygon, fillStyle, strokeStyle, lineWidth = 1) {
+        context.beginPath();
+        context.moveTo(polygon[0].x, polygon[0].y);
+        for (let i = 1; i < polygon.length; i += 1) {
+          context.lineTo(polygon[i].x, polygon[i].y);
+        }
+        context.closePath();
+        if (fillStyle) {
+          context.fillStyle = fillStyle;
+          context.fill();
+        }
+        if (strokeStyle) {
+          context.strokeStyle = strokeStyle;
+          context.lineWidth = lineWidth;
+          context.stroke();
+        }
+      }
+
+      function buildRhombusGridSlots(width, height) {
+        const [top, right, bottom, left] = makeOuterRhombus(width, height);
+        const slots = [];
+
+        for (let row = 0; row < RHOMBUS_ROWS; row += 1) {
+          for (let col = 0; col < RHOMBUS_COLS; col += 1) {
+            const c0 = col / RHOMBUS_COLS;
+            const c1 = (col + 1) / RHOMBUS_COLS;
+            const r0 = row / RHOMBUS_ROWS;
+            const r1 = (row + 1) / RHOMBUS_ROWS;
+            const polygon = [
+              interpolateRhombusPoint(top, right, bottom, left, c0, r0),
+              interpolateRhombusPoint(top, right, bottom, left, c1, r0),
+              interpolateRhombusPoint(top, right, bottom, left, c1, r1),
+              interpolateRhombusPoint(top, right, bottom, left, c0, r1)
+            ];
+            const center = interpolateRhombusPoint(top, right, bottom, left, (col + 0.5) / RHOMBUS_COLS, (row + 0.5) / RHOMBUS_ROWS);
+            slots.push({
+              id: row * RHOMBUS_COLS + col,
+              x: center.x,
+              y: center.y,
+              polygon,
+              drawOrder: row * RHOMBUS_COLS + col
+            });
+          }
+        }
+
+        rhombusOuterPolygon = [top, right, bottom, left];
+        return slots;
+      }
+
+      function buildPackedRhombusSlotsFromOuter(outer) {
+        const inset = insetPolygon(outer, PACKED_RHOMBUS_EDGE_INSET);
+        const bounds = rhombusBounds(inset);
+        const area = polygonArea(inset);
+        let spacing = Math.sqrt(area / (RHOMBUS_CAT_COUNT * 1.46));
+        let candidates = [];
+
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          candidates = [];
+          const yStep = spacing * 0.86;
+          let candidateIndex = 0;
+
+          for (let y = bounds.minY; y <= bounds.maxY; y += yStep) {
+            const rowIndex = Math.round((y - bounds.minY) / yStep);
+            const rowOffset = rowIndex % 2 ? spacing / 2 : 0;
+
+            for (let x = bounds.minX - spacing; x <= bounds.maxX + spacing; x += spacing) {
+              const jitterX = (deterministicJitter(candidateIndex, 1) - 0.5) * spacing * PACKED_RHOMBUS_JITTER;
+              const jitterY = (deterministicJitter(candidateIndex, 2) - 0.5) * yStep * PACKED_RHOMBUS_JITTER;
+              const px = x + rowOffset + jitterX;
+              const py = y + jitterY;
+
+              if (pointInPolygon(px, py, inset)) {
+                candidates.push({
+                  x: px,
+                  y: py,
+                  rowIndex,
+                  candidateIndex
+                });
+              }
+
+              candidateIndex += 1;
+            }
+          }
+
+          if (candidates.length >= RHOMBUS_CAT_COUNT) break;
+          spacing *= 0.92;
+        }
+
+        candidates.sort((a, b) => a.y - b.y || a.x - b.x);
+
+        if (candidates.length < RHOMBUS_CAT_COUNT) {
+          const [top, right, bottom, left] = inset;
+          candidates = [];
+          for (let row = 0; row < RHOMBUS_ROWS; row += 1) {
+            for (let col = 0; col < RHOMBUS_COLS; col += 1) {
+              const point = interpolateRhombusPoint(top, right, bottom, left, (col + 0.5) / RHOMBUS_COLS, (row + 0.5) / RHOMBUS_ROWS);
+              candidates.push({ ...point, rowIndex: row, candidateIndex: row * RHOMBUS_COLS + col });
+            }
+          }
+        }
+
+        const selected = [];
+        for (let i = 0; i < RHOMBUS_CAT_COUNT; i += 1) {
+          const index = Math.floor((i * candidates.length) / RHOMBUS_CAT_COUNT);
+          selected.push(candidates[Math.min(index, candidates.length - 1)]);
+        }
+
+        const baseW = Math.max(5, spacing * PACKED_RHOMBUS_CAT_SCALE);
+        const slots = selected.map((point, index) => {
+          const sizeWave = 0.94 + 0.08 * Math.sin(index * 1.618);
+          const drawW = baseW * sizeWave;
+          return {
+            id: index,
+            x: point.x,
+            y: point.y,
+            w: drawW,
+            h: drawW * (TILE_H / TILE_W),
+            polygon: null,
+            drawOrder: point.y + index / RHOMBUS_CAT_COUNT / 1000
+          };
+        });
+
+        rhombusOuterPolygon = outer;
+        return slots;
+      }
+
+      function buildPackedRhombusSlots(width, height) {
+        return buildPackedRhombusSlotsFromOuter(makeOuterRhombus(width, height));
+      }
+
+      function buildGoldenPatternSlots(width, height) {
+        const outer = makeOuterRhombus(width, height);
+        const inset = insetPolygon(outer, GOLDEN_PATTERN_EDGE_INSET);
+        const bounds = rhombusBounds(inset);
+        const center = polygonCenter(inset);
+        const slots = [];
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+        const baseW = Math.max(5, Math.min((bounds.maxX - bounds.minX) / 34, (bounds.maxY - bounds.minY) / 52) * GOLDEN_PATTERN_CAT_SCALE);
+
+        for (let i = 0; i < RHOMBUS_CAT_COUNT; i += 1) {
+          const angle = i * goldenAngle;
+          const t = (i + 0.5) / RHOMBUS_CAT_COUNT;
+          const radiusRatio = Math.pow(t, GOLDEN_PATTERN_RADIUS_POWER) * GOLDEN_PATTERN_OUTER_PULL;
+          const edgeDistance = rayDistanceToPolygonEdge(center, angle, inset);
+          const point = {
+            x: center.x + Math.cos(angle) * radiusRatio * edgeDistance,
+            y: center.y + Math.sin(angle) * radiusRatio * edgeDistance
+          };
+          const normalizedWave = (Math.sin(i * goldenAngle + radiusRatio * Math.PI * 2) + 1) / 2;
+          const sizeWave = 1 - GOLDEN_PATTERN_SIZE_VARIATION / 2 + GOLDEN_PATTERN_SIZE_VARIATION * normalizedWave;
+          const drawW = baseW * sizeWave;
+
+          slots.push({
+            id: i,
+            x: point.x,
+            y: point.y,
+            w: drawW,
+            h: drawW * (TILE_H / TILE_W),
+            polygon: null,
+            drawOrder: radiusRatio + i / RHOMBUS_CAT_COUNT / 1000
+          });
+        }
+
+        rhombusOuterPolygon = outer;
+        return slots;
+      }
+
+      function drawGoldenGuides(context, outer) {
+        const [top, right, bottom, left] = outer;
+        context.save();
+        context.strokeStyle = "rgba(255, 214, 90, 0.08)";
+        context.lineWidth = 0.75;
+
+        for (let i = 1; i < 6; i += 1) {
+          const ratio = i / 6;
+          const a = interpolateRhombusPoint(top, right, bottom, left, ratio, 0);
+          const b = interpolateRhombusPoint(top, right, bottom, left, ratio, 1);
+          const c = interpolateRhombusPoint(top, right, bottom, left, 0, ratio);
+          const d = interpolateRhombusPoint(top, right, bottom, left, 1, ratio);
+          context.beginPath();
+          context.moveTo(a.x, a.y);
+          context.lineTo(b.x, b.y);
+          context.moveTo(c.x, c.y);
+          context.lineTo(d.x, d.y);
+          context.stroke();
+        }
+
+        context.strokeStyle = "rgba(255, 105, 180, 0.08)";
+        for (let i = 0; i < 6; i += 1) {
+          const ratio = (i + 0.5) / 6;
+          const a = interpolateRhombusPoint(top, right, bottom, left, ratio, 0);
+          const b = interpolateRhombusPoint(top, right, bottom, left, 1 - ratio, 1);
+          context.beginPath();
+          context.moveTo(a.x, a.y);
+          context.lineTo(b.x, b.y);
+          context.stroke();
+        }
+        context.restore();
+      }
+
+      function drawPackedGuides(context, outer) {
+        const [top, right, bottom, left] = outer;
+        context.save();
+        context.strokeStyle = "rgba(255, 255, 255, 0.035)";
+        context.lineWidth = 1;
+
+        for (let i = 1; i < 12; i += 1) {
+          const ratio = i / 12;
+          const a = interpolateRhombusPoint(top, right, bottom, left, ratio, 0);
+          const b = interpolateRhombusPoint(top, right, bottom, left, ratio, 1);
+          const c = interpolateRhombusPoint(top, right, bottom, left, 0, ratio);
+          const d = interpolateRhombusPoint(top, right, bottom, left, 1, ratio);
+          context.beginPath();
+          context.moveTo(a.x, a.y);
+          context.lineTo(b.x, b.y);
+          context.moveTo(c.x, c.y);
+          context.lineTo(d.x, d.y);
+          context.stroke();
+        }
+
+        context.restore();
+      }
+
+      function drawSpiralGuide(context) {
+        const inset = insetPolygon(rhombusOuterPolygon, GOLDEN_PATTERN_EDGE_INSET);
+        const center = polygonCenter(inset);
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+        context.save();
+        context.strokeStyle = "rgba(255, 214, 90, 0.09)";
+        context.lineWidth = 0.85;
+        context.beginPath();
+
+        const steps = 1400;
+        for (let i = 0; i < steps; i += 1) {
+          const progress = i / (steps - 1);
+          const angle = progress * goldenAngle * (RHOMBUS_CAT_COUNT - 1);
+          const radiusRatio = Math.pow(progress, GOLDEN_PATTERN_RADIUS_POWER) * GOLDEN_PATTERN_OUTER_PULL;
+          const edgeDistance = rayDistanceToPolygonEdge(center, angle, inset);
+          const x = center.x + Math.cos(angle) * radiusRatio * edgeDistance;
+          const y = center.y + Math.sin(angle) * radiusRatio * edgeDistance;
+
+          if (i === 0) {
+            context.moveTo(x, y);
+          } else {
+            context.lineTo(x, y);
+          }
+        }
+
+        context.stroke();
+        context.restore();
+      }
+
+      function rhombusModeLabel(mode = activeMode) {
+        if (mode === "goldenPattern") return "Golden Pattern";
+        if (mode === "packedRhombus") return "Packed Rhombus";
+        return "Rhombus Grid";
+      }
+
+      function updateRhombusStatus() {
+        if (!isRhombusMode()) return;
+        statusEl.textContent = `${rhombusModeLabel()}: ${rhombusSlots.length} / ${RHOMBUS_CAT_COUNT} cats`;
+      }
+
+      function drawRhombusMode() {
+        if (!sourceImage || !isRhombusMode()) return;
+
+        const ratio = pixelRatio();
+        const width = rhombusCanvas.width / ratio;
+        const height = rhombusCanvas.height / ratio;
+
+        rhombusContext.save();
+        rhombusContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+        rhombusContext.clearRect(0, 0, width, height);
+        rhombusContext.fillStyle = "#050507";
+        rhombusContext.fillRect(0, 0, width, height);
+
+        if (activeMode === "goldenPattern") {
+          rhombusSlots = buildGoldenPatternSlots(width, height);
+        } else if (activeMode === "packedRhombus") {
+          rhombusSlots = buildPackedRhombusSlots(width, height);
+        } else {
+          rhombusSlots = buildRhombusGridSlots(width, height);
+        }
+
+        drawPolygon(rhombusContext, rhombusOuterPolygon, "rgba(12, 12, 16, 0.96)", "rgba(255, 105, 180, 0.7)", 2);
+
+        if (activeMode === "goldenPattern") {
+          drawGoldenGuides(rhombusContext, rhombusOuterPolygon);
+          drawSpiralGuide(rhombusContext);
+          rhombusSlots.sort((a, b) => a.drawOrder - b.drawOrder);
+          for (const slot of rhombusSlots) {
+            drawCatInRect(rhombusContext, slot.id, slot.x - slot.w / 2, slot.y - slot.h / 2, slot.w, slot.h);
+            slot.hitRect = { x: slot.x - slot.w / 2, y: slot.y - slot.h / 2, w: slot.w, h: slot.h };
+          }
+        } else if (activeMode === "packedRhombus") {
+          drawPackedGuides(rhombusContext, rhombusOuterPolygon);
+          rhombusSlots.sort((a, b) => a.drawOrder - b.drawOrder);
+          for (const slot of rhombusSlots) {
+            drawCatInRect(rhombusContext, slot.id, slot.x - slot.w / 2, slot.y - slot.h / 2, slot.w, slot.h);
+            slot.hitRect = { x: slot.x - slot.w / 2, y: slot.y - slot.h / 2, w: slot.w, h: slot.h };
+          }
+        } else {
+          for (const slot of rhombusSlots) {
+            drawCatInSlot(rhombusContext, slot);
+            if (DRAW_RHOMBUS_CELL_OUTLINES) {
+              drawPolygon(rhombusContext, slot.polygon, null, "rgba(255, 255, 255, 0.065)", 0.5);
+            }
+          }
+        }
+
+        drawPolygon(rhombusContext, rhombusOuterPolygon, null, "rgba(255, 105, 180, 0.9)", 2);
+        rhombusContext.restore();
+        updateRhombusStatus();
+      }
+
+      function resizeRhombusCanvas(width = window.innerWidth, height = window.innerHeight) {
+        const ratio = pixelRatio();
+        rhombusCanvas.width = Math.floor(width * ratio);
+        rhombusCanvas.height = Math.floor(height * ratio);
+        rhombusCanvas.style.width = `${width}px`;
+        rhombusCanvas.style.height = `${height}px`;
+        rhombusContext.imageSmoothingEnabled = false;
+        drawRhombusMode();
+      }
+
+      function updateRhombusHoverFromClient(clientX, clientY) {
+        if (!isRhombusMode()) return;
+
+        const rect = rhombusCanvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        let closest = null;
+        let closestDistance = Infinity;
+
+        if (!pointInPolygon(x, y, rhombusOuterPolygon)) {
+          setHoveredId(null);
+          return;
+        }
+
+        for (let i = rhombusSlots.length - 1; i >= 0; i -= 1) {
+          const slot = rhombusSlots[i];
+          const inPolygon = slot.polygon ? pointInPolygon(x, y, slot.polygon) : false;
+          const inRect = slot.hitRect
+            && x >= slot.hitRect.x
+            && x <= slot.hitRect.x + slot.hitRect.w
+            && y >= slot.hitRect.y
+            && y <= slot.hitRect.y + slot.hitRect.h;
+
+          if (inPolygon || inRect) {
+            closest = slot;
+            break;
+          }
+
+          const dx = x - slot.x;
+          const dy = y - slot.y;
+          const distance = dx * dx + dy * dy;
+          if (distance < closestDistance) {
+            closest = slot;
+            closestDistance = distance;
+          }
+        }
+
+        setHoveredId(closest ? closest.id : null);
+      }
+
+      function setProjection(mode) {
+        activeMode = mode;
+        const rhombusMode = isRhombusMode(mode);
+        canvas.style.display = rhombusMode ? "none" : "block";
+        rhombusCanvas.style.display = rhombusMode ? "block" : "none";
+        controls.enabled = !rhombusMode;
+
+        if (sphere) sphere.visible = mode === "sphere";
+        if (cube) cube.visible = mode === "cube";
+        if (triacontahedron) triacontahedron.visible = mode === "triacontahedron";
+
+        if (mode === "cube") {
+          activeObject = cube;
+        } else if (mode === "triacontahedron") {
+          activeObject = triacontahedron;
+        } else {
+          activeObject = sphere;
+        }
+
+        sphereButton.classList.toggle("active", mode === "sphere");
+        cubeButton.classList.toggle("active", mode === "cube");
+        rhombusGridButton.classList.toggle("active", mode === "rhombusGrid");
+        packedRhombusButton.classList.toggle("active", mode === "packedRhombus");
+        goldenPatternButton.classList.toggle("active", mode === "goldenPattern");
+        triacontahedronButton.classList.toggle("active", mode === "triacontahedron");
+
+        setHoveredId(null);
+        if (rhombusMode) {
+          drawRhombusMode();
+          updateRhombusStatus();
+        } else if (mode === "triacontahedron") {
+          statusEl.textContent = `Triacontahedron: drag rotate, scroll/pinch zoom, two-finger twist or Ctrl/Alt-drag roll. ${TRI_FACE_COUNT} x ${RHOMBUS_CAT_COUNT} = ${TRI_FACE_COUNT * RHOMBUS_CAT_COUNT}`;
+          updateHoverFromPointer();
+        } else {
+          statusEl.textContent = "Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.";
+          updateHoverFromPointer();
+        }
+      }
+
+      textureLoader.load(
+        "img/allcats.png",
+        (texture) => {
+          sourceImage = texture.image;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.magFilter = THREE.NearestFilter;
+          texture.minFilter = THREE.NearestFilter;
+          texture.generateMipmaps = false;
+          texture.wrapS = THREE.ClampToEdgeWrapping;
+          texture.wrapT = THREE.ClampToEdgeWrapping;
+          texture.needsUpdate = true;
+
+          const geometry = new THREE.SphereGeometry(1, 160, 96);
+          const material = new THREE.MeshBasicMaterial({ map: texture });
+          sphere = new THREE.Mesh(geometry, material);
+          scene.add(sphere);
+
+          cube = makeCube(texture.image);
+          scene.add(cube);
+
+          triacontahedron = makeTriacontahedron(texture.image);
+          scene.add(triacontahedron);
+
+          setProjection("sphere");
+
+          resize();
+          if (!animationStarted) {
+            animationStarted = true;
+            animate();
+          }
+        },
+        undefined,
+        () => {
+          statusEl.textContent = "Could not load img/allcats.png.";
+        }
+      );
+
+      sphereButton.addEventListener("click", () => setProjection("sphere"));
+      cubeButton.addEventListener("click", () => setProjection("cube"));
+      rhombusGridButton.addEventListener("click", () => setProjection("rhombusGrid"));
+      packedRhombusButton.addEventListener("click", () => setProjection("packedRhombus"));
+      goldenPatternButton.addEventListener("click", () => setProjection("goldenPattern"));
+      triacontahedronButton.addEventListener("click", () => setProjection("triacontahedron"));
+
+      renderer.domElement.addEventListener("pointermove", (event) => {
+        if (activePointers.has(event.pointerId)) {
+          activePointers.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+            pointerType: event.pointerType
+          });
+        }
+
+        if (rollDrag) {
+          const dx = event.clientX - rollDrag.x;
+          rollActiveObject(dx * DESKTOP_ROLL_DRAG_SPEED);
+          rollDrag.x = event.clientX;
+          rollDrag.y = event.clientY;
+          event.preventDefault();
+          return;
+        }
+
+        updateTouchTwistRoll();
+
+        pointerInside = true;
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+        updatePointerFromClient(event.clientX, event.clientY);
+        updateHoverFromPointer();
+      });
+
+      renderer.domElement.addEventListener("pointerleave", () => {
+        pointerInside = false;
+        setHoveredId(null);
+      });
+
+      renderer.domElement.addEventListener("pointerdown", (event) => {
+        activePointers.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+          pointerType: event.pointerType
+        });
+
+        if ((event.ctrlKey || event.altKey) && canRollActiveObject()) {
+          rollDrag = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY
+          };
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        }
+
+        downPoint = {
+          x: event.clientX,
+          y: event.clientY
+        };
+      });
+
+      renderer.domElement.addEventListener("pointerup", (event) => {
+        activePointers.delete(event.pointerId);
+        updateTouchTwistRoll();
+
+        if (touchGestureWasTwoFinger && event.pointerType === "touch") {
+          if (activePointers.size < 2) {
+            touchGestureWasTwoFinger = false;
+          }
+          downPoint = null;
+          return;
+        }
+
+        if (rollDrag && rollDrag.pointerId === event.pointerId) {
+          rollDrag = null;
+          controls.enabled = !isRhombusMode();
+          renderer.domElement.releasePointerCapture?.(event.pointerId);
+          downPoint = null;
+          return;
+        }
+
+        if (!downPoint) return;
+
+        const dx = event.clientX - downPoint.x;
+        const dy = event.clientY - downPoint.y;
+        const moved = Math.hypot(dx, dy);
+
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+        updatePointerFromClient(event.clientX, event.clientY);
+        updateHoverFromPointer();
+
+        if (moved <= CLICK_MOVE_LIMIT) {
+          openCat(hoveredId);
+        }
+
+        downPoint = null;
+      });
+
+      renderer.domElement.addEventListener("pointercancel", (event) => {
+        activePointers.delete(event.pointerId);
+        twoFingerLastAngle = null;
+        touchGestureWasTwoFinger = false;
+        if (rollDrag && rollDrag.pointerId === event.pointerId) {
+          rollDrag = null;
+          controls.enabled = !isRhombusMode();
+        }
+        downPoint = null;
+      });
+
+      rhombusCanvas.addEventListener("pointermove", (event) => {
+        pointerInside = true;
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+        updateRhombusHoverFromClient(event.clientX, event.clientY);
+      });
+
+      rhombusCanvas.addEventListener("pointerleave", () => {
+        pointerInside = false;
+        setHoveredId(null);
+      });
+
+      rhombusCanvas.addEventListener("pointerdown", (event) => {
+        downPoint = {
+          x: event.clientX,
+          y: event.clientY
+        };
+      });
+
+      rhombusCanvas.addEventListener("pointerup", (event) => {
+        if (!downPoint) return;
+
+        const dx = event.clientX - downPoint.x;
+        const dy = event.clientY - downPoint.y;
+        const moved = Math.hypot(dx, dy);
+
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+        updateRhombusHoverFromClient(event.clientX, event.clientY);
+
+        if (moved <= CLICK_MOVE_LIMIT) {
+          openCat(hoveredId);
+        }
+
+        downPoint = null;
+      });
+
+      window.addEventListener("resize", resize);
+      resize();
+    </script>
+  </body>
+</html>
