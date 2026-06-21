@@ -105,7 +105,7 @@
         top: 12px;
         right: 12px;
         z-index: 4;
-        display: flex;
+        display: none;
         flex-wrap: wrap;
         justify-content: flex-end;
         gap: 6px;
@@ -194,7 +194,7 @@
       const RHOMBUS_ROWS = 53;
       const RHOMBUS_CAT_COUNT = RHOMBUS_COLS * RHOMBUS_ROWS;
       const RHOMBUS_GRID_CAT_SCALE = 0.38;
-      const PACKED_RHOMBUS_EDGE_INSET = 0.025;
+      const PACKED_RHOMBUS_EDGE_INSET = 0.03;
       const PACKED_RHOMBUS_CAT_SCALE = 0.85;
       const PACKED_RHOMBUS_JITTER = 0.04;
       const GOLDEN_PATTERN_EDGE_INSET = 0.01;
@@ -213,6 +213,8 @@
       const TRI_FACE_LONG_DIAG = Math.round(TRI_FACE_SHORT_DIAG * PHI);
       const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
       const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
+      const TRI_FACE_PIXEL_PERFECT_EXPORT = true;
+      const TRI_FACE_CAT_PIXEL_SCALE = 2;
       const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
       const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
       const TRI_USE_PRERENDERED_FACE_TEXTURES = true;
@@ -718,10 +720,12 @@
 
         for (const slot of slots) {
           const id = faceIndex * RHOMBUS_CAT_COUNT + slot.id;
-          const x = Math.round(slot.x - slot.w / 2);
-          const y = Math.round(slot.y - slot.h / 2);
-          const w = Math.round(slot.w);
-          const h = Math.round(slot.h);
+          const w = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_W * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.w);
+          const h = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_H * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.h);
+          slot.w = w;
+          slot.h = h;
+          const x = Math.round(slot.x - w / 2);
+          const y = Math.round(slot.y - h / 2);
           drawCatInPixelRect(context, id, x, y, w, h);
           slot.hitRect = { x, y, w, h };
         }
@@ -831,6 +835,7 @@
           return;
         }
 
+        console.info(`Exporting tri-face PNGs: ${TRI_FACE_TEX_W} x ${TRI_FACE_TEX_H}, cat scale ${TRI_FACE_CAT_PIXEL_SCALE}`);
         for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
           const canvas = triFaceCanvas(faceIndex);
           canvas.toBlob((blob) => {
@@ -858,6 +863,7 @@
         }
 
         const zip = new JSZip();
+        console.info(`Exporting tri-face PNGs: ${TRI_FACE_TEX_W} x ${TRI_FACE_TEX_H}, cat scale ${TRI_FACE_CAT_PIXEL_SCALE}`);
         for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
           const canvas = triFaceCanvas(faceIndex);
           const blob = await canvasToPngBlob(canvas);
@@ -1473,7 +1479,7 @@
           triacontahedron = makeTriacontahedron(texture.image);
           scene.add(triacontahedron);
 
-          setProjection("sphere");
+          setProjection("triacontahedron");
 
           resize();
           if (!animationStarted) {
