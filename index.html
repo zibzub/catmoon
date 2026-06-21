@@ -214,7 +214,7 @@
       const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
       const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
       const TRI_FACE_PIXEL_PERFECT_EXPORT = true;
-      const TRI_FACE_CAT_PIXEL_SCALE = 1;
+      const TRI_FACE_CAT_PIXEL_SCALE = 2;
       const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
       const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
       const TRI_USE_PRERENDERED_FACE_TEXTURES = true;
@@ -711,7 +711,10 @@
         context.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
 
         const outer = makeCanonicalRhombus(faceCanvas.width, faceCanvas.height);
-        const slots = buildPackedRhombusSlotsFromOuter(outer);
+        const slots = buildPackedRhombusSlotsFromOuter(outer, {
+          seed: faceIndex,
+          variant: faceIndex !== 0
+        });
         slots.sort((a, b) => a.drawOrder - b.drawOrder);
         console.assert(slots.length === RHOMBUS_CAT_COUNT, `Face texture ${faceIndex} has ${slots.length} slots`);
 
@@ -1010,8 +1013,13 @@
         return Number.isFinite(nearest) ? nearest : 0;
       }
 
-      function deterministicJitter(index, salt) {
-        const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+      function deterministicJitter(index, salt, seed = 0) {
+        const value = Math.sin(index * 12.9898 + salt * 78.233 + seed * 37.719) * 43758.5453;
+        return value - Math.floor(value);
+      }
+
+      function seededValue(seed, salt) {
+        const value = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
         return value - Math.floor(value);
       }
 
@@ -1099,25 +1107,31 @@
         return slots;
       }
 
-      function buildPackedRhombusSlotsFromOuter(outer) {
+      function buildPackedRhombusSlotsFromOuter(outer, options = {}) {
+        const { seed = 0, variant = false } = options;
+        const spacingScale = variant ? 0.985 + seededValue(seed, 1) * 0.04 : 1;
+        const rowOffsetScale = variant ? 0.94 + seededValue(seed, 2) * 0.12 : 1;
+        const jitterScale = variant ? 0.85 + seededValue(seed, 3) * 0.35 : 1;
+        const sizePhase = variant ? seededValue(seed, 4) * Math.PI * 2 : 0;
+        const yStepScale = variant ? 0.98 + seededValue(seed, 5) * 0.04 : 1;
         const inset = insetPolygon(outer, PACKED_RHOMBUS_EDGE_INSET);
         const bounds = rhombusBounds(inset);
         const area = polygonArea(inset);
-        let spacing = Math.sqrt(area / (RHOMBUS_CAT_COUNT * 1.46));
+        let spacing = Math.sqrt(area / (RHOMBUS_CAT_COUNT * 1.46)) * spacingScale;
         let candidates = [];
 
         for (let attempt = 0; attempt < 8; attempt += 1) {
           candidates = [];
-          const yStep = spacing * 0.86;
+          const yStep = spacing * 0.86 * yStepScale;
           let candidateIndex = 0;
 
           for (let y = bounds.minY; y <= bounds.maxY; y += yStep) {
             const rowIndex = Math.round((y - bounds.minY) / yStep);
-            const rowOffset = rowIndex % 2 ? spacing / 2 : 0;
+            const rowOffset = rowIndex % 2 ? (spacing / 2) * rowOffsetScale : 0;
 
             for (let x = bounds.minX - spacing; x <= bounds.maxX + spacing; x += spacing) {
-              const jitterX = (deterministicJitter(candidateIndex, 1) - 0.5) * spacing * PACKED_RHOMBUS_JITTER;
-              const jitterY = (deterministicJitter(candidateIndex, 2) - 0.5) * yStep * PACKED_RHOMBUS_JITTER;
+              const jitterX = (deterministicJitter(candidateIndex, 1, seed) - 0.5) * spacing * PACKED_RHOMBUS_JITTER * jitterScale;
+              const jitterY = (deterministicJitter(candidateIndex, 2, seed) - 0.5) * yStep * PACKED_RHOMBUS_JITTER * jitterScale;
               const px = x + rowOffset + jitterX;
               const py = y + jitterY;
 
@@ -1159,7 +1173,7 @@
 
         const baseW = Math.max(5, spacing * PACKED_RHOMBUS_CAT_SCALE);
         const slots = selected.map((point, index) => {
-          const sizeWave = 0.94 + 0.08 * Math.sin(index * 1.618);
+          const sizeWave = 0.94 + 0.08 * Math.sin(index * 1.618 + sizePhase);
           const drawW = baseW * sizeWave;
           return {
             id: index,
