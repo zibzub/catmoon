@@ -34,10 +34,15 @@
     </div>
     <canvas id="scene"></canvas>
 
-    <div id="hud">
+    <div id="hud" class="locked">
       <button id="hudLockButton" type="button" aria-label="Unlock MoonCat details" title="Unlock MoonCat details">🔒</button>
-      <div>Cat: <span id="catId">-</span></div>
-      <div id="preview" aria-hidden="true"></div>
+      <div id="hudDetails">
+        <div id="catSummary">
+          <div>Cat: <span id="catId">-</span></div>
+          <div id="preview" aria-hidden="true"></div>
+        </div>
+        <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>
+      </div>
     </div>
 
     <div id="tooltip"></div>
@@ -48,7 +53,6 @@
         <div id="loadingProgress">Preparing faces...</div>
       </div>
     </div>
-    <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>
 
     <script type="module" src="main.js"></script>
   </body>

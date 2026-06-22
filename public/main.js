@@ -669,7 +669,7 @@ async function initializeScene() {
   controls.enabled = true;
   controls.minDistance = TRI_MIN_DISTANCE;
   controls.maxDistance = TRI_MAX_DISTANCE;
-  statusEl.textContent = `Triacontahedron: drag to tumble, scroll/pinch zoom, two-finger twist or Ctrl/Alt-drag roll. ${TRI_FACE_COUNT} x ${RHOMBUS_CAT_COUNT} = ${TRI_FACE_COUNT * RHOMBUS_CAT_COUNT}`;
+  statusEl.textContent = `Drag to tumble, scroll/pinch zoom, twist or Ctrl/Alt-drag roll.`;
   setHoveredId(null);
   updateHoverFromPointer();
   triacontahedron.visible = true;
