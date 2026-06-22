@@ -146,6 +146,7 @@
       }
 
       #status {
+        display: none;
         position: fixed;
         right: 12px;
         bottom: 12px;
@@ -332,6 +333,7 @@
       const MAX_ID = COLS * ROWS - 1;
       const PREVIEW_SCALE = 8;
       const CLICK_MOVE_LIMIT = 6;
+      const TOOLTIP_INACTIVITY_HIDE_MS = 3000;
       const PHI = (1 + Math.sqrt(5)) / 2;
       const FACE_COLS = 80;
       const FACE_ROWS = 53;
@@ -420,7 +422,7 @@
 
       const controls = new TrackballControls(camera, renderer.domElement);
       controls.rotateSpeed = 0.65;
-      controls.zoomSpeed = 0.8;
+      controls.zoomSpeed = 0.4;
       controls.panSpeed = 0;
       controls.noPan = true;
       controls.noZoom = false;
@@ -441,6 +443,7 @@
       let animationStarted = false;
       let hoveredId = null;
       let hudUnlocked = false;
+      let tooltipHideTimer = null;
       let pointerInside = false;
       let lastClientX = 0;
       let lastClientY = 0;
@@ -627,12 +630,28 @@
         hudLockButton.title = label;
       }
 
+      function clearTooltipHideTimer() {
+        if (tooltipHideTimer !== null) {
+          window.clearTimeout(tooltipHideTimer);
+          tooltipHideTimer = null;
+        }
+      }
+
+      function scheduleTooltipHide() {
+        clearTooltipHideTimer();
+        tooltipHideTimer = window.setTimeout(() => {
+          tooltipEl.style.display = "none";
+          tooltipHideTimer = null;
+        }, TOOLTIP_INACTIVITY_HIDE_MS);
+      }
+
       function setHoveredId(id) {
         hoveredId = id;
         catIdEl.textContent = id === null ? "-" : String(id);
         updatePreview(id);
 
         if (id === null) {
+          clearTooltipHideTimer();
           tooltipEl.style.display = "none";
           return;
         }
@@ -641,6 +660,7 @@
         tooltipEl.style.left = `${lastClientX + 14}px`;
         tooltipEl.style.top = `${lastClientY + 14}px`;
         tooltipEl.style.display = "block";
+        scheduleTooltipHide();
       }
 
       function updateHoverFromPointer() {
