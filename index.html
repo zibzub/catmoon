@@ -382,7 +382,7 @@
       const STAR_PARALLAX_SMALL_STRENGTH = 36;
       const STAR_PARALLAX_LARGE_STRENGTH = 18;
       const STAR_PARALLAX_EASE = 0.06;
-      const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 1.3;
+      const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 1.6;
       const DRAW_RHOMBUS_CELL_OUTLINES = true;
 
       const smallStarsEl = document.getElementById("small-stars");
@@ -471,7 +471,7 @@
         largeX: 0,
         largeY: 0
       };
-      const parallaxEuler = new THREE.Euler();
+      const parallaxCameraVector = new THREE.Vector3();
 
       function pixelRatio() {
         return Math.min(window.devicePixelRatio || 1, 2);
@@ -748,11 +748,11 @@
       function updateStarParallax() {
         if (!STAR_PARALLAX_ENABLED || !activeObject) return;
 
-        parallaxEuler.setFromQuaternion(activeObject.quaternion, "YXZ");
-        const targetX = Math.sin(parallaxEuler.y) * STAR_PARALLAX_SMALL_STRENGTH;
-        const targetY = Math.sin(parallaxEuler.x) * -STAR_PARALLAX_SMALL_STRENGTH;
-        const largeTargetX = Math.sin(parallaxEuler.y) * STAR_PARALLAX_LARGE_STRENGTH;
-        const largeTargetY = Math.sin(parallaxEuler.x) * -STAR_PARALLAX_LARGE_STRENGTH;
+        parallaxCameraVector.copy(camera.position).normalize();
+        const targetX = -parallaxCameraVector.x * STAR_PARALLAX_SMALL_STRENGTH;
+        const targetY = parallaxCameraVector.y * STAR_PARALLAX_SMALL_STRENGTH;
+        const largeTargetX = -parallaxCameraVector.x * STAR_PARALLAX_LARGE_STRENGTH;
+        const largeTargetY = parallaxCameraVector.y * STAR_PARALLAX_LARGE_STRENGTH;
 
         starParallax.smallX += (targetX - starParallax.smallX) * STAR_PARALLAX_EASE;
         starParallax.smallY += (targetY - starParallax.smallY) * STAR_PARALLAX_EASE;
