@@ -85,6 +85,8 @@ let activeObject = null;
 let animationStarted = false;
 let hoveredId = null;
 let hudUnlocked = false;
+let previewAtlasLoaded = false;
+let previewAtlasLoading = false;
 let tooltipHideTimer = null;
 let pointerInside = false;
 let lastClientX = 0;
@@ -212,10 +214,23 @@ function updatePreview(id) {
     return;
   }
 
+  if (hudUnlocked) {
+    ensurePreviewAtlasLoaded();
+  }
+
   const row = Math.floor(id / COLS);
   const col = id % COLS;
   previewEl.style.backgroundSize = `${ATLAS_W * PREVIEW_SCALE}px ${ATLAS_H * PREVIEW_SCALE}px`;
   previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
+}
+
+function ensurePreviewAtlasLoaded() {
+  if (previewAtlasLoaded || previewAtlasLoading) return;
+
+  previewAtlasLoading = true;
+  previewEl.style.backgroundImage = 'url("img/allcats.png")';
+  previewAtlasLoaded = true;
+  previewAtlasLoading = false;
 }
 
 function updateHudLockState() {
@@ -625,11 +640,8 @@ async function loadTriFaceSlotMetadata() {
 
 window.triFaceTextureStats = triTextureStats;
 
-async function initializeScene(texture) {
+async function initializeScene() {
   showLoadingOverlay();
-  setLoadingProgress("Loading MoonCat atlas...");
-  applyPixelTextureSettings(texture);
-
   setLoadingProgress("Loading face metadata...");
   await loadTriFaceSlotMetadata();
 
@@ -669,21 +681,11 @@ async function initializeScene(texture) {
   }
 }
 
-textureLoader.load(
-  "img/allcats.png",
-  (texture) => {
-    initializeScene(texture).catch((error) => {
-      console.error("Could not initialize CatMoon scene.", error);
-      setLoadingProgress(error.message || "Could not initialize CatMoon scene.");
-      statusEl.textContent = "Could not initialize CatMoon scene.";
-    });
-  },
-  undefined,
-  () => {
-    setLoadingProgress("Could not load img/allcats.png.");
-    statusEl.textContent = "Could not load img/allcats.png.";
-  }
-);
+initializeScene().catch((error) => {
+  console.error("Could not initialize CatMoon scene.", error);
+  setLoadingProgress(error.message || "Could not initialize CatMoon scene.");
+  statusEl.textContent = "Could not initialize CatMoon scene.";
+});
 
 hudLockButton.addEventListener("click", (event) => {
   event.preventDefault();
@@ -691,6 +693,7 @@ hudLockButton.addEventListener("click", (event) => {
   hudUnlocked = !hudUnlocked;
   updateHudLockState();
   if (hudUnlocked) {
+    ensurePreviewAtlasLoaded();
     setHoveredId(hoveredId);
   }
 });

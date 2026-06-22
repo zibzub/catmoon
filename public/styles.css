@@ -120,7 +120,6 @@ body {
   height: 176px;
   border: 2px solid hotpink;
   background-color: #000;
-  background-image: url("img/allcats.png");
   background-repeat: no-repeat;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
