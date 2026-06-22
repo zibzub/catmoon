@@ -24,7 +24,7 @@ const TRI_FACE_LONG_DIAG = Math.round(TRI_FACE_SHORT_DIAG * PHI);
 const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
 const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
 const TRI_FACE_CAT_PIXEL_SCALE = 2;
-const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.json";
+const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.compact.json";
 const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
 const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
 const TOUCH_TWIST_ROLL_SPEED = 1.0;
@@ -569,48 +569,38 @@ function makeTriacontahedron() {
   return group;
 }
 
-function validateTriFaceSlotMetadata(metadata) {
-  if (!metadata || metadata.version !== 1) return false;
-  if (metadata.faceTextureWidth !== TRI_FACE_TEX_W) return false;
-  if (metadata.faceTextureHeight !== TRI_FACE_TEX_H) return false;
-  if (metadata.catPixelScale !== TRI_FACE_CAT_PIXEL_SCALE) return false;
-  if (metadata.faceCount !== TRI_FACE_COUNT) return false;
-  if (metadata.catCountPerFace !== RHOMBUS_CAT_COUNT) return false;
+function validateCompactTriFaceSlotMetadata(metadata) {
+  if (!metadata || metadata.v !== 1) return false;
+  if (metadata.tw !== TRI_FACE_TEX_W) return false;
+  if (metadata.th !== TRI_FACE_TEX_H) return false;
+  if (metadata.fc !== TRI_FACE_COUNT) return false;
+  if (metadata.cpf !== RHOMBUS_CAT_COUNT) return false;
   if (!Array.isArray(metadata.faces) || metadata.faces.length !== TRI_FACE_COUNT) return false;
 
   return metadata.faces.every((faceSlots) => (
     Array.isArray(faceSlots)
     && faceSlots.length === RHOMBUS_CAT_COUNT
-    && faceSlots.every((slot) => (
-      Number.isFinite(slot.id)
-      && Number.isFinite(slot.x)
-      && Number.isFinite(slot.y)
-      && Number.isFinite(slot.w)
-      && Number.isFinite(slot.h)
-      && Number.isFinite(slot.drawOrder)
-      && slot.hitRect
-      && Number.isFinite(slot.hitRect.x)
-      && Number.isFinite(slot.hitRect.y)
-      && Number.isFinite(slot.hitRect.w)
-      && Number.isFinite(slot.hitRect.h)
+    && faceSlots.every((slotTuple) => (
+      Array.isArray(slotTuple)
+      && slotTuple.length === 7
+      && slotTuple.every(Number.isFinite)
     ))
   ));
 }
 
-function normalizeTriFaceSlots(faceSlots) {
-  return faceSlots.map((slot) => ({
-    id: slot.id,
-    x: slot.x,
-    y: slot.y,
-    w: slot.w,
-    h: slot.h,
+function normalizeCompactTriFaceSlots(faceSlots) {
+  return faceSlots.map(([id, hitX, hitY, hitW, hitH, centerX, centerY]) => ({
+    id,
+    x: centerX,
+    y: centerY,
+    w: hitW,
+    h: hitH,
     polygon: null,
-    drawOrder: slot.drawOrder,
     hitRect: {
-      x: slot.hitRect.x,
-      y: slot.hitRect.y,
-      w: slot.hitRect.w,
-      h: slot.hitRect.h
+      x: hitX,
+      y: hitY,
+      w: hitW,
+      h: hitH
     }
   }));
 }
@@ -622,12 +612,12 @@ async function loadTriFaceSlotMetadata() {
   }
 
   const metadata = await response.json();
-  if (!validateTriFaceSlotMetadata(metadata)) {
+  if (!validateCompactTriFaceSlotMetadata(metadata)) {
     throw new Error(`${TRI_FACE_METADATA_URL} does not match current CatMoon texture settings.`);
   }
 
   metadata.faces.forEach((faceSlots, faceIndex) => {
-    triFaceSlots[faceIndex] = normalizeTriFaceSlots(faceSlots);
+    triFaceSlots[faceIndex] = normalizeCompactTriFaceSlots(faceSlots);
   });
   triTextureStats.metadataLoaded = true;
   console.info(`Loaded tri-face slot metadata from ${TRI_FACE_METADATA_URL}`);
