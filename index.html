@@ -16,7 +16,38 @@
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
+      #background {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        background: #050507;
+        pointer-events: none;
+      }
+
+      #small-stars,
+      #large-stars {
+        position: absolute;
+        left: -50vw;
+        top: -50vh;
+        width: 200vw;
+        height: 200vh;
+        background-repeat: repeat;
+        will-change: transform;
+        pointer-events: none;
+      }
+
+      #small-stars {
+        background-image: url("img/bgstarssmall.png");
+      }
+
+      #large-stars {
+        background-image: url("img/bgstarslarge.png");
+      }
+
       #scene {
+        position: relative;
+        z-index: 1;
         display: block;
         width: 100%;
         height: 100%;
@@ -29,6 +60,8 @@
       }
 
       #rhombusScene {
+        position: relative;
+        z-index: 1;
         display: none;
         width: 100%;
         height: 100%;
@@ -254,6 +287,10 @@
     </script>
   </head>
   <body>
+    <div id="background" aria-hidden="true">
+      <div id="small-stars"></div>
+      <div id="large-stars"></div>
+    </div>
     <canvas id="scene"></canvas>
     <canvas id="rhombusScene"></canvas>
 
@@ -335,8 +372,21 @@
       const TRI_USE_PRERENDERED_SLOT_METADATA = true;
       const TOUCH_TWIST_ROLL_SPEED = 1.0;
       const DESKTOP_ROLL_DRAG_SPEED = 0.006;
+      const AUTO_ROTATE_ENABLED = true;
+      const AUTO_ROTATE_SPEED_X = 0.035;
+      const AUTO_ROTATE_SPEED_Y = 0.055;
+      const AUTO_ROTATE_SPEED_Z = 0.01;
+      const AUTO_ROTATE_RESUME_DELAY_MS = 5000;
+      const AUTO_ROTATE_EASE_IN_MS = 1000;
+      const STAR_PARALLAX_ENABLED = true;
+      const STAR_PARALLAX_SMALL_STRENGTH = 36;
+      const STAR_PARALLAX_LARGE_STRENGTH = 18;
+      const STAR_PARALLAX_EASE = 0.06;
+      const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 1.3;
       const DRAW_RHOMBUS_CELL_OUTLINES = true;
 
+      const smallStarsEl = document.getElementById("small-stars");
+      const largeStarsEl = document.getElementById("large-stars");
       const canvas = document.getElementById("scene");
       const rhombusCanvas = document.getElementById("rhombusScene");
       const hud = document.getElementById("hud");
@@ -359,10 +409,10 @@
       const renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: false,
-        alpha: false
+        alpha: true
       });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      renderer.setClearColor(0x050507, 1);
+      renderer.setClearColor(0x050507, 0);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
@@ -375,7 +425,7 @@
       controls.noPan = true;
       controls.noZoom = false;
       controls.staticMoving = false;
-      controls.dynamicDampingFactor = 0.08;
+      controls.dynamicDampingFactor = 0.08 / DRAG_RELEASE_MOMENTUM_MULTIPLIER;
       controls.minDistance = DEFAULT_MIN_DISTANCE;
       controls.maxDistance = DEFAULT_MAX_DISTANCE;
 
@@ -412,6 +462,16 @@
       let twoFingerLastAngle = null;
       let touchGestureWasTwoFinger = false;
       let rollDrag = null;
+      let autoRotateResumeAt = 0;
+      let autoRotateActiveSince = performance.now();
+      let lastFrameTime = performance.now();
+      const starParallax = {
+        smallX: 0,
+        smallY: 0,
+        largeX: 0,
+        largeY: 0
+      };
+      const parallaxEuler = new THREE.Euler();
 
       function pixelRatio() {
         return Math.min(window.devicePixelRatio || 1, 2);
@@ -659,6 +719,50 @@
         }
       }
 
+      function pauseAutoRotate() {
+        autoRotateResumeAt = Infinity;
+      }
+
+      function scheduleAutoRotateResume() {
+        autoRotateResumeAt = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS;
+        autoRotateActiveSince = autoRotateResumeAt;
+      }
+
+      function startAutoRotateNow() {
+        autoRotateResumeAt = performance.now();
+        autoRotateActiveSince = autoRotateResumeAt;
+      }
+
+      function applyAutoRotate(deltaSeconds) {
+        if (!AUTO_ROTATE_ENABLED || isRhombusMode() || !activeObject) return;
+        const now = performance.now();
+        if (now < autoRotateResumeAt) return;
+
+        const t = clamp((now - autoRotateActiveSince) / AUTO_ROTATE_EASE_IN_MS, 0, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        activeObject.rotation.x += AUTO_ROTATE_SPEED_X * deltaSeconds * ease;
+        activeObject.rotation.y += AUTO_ROTATE_SPEED_Y * deltaSeconds * ease;
+        activeObject.rotation.z += AUTO_ROTATE_SPEED_Z * deltaSeconds * ease;
+      }
+
+      function updateStarParallax() {
+        if (!STAR_PARALLAX_ENABLED || !activeObject) return;
+
+        parallaxEuler.setFromQuaternion(activeObject.quaternion, "YXZ");
+        const targetX = Math.sin(parallaxEuler.y) * STAR_PARALLAX_SMALL_STRENGTH;
+        const targetY = Math.sin(parallaxEuler.x) * -STAR_PARALLAX_SMALL_STRENGTH;
+        const largeTargetX = Math.sin(parallaxEuler.y) * STAR_PARALLAX_LARGE_STRENGTH;
+        const largeTargetY = Math.sin(parallaxEuler.x) * -STAR_PARALLAX_LARGE_STRENGTH;
+
+        starParallax.smallX += (targetX - starParallax.smallX) * STAR_PARALLAX_EASE;
+        starParallax.smallY += (targetY - starParallax.smallY) * STAR_PARALLAX_EASE;
+        starParallax.largeX += (largeTargetX - starParallax.largeX) * STAR_PARALLAX_EASE;
+        starParallax.largeY += (largeTargetY - starParallax.largeY) * STAR_PARALLAX_EASE;
+
+        smallStarsEl.style.transform = `translate3d(${starParallax.smallX}px, ${starParallax.smallY}px, 0)`;
+        largeStarsEl.style.transform = `translate3d(${starParallax.largeX}px, ${starParallax.largeY}px, 0)`;
+      }
+
       function resize() {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -672,7 +776,12 @@
 
       function animate() {
         requestAnimationFrame(animate);
+        const now = performance.now();
+        const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.05);
+        lastFrameTime = now;
         controls.update();
+        applyAutoRotate(deltaSeconds);
+        updateStarParallax();
         renderer.render(scene, camera);
       }
 
@@ -1810,6 +1919,7 @@
         resize();
         setProjection("triacontahedron");
         triacontahedron.visible = true;
+        startAutoRotateNow();
         hideLoadingOverlay();
         if (!animationStarted) {
           animationStarted = true;
@@ -1883,6 +1993,7 @@
       });
 
       renderer.domElement.addEventListener("pointerdown", (event) => {
+        pauseAutoRotate();
         activePointers.set(event.pointerId, {
           x: event.clientX,
           y: event.clientY,
@@ -1916,6 +2027,7 @@
             touchGestureWasTwoFinger = false;
           }
           downPoint = null;
+          scheduleAutoRotateResume();
           return;
         }
 
@@ -1926,6 +2038,7 @@
           downPoint = null;
           event.preventDefault();
           event.stopImmediatePropagation();
+          scheduleAutoRotateResume();
           return;
         }
 
@@ -1945,6 +2058,7 @@
         }
 
         downPoint = null;
+        scheduleAutoRotateResume();
       }, { capture: true });
 
       renderer.domElement.addEventListener("pointercancel", (event) => {
@@ -1956,6 +2070,7 @@
           controls.enabled = !isRhombusMode();
         }
         downPoint = null;
+        scheduleAutoRotateResume();
       }, { capture: true });
 
       rhombusCanvas.addEventListener("pointermove", (event) => {
