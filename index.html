@@ -215,9 +215,11 @@
       const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
       const TRI_FACE_PIXEL_PERFECT_EXPORT = true;
       const TRI_FACE_CAT_PIXEL_SCALE = 2;
+      const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.json";
       const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
       const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
       const TRI_USE_PRERENDERED_FACE_TEXTURES = true;
+      const TRI_USE_PRERENDERED_SLOT_METADATA = true;
       const TOUCH_TWIST_ROLL_SPEED = 1.0;
       const DESKTOP_ROLL_DRAG_SPEED = 0.006;
       const DRAW_RHOMBUS_CELL_OUTLINES = true;
@@ -282,7 +284,10 @@
       const triRuntimeFaceCanvases = [];
       const triTextureStats = {
         prerenderedLoaded: 0,
-        runtimeFallback: 0
+        runtimeFallback: 0,
+        metadataLoaded: false,
+        metadataGenerated: 0,
+        runtimeCanvasesRendered: 0
       };
       const activePointers = new Map();
       let twoFingerLastAngle = null;
@@ -314,6 +319,20 @@
         texture.wrapT = THREE.ClampToEdgeWrapping;
         texture.needsUpdate = true;
         return texture;
+      }
+
+      function makePlaceholderTexture() {
+        const placeholderCanvas = document.createElement("canvas");
+        placeholderCanvas.width = 2;
+        placeholderCanvas.height = 2;
+        const context = placeholderCanvas.getContext("2d");
+        context.imageSmoothingEnabled = false;
+        context.fillStyle = "#08080c";
+        context.fillRect(0, 0, 2, 2);
+        context.fillStyle = "#1f1420";
+        context.fillRect(0, 0, 1, 1);
+        context.fillRect(1, 1, 1, 1);
+        return applyPixelTextureSettings(new THREE.CanvasTexture(placeholderCanvas));
       }
 
       function idFromSphereUv(uv) {
@@ -701,7 +720,37 @@
         return [top, right, bottom, left];
       }
 
-      function makeTriFaceRuntimeCanvas(faceIndex) {
+      function buildTriFaceSlots(faceIndex) {
+        const outer = makeCanonicalRhombus(TRI_FACE_TEX_W, TRI_FACE_TEX_H);
+        const slots = buildPackedRhombusSlotsFromOuter(outer, {
+          seed: faceIndex,
+          variant: faceIndex !== 0
+        });
+        slots.sort((a, b) => a.drawOrder - b.drawOrder);
+        console.assert(slots.length === RHOMBUS_CAT_COUNT, `Face texture ${faceIndex} has ${slots.length} slots`);
+
+        for (const slot of slots) {
+          const w = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_W * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.w);
+          const h = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_H * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.h);
+          slot.w = w;
+          slot.h = h;
+          const x = Math.round(slot.x - w / 2);
+          const y = Math.round(slot.y - h / 2);
+          slot.hitRect = { x, y, w, h };
+        }
+
+        return slots;
+      }
+
+      function ensureTriFaceSlots(faceIndex) {
+        if (!triFaceSlots[faceIndex]) {
+          triFaceSlots[faceIndex] = buildTriFaceSlots(faceIndex);
+          triTextureStats.metadataGenerated += 1;
+        }
+        return triFaceSlots[faceIndex];
+      }
+
+      function makeTriFaceRuntimeCanvas(faceIndex, slots = ensureTriFaceSlots(faceIndex)) {
         const faceCanvas = document.createElement("canvas");
         faceCanvas.width = TRI_FACE_TEX_W;
         faceCanvas.height = TRI_FACE_TEX_H;
@@ -711,11 +760,6 @@
         context.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
 
         const outer = makeCanonicalRhombus(faceCanvas.width, faceCanvas.height);
-        const slots = buildPackedRhombusSlotsFromOuter(outer, {
-          seed: faceIndex,
-          variant: faceIndex !== 0
-        });
-        slots.sort((a, b) => a.drawOrder - b.drawOrder);
         console.assert(slots.length === RHOMBUS_CAT_COUNT, `Face texture ${faceIndex} has ${slots.length} slots`);
 
         drawPolygon(context, outer, "rgba(8, 8, 12, 1)", null);
@@ -723,32 +767,29 @@
 
         for (const slot of slots) {
           const id = faceIndex * RHOMBUS_CAT_COUNT + slot.id;
-          const w = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_W * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.w);
-          const h = TRI_FACE_PIXEL_PERFECT_EXPORT ? TILE_H * TRI_FACE_CAT_PIXEL_SCALE : Math.round(slot.h);
-          slot.w = w;
-          slot.h = h;
-          const x = Math.round(slot.x - w / 2);
-          const y = Math.round(slot.y - h / 2);
-          drawCatInPixelRect(context, id, x, y, w, h);
-          slot.hitRect = { x, y, w, h };
+          drawCatInPixelRect(context, id, slot.hitRect.x, slot.hitRect.y, slot.hitRect.w, slot.hitRect.h);
         }
 
         drawPolygon(context, outer, null, "rgba(255, 105, 180, 0.72)", 2);
 
         const texture = new THREE.CanvasTexture(faceCanvas);
         triRuntimeFaceCanvases[faceIndex] = faceCanvas;
+        triTextureStats.runtimeCanvasesRendered += 1;
         return { canvas: faceCanvas, slots, texture: applyPixelTextureSettings(texture) };
       }
 
       function makeTriFaceMaterial(faceIndex) {
-        const runtimeFace = makeTriFaceRuntimeCanvas(faceIndex);
-        triFaceSlots[faceIndex] = runtimeFace.slots;
-        triTextureStats.runtimeFallback += 1;
-
         const material = new THREE.MeshBasicMaterial({
-          map: runtimeFace.texture,
+          map: makePlaceholderTexture(),
           side: THREE.DoubleSide
         });
+
+        const applyRuntimeFallback = () => {
+          const runtimeFace = makeTriFaceRuntimeCanvas(faceIndex, ensureTriFaceSlots(faceIndex));
+          material.map = runtimeFace.texture;
+          material.needsUpdate = true;
+          triTextureStats.runtimeFallback += 1;
+        };
 
         if (TRI_USE_PRERENDERED_FACE_TEXTURES) {
           textureLoader.load(
@@ -763,13 +804,15 @@
               material.map = texture;
               material.needsUpdate = true;
               triTextureStats.prerenderedLoaded += 1;
-              triTextureStats.runtimeFallback = Math.max(0, triTextureStats.runtimeFallback - 1);
             },
             undefined,
             () => {
               console.info(`Using runtime tri face texture fallback for ${triFaceTextureUrl(faceIndex)}`);
+              applyRuntimeFallback();
             }
           );
+        } else {
+          applyRuntimeFallback();
         }
 
         return material;
@@ -814,8 +857,114 @@
         return group;
       }
 
+      function validateTriFaceSlotMetadata(metadata) {
+        if (!metadata || metadata.version !== 1) return false;
+        if (metadata.faceTextureWidth !== TRI_FACE_TEX_W) return false;
+        if (metadata.faceTextureHeight !== TRI_FACE_TEX_H) return false;
+        if (metadata.catPixelScale !== TRI_FACE_CAT_PIXEL_SCALE) return false;
+        if (metadata.faceCount !== TRI_FACE_COUNT) return false;
+        if (metadata.catCountPerFace !== RHOMBUS_CAT_COUNT) return false;
+        if (!Array.isArray(metadata.faces) || metadata.faces.length !== TRI_FACE_COUNT) return false;
+
+        return metadata.faces.every((faceSlots) => (
+          Array.isArray(faceSlots)
+          && faceSlots.length === RHOMBUS_CAT_COUNT
+          && faceSlots.every((slot) => (
+            Number.isFinite(slot.id)
+            && Number.isFinite(slot.x)
+            && Number.isFinite(slot.y)
+            && Number.isFinite(slot.w)
+            && Number.isFinite(slot.h)
+            && Number.isFinite(slot.drawOrder)
+            && slot.hitRect
+            && Number.isFinite(slot.hitRect.x)
+            && Number.isFinite(slot.hitRect.y)
+            && Number.isFinite(slot.hitRect.w)
+            && Number.isFinite(slot.hitRect.h)
+          ))
+        ));
+      }
+
+      function normalizeTriFaceSlots(faceSlots) {
+        return faceSlots.map((slot) => ({
+          id: slot.id,
+          x: slot.x,
+          y: slot.y,
+          w: slot.w,
+          h: slot.h,
+          polygon: null,
+          drawOrder: slot.drawOrder,
+          hitRect: {
+            x: slot.hitRect.x,
+            y: slot.hitRect.y,
+            w: slot.hitRect.w,
+            h: slot.hitRect.h
+          }
+        }));
+      }
+
+      function triFaceSlotMetadataPayload() {
+        for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
+          ensureTriFaceSlots(faceIndex);
+        }
+
+        return {
+          version: 1,
+          faceTextureWidth: TRI_FACE_TEX_W,
+          faceTextureHeight: TRI_FACE_TEX_H,
+          catPixelScale: TRI_FACE_CAT_PIXEL_SCALE,
+          packedRhombusEdgeInset: PACKED_RHOMBUS_EDGE_INSET,
+          packedRhombusJitter: PACKED_RHOMBUS_JITTER,
+          faceCount: TRI_FACE_COUNT,
+          catCountPerFace: RHOMBUS_CAT_COUNT,
+          faces: triFaceSlots.map((faceSlots) => faceSlots.map((slot) => ({
+            id: slot.id,
+            x: slot.x,
+            y: slot.y,
+            w: slot.w,
+            h: slot.h,
+            hitRect: {
+              x: slot.hitRect.x,
+              y: slot.hitRect.y,
+              w: slot.hitRect.w,
+              h: slot.hitRect.h
+            },
+            drawOrder: slot.drawOrder
+          })))
+        };
+      }
+
+      async function loadTriFaceSlotMetadata() {
+        if (TRI_USE_PRERENDERED_SLOT_METADATA) {
+          try {
+            const response = await fetch(TRI_FACE_METADATA_URL, { cache: "no-cache" });
+            if (response.ok) {
+              const metadata = await response.json();
+              if (validateTriFaceSlotMetadata(metadata)) {
+                metadata.faces.forEach((faceSlots, faceIndex) => {
+                  triFaceSlots[faceIndex] = normalizeTriFaceSlots(faceSlots);
+                });
+                triTextureStats.metadataLoaded = true;
+                console.info(`Loaded tri-face slot metadata from ${TRI_FACE_METADATA_URL}`);
+                return;
+              }
+              console.warn(`${TRI_FACE_METADATA_URL} did not match current tri-face settings; generating metadata in memory.`);
+            } else {
+              console.info(`${TRI_FACE_METADATA_URL} not found; generating tri-face slot metadata in memory.`);
+            }
+          } catch (error) {
+            console.warn(`Could not load ${TRI_FACE_METADATA_URL}; generating tri-face slot metadata in memory.`, error);
+          }
+        }
+
+        for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
+          ensureTriFaceSlots(faceIndex);
+        }
+        console.info(`Generated tri-face slot metadata in memory for ${TRI_FACE_COUNT} faces.`);
+      }
+
       function triFaceCanvas(faceIndex) {
-        return triRuntimeFaceCanvases[faceIndex] || makeTriFaceRuntimeCanvas(faceIndex).canvas;
+        return triRuntimeFaceCanvases[faceIndex] || makeTriFaceRuntimeCanvas(faceIndex, ensureTriFaceSlots(faceIndex)).canvas;
       }
 
       function canvasToPngBlob(canvas) {
@@ -830,6 +979,24 @@
         });
       }
 
+      function downloadBlob(blob, filename) {
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      window.exportTriFaceSlotMetadata = async () => {
+        const payload = triFaceSlotMetadataPayload();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        downloadBlob(blob, "tri-face-slots.json");
+        console.info(`Downloaded tri-face-slots.json. Place it at ${TRI_FACE_METADATA_URL}`);
+      };
+
       // Dev helper: downloads tri-face-00.png through tri-face-29.png separately.
       // Prefer window.exportTriFacePngZip() because some browsers limit batch downloads.
       window.exportTriFacePngsIndividually = () => {
@@ -843,14 +1010,7 @@
           const canvas = triFaceCanvas(faceIndex);
           canvas.toBlob((blob) => {
             if (!blob) return;
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.href = url;
-            link.download = `${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            downloadBlob(blob, `${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`);
           }, "image/png");
         }
 
@@ -872,18 +1032,12 @@
           const blob = await canvasToPngBlob(canvas);
           zip.file(`${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`, blob);
         }
+        zip.file("tri-face-slots.json", JSON.stringify(triFaceSlotMetadataPayload(), null, 2));
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(zipBlob);
-        link.href = url;
-        link.download = "tri-faces.zip";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        downloadBlob(zipBlob, "tri-faces.zip");
 
-        console.info(`Downloaded tri-faces.zip with ${TRI_FACE_COUNT} PNGs at ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Extract it into ${TRI_FACE_TEXTURE_DIR}/`);
+        console.info(`Downloaded tri-faces.zip with ${TRI_FACE_COUNT} PNGs and tri-face-slots.json at ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Extract it into ${TRI_FACE_TEXTURE_DIR}/`);
       };
 
       window.exportTriFacePngs = () => window.exportTriFacePngZip();
@@ -1470,36 +1624,39 @@
         }
       }
 
+      async function initializeScene(texture) {
+        sourceImage = texture.image;
+        applyPixelTextureSettings(texture);
+
+        await loadTriFaceSlotMetadata();
+
+        const geometry = new THREE.SphereGeometry(1, 160, 96);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+
+        cube = makeCube(texture.image);
+        scene.add(cube);
+
+        triacontahedron = makeTriacontahedron(texture.image);
+        scene.add(triacontahedron);
+
+        setProjection("triacontahedron");
+
+        resize();
+        if (!animationStarted) {
+          animationStarted = true;
+          animate();
+        }
+      }
+
       textureLoader.load(
         "img/allcats.png",
         (texture) => {
-          sourceImage = texture.image;
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.magFilter = THREE.NearestFilter;
-          texture.minFilter = THREE.NearestFilter;
-          texture.generateMipmaps = false;
-          texture.wrapS = THREE.ClampToEdgeWrapping;
-          texture.wrapT = THREE.ClampToEdgeWrapping;
-          texture.needsUpdate = true;
-
-          const geometry = new THREE.SphereGeometry(1, 160, 96);
-          const material = new THREE.MeshBasicMaterial({ map: texture });
-          sphere = new THREE.Mesh(geometry, material);
-          scene.add(sphere);
-
-          cube = makeCube(texture.image);
-          scene.add(cube);
-
-          triacontahedron = makeTriacontahedron(texture.image);
-          scene.add(triacontahedron);
-
-          setProjection("triacontahedron");
-
-          resize();
-          if (!animationStarted) {
-            animationStarted = true;
-            animate();
-          }
+          initializeScene(texture).catch((error) => {
+            console.error("Could not initialize CatMoon scene.", error);
+            statusEl.textContent = "Could not initialize CatMoon scene.";
+          });
         },
         undefined,
         () => {
