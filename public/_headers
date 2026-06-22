@@ -1,0 +1,19 @@
+# Cloudflare Pages custom headers for CatMoon
+
+# Keep the app shell fresh. These filenames are not fingerprinted.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/main.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/styles.css
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Heavy static assets. These should be safe to cache long-term if filenames change
+# when content changes, or if you are okay with manual cache-busting after changes.
+/img/*
+  Cache-Control: public, max-age=31536000, immutable
