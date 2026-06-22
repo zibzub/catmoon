@@ -1,0 +1,271 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050507;
+  color: #e8e8e8;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #050507;
+  pointer-events: none;
+}
+
+#small-stars,
+#large-stars {
+  position: absolute;
+  left: -50vw;
+  top: -50vh;
+  width: 200vw;
+  height: 200vh;
+  background-repeat: repeat;
+  will-change: transform;
+  pointer-events: none;
+}
+
+#small-stars {
+  background-image: url("img/bgstarssmall.png");
+}
+
+#large-stars {
+  background-image: url("img/bgstarslarge.png");
+}
+
+#scene {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+#scene:active {
+  cursor: grabbing;
+}
+
+#rhombusScene {
+  position: relative;
+  z-index: 1;
+  display: none;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 105, 180, 0.55);
+  background: rgba(0, 0, 0, 0.72);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+#hud.locked {
+  width: 42px;
+  height: 42px;
+  gap: 0;
+  min-height: 38px;
+  padding: 5px;
+}
+
+#hud > *:not(#hudLockButton) {
+  pointer-events: none;
+}
+
+#hud.locked > *:not(#hudLockButton) {
+  display: none;
+}
+
+#hudLockButton {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255, 105, 180, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#hudLockButton:hover,
+#hudLockButton:focus-visible {
+  border-color: hotpink;
+  outline: none;
+}
+
+#catId {
+  min-width: 54px;
+  color: hotpink;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#preview {
+  width: 168px;
+  height: 176px;
+  border: 2px solid hotpink;
+  background-color: #000;
+  background-image: url("img/allcats.png");
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#status {
+  display: none;
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #bfbfbf;
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+#tooltip {
+  position: fixed;
+  z-index: 3;
+  display: none;
+  padding: 5px 7px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 105, 180, 0.65);
+  color: hotpink;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+#projectionControls {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 5px;
+  border: 1px solid rgba(255, 105, 180, 0.45);
+  background: rgba(0, 0, 0, 0.72);
+}
+
+#projectionControls button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#projectionControls button:hover,
+#projectionControls button:focus-visible {
+  border-color: rgba(255, 105, 180, 0.75);
+  outline: none;
+}
+
+#projectionControls button.active {
+  border-color: hotpink;
+  background: hotpink;
+  color: #050507;
+  font-weight: 700;
+}
+
+#loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #050507;
+  color: #f3f3f3;
+  box-sizing: border-box;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 280ms ease, visibility 280ms ease;
+}
+
+#loadingOverlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#loadingCard {
+  width: min(320px, 100%);
+  padding: 24px 22px;
+  border: 1px solid rgba(255, 105, 180, 0.55);
+  background: rgba(0, 0, 0, 0.78);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#loadingSpinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 16px;
+  border: 2px solid rgba(255, 105, 180, 0.2);
+  border-top-color: hotpink;
+  transform: rotate(45deg);
+  animation: catmoonSpin 960ms linear infinite;
+}
+
+#loadingTitle {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+#loadingProgress {
+  color: #cfcfcf;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@keyframes catmoonSpin {
+  from {
+    transform: rotate(45deg);
+  }
+
+  to {
+    transform: rotate(405deg);
+  }
+}
