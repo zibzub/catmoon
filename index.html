@@ -138,6 +138,70 @@
         color: #050507;
         font-weight: 700;
       }
+
+      #loadingOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #050507;
+        color: #f3f3f3;
+        box-sizing: border-box;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 280ms ease, visibility 280ms ease;
+      }
+
+      #loadingOverlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      #loadingCard {
+        width: min(320px, 100%);
+        padding: 24px 22px;
+        border: 1px solid rgba(255, 105, 180, 0.55);
+        background: rgba(0, 0, 0, 0.78);
+        text-align: center;
+        box-sizing: border-box;
+      }
+
+      #loadingSpinner {
+        width: 34px;
+        height: 34px;
+        margin: 0 auto 16px;
+        border: 2px solid rgba(255, 105, 180, 0.2);
+        border-top-color: hotpink;
+        transform: rotate(45deg);
+        animation: catmoonSpin 960ms linear infinite;
+      }
+
+      #loadingTitle {
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 7px;
+      }
+
+      #loadingProgress {
+        color: #cfcfcf;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      @keyframes catmoonSpin {
+        from {
+          transform: rotate(45deg);
+        }
+
+        to {
+          transform: rotate(405deg);
+        }
+      }
     </style>
     <script type="importmap">
       {
@@ -159,6 +223,13 @@
     </div>
 
     <div id="tooltip"></div>
+    <div id="loadingOverlay">
+      <div id="loadingCard">
+        <div id="loadingSpinner"></div>
+        <div id="loadingTitle">Loading CatMoon</div>
+        <div id="loadingProgress">Preparing faces...</div>
+      </div>
+    </div>
     <div id="projectionControls" aria-label="Projection mode">
       <button id="sphereButton" class="active" type="button">Sphere</button>
       <button id="cubeButton" type="button">Cube</button>
@@ -209,6 +280,7 @@
       const TRI_MAX_DISTANCE = 7;
       const TRI_FACE_BASE_SHORT_DIAG = 768;
       const TRI_FACE_TEXTURE_SCALE = 2;
+      // Future mobile optimization: lower scale, alternate img/tri-faces-mobile/, a face atlas, or KTX2/Basis compression.
       const TRI_FACE_SHORT_DIAG = TRI_FACE_BASE_SHORT_DIAG * TRI_FACE_TEXTURE_SCALE;
       const TRI_FACE_LONG_DIAG = Math.round(TRI_FACE_SHORT_DIAG * PHI);
       const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
@@ -236,6 +308,8 @@
       const goldenPatternButton = document.getElementById("goldenPatternButton");
       const triacontahedronButton = document.getElementById("triacontahedronButton");
       const statusEl = document.getElementById("status");
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      const loadingProgressEl = document.getElementById("loadingProgress");
       const rhombusContext = rhombusCanvas.getContext("2d");
       rhombusContext.imageSmoothingEnabled = false;
 
@@ -282,6 +356,7 @@
       let rhombusOuterPolygon = [];
       const triFaceSlots = [];
       const triRuntimeFaceCanvases = [];
+      const triFaceTexturePromises = [];
       const triTextureStats = {
         prerenderedLoaded: 0,
         runtimeFallback: 0,
@@ -319,6 +394,18 @@
         texture.wrapT = THREE.ClampToEdgeWrapping;
         texture.needsUpdate = true;
         return texture;
+      }
+
+      function setLoadingProgress(text) {
+        loadingProgressEl.textContent = text;
+      }
+
+      function showLoadingOverlay() {
+        loadingOverlay.classList.remove("hidden");
+      }
+
+      function hideLoadingOverlay() {
+        loadingOverlay.classList.add("hidden");
       }
 
       function makePlaceholderTexture() {
@@ -789,33 +876,39 @@
           material.map = runtimeFace.texture;
           material.needsUpdate = true;
           triTextureStats.runtimeFallback += 1;
+          console.info(`Using runtime tri face texture fallback for ${triFaceTextureUrl(faceIndex)}`);
         };
 
+        let ready;
         if (TRI_USE_PRERENDERED_FACE_TEXTURES) {
-          textureLoader.load(
-            triFaceTextureUrl(faceIndex),
-            (texture) => {
-              if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
-                console.warn(
-                  `${triFaceTextureUrl(faceIndex)} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate with window.exportTriFacePngs().`
-                );
+          ready = new Promise((resolve) => {
+            textureLoader.load(
+              triFaceTextureUrl(faceIndex),
+              (texture) => {
+                if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
+                  console.warn(
+                    `${triFaceTextureUrl(faceIndex)} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate with window.exportTriFacePngs().`
+                  );
+                }
+                applyPixelTextureSettings(texture);
+                material.map = texture;
+                material.needsUpdate = true;
+                triTextureStats.prerenderedLoaded += 1;
+                resolve();
+              },
+              undefined,
+              () => {
+                applyRuntimeFallback();
+                resolve();
               }
-              applyPixelTextureSettings(texture);
-              material.map = texture;
-              material.needsUpdate = true;
-              triTextureStats.prerenderedLoaded += 1;
-            },
-            undefined,
-            () => {
-              console.info(`Using runtime tri face texture fallback for ${triFaceTextureUrl(faceIndex)}`);
-              applyRuntimeFallback();
-            }
-          );
+            );
+          });
         } else {
           applyRuntimeFallback();
+          ready = Promise.resolve();
         }
 
-        return material;
+        return { material, ready };
       }
 
       function makeTriacontahedron(sourceImage) {
@@ -845,7 +938,8 @@
           geometry.setIndex([0, 1, 2, 0, 2, 3]);
           geometry.computeVertexNormals();
 
-          const material = makeTriFaceMaterial(faceIndex);
+          const { material, ready } = makeTriFaceMaterial(faceIndex);
+          triFaceTexturePromises.push(ready);
           const mesh = new THREE.Mesh(geometry, material);
           mesh.userData.faceIndex = faceIndex;
           group.add(mesh);
@@ -1625,11 +1719,15 @@
       }
 
       async function initializeScene(texture) {
+        showLoadingOverlay();
+        setLoadingProgress("Loading MoonCat atlas...");
         sourceImage = texture.image;
         applyPixelTextureSettings(texture);
 
+        setLoadingProgress("Loading face metadata...");
         await loadTriFaceSlotMetadata();
 
+        setLoadingProgress("Building CatMoon...");
         const geometry = new THREE.SphereGeometry(1, 160, 96);
         const material = new THREE.MeshBasicMaterial({ map: texture });
         sphere = new THREE.Mesh(geometry, material);
@@ -1638,12 +1736,28 @@
         cube = makeCube(texture.image);
         scene.add(cube);
 
+        triFaceTexturePromises.length = 0;
         triacontahedron = makeTriacontahedron(texture.image);
+        triacontahedron.visible = false;
         scene.add(triacontahedron);
+        let readyFaceCount = 0;
+        triacontahedron.userData.textureReadyPromise = Promise.all(
+          triFaceTexturePromises.map((promise) => (
+            promise.then(() => {
+              readyFaceCount += 1;
+              setLoadingProgress(`Loading face textures ${readyFaceCount}/${TRI_FACE_COUNT}`);
+            })
+          ))
+        );
 
-        setProjection("triacontahedron");
+        setLoadingProgress(`Loading face textures 0/${TRI_FACE_COUNT}`);
+        await triacontahedron.userData.textureReadyPromise;
+        console.info(`Tri face textures ready: ${triTextureStats.prerenderedLoaded} PNG, ${triTextureStats.runtimeFallback} runtime fallback.`);
 
         resize();
+        setProjection("triacontahedron");
+        triacontahedron.visible = true;
+        hideLoadingOverlay();
         if (!animationStarted) {
           animationStarted = true;
           animate();
