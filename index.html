@@ -51,7 +51,47 @@
         border: 1px solid rgba(255, 105, 180, 0.55);
         background: rgba(0, 0, 0, 0.72);
         box-sizing: border-box;
+        pointer-events: auto;
+      }
+
+      #hud.locked {
+        width: 42px;
+        height: 42px;
+        gap: 0;
+        min-height: 38px;
+        padding: 5px;
+      }
+
+      #hud > *:not(#hudLockButton) {
         pointer-events: none;
+      }
+
+      #hud.locked > *:not(#hudLockButton) {
+        display: none;
+      }
+
+      #hudLockButton {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        z-index: 1;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid rgba(255, 105, 180, 0.5);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f2f2f2;
+        font: inherit;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+
+      #hudLockButton:hover,
+      #hudLockButton:focus-visible {
+        border-color: hotpink;
+        outline: none;
       }
 
       #catId {
@@ -218,6 +258,7 @@
     <canvas id="rhombusScene"></canvas>
 
     <div id="hud">
+      <button id="hudLockButton" type="button" aria-label="Unlock MoonCat details" title="Unlock MoonCat details">🔒</button>
       <div>Cat: <span id="catId">-</span></div>
       <div id="preview" aria-hidden="true"></div>
     </div>
@@ -298,6 +339,8 @@
 
       const canvas = document.getElementById("scene");
       const rhombusCanvas = document.getElementById("rhombusScene");
+      const hud = document.getElementById("hud");
+      const hudLockButton = document.getElementById("hudLockButton");
       const catIdEl = document.getElementById("catId");
       const previewEl = document.getElementById("preview");
       const tooltipEl = document.getElementById("tooltip");
@@ -347,6 +390,7 @@
       let activeMode = "sphere";
       let animationStarted = false;
       let hoveredId = null;
+      let hudUnlocked = false;
       let pointerInside = false;
       let lastClientX = 0;
       let lastClientY = 0;
@@ -515,6 +559,14 @@
         previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
       }
 
+      function updateHudLockState() {
+        hud.classList.toggle("locked", !hudUnlocked);
+        hudLockButton.textContent = hudUnlocked ? "🔓" : "🔒";
+        const label = hudUnlocked ? "Lock MoonCat details" : "Unlock MoonCat details";
+        hudLockButton.setAttribute("aria-label", label);
+        hudLockButton.title = label;
+      }
+
       function setHoveredId(id) {
         hoveredId = id;
         catIdEl.textContent = id === null ? "-" : String(id);
@@ -557,6 +609,7 @@
       }
 
       function openCat(id) {
+        if (!hudUnlocked) return;
         if (id === null) return;
         window.open(`https://mooncatrescue.com/mooncats/${id}`, "_blank", "noopener,noreferrer");
       }
@@ -1784,6 +1837,17 @@
       packedRhombusButton.addEventListener("click", () => setProjection("packedRhombus"));
       goldenPatternButton.addEventListener("click", () => setProjection("goldenPattern"));
       triacontahedronButton.addEventListener("click", () => setProjection("triacontahedron"));
+
+      hudLockButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hudUnlocked = !hudUnlocked;
+        updateHudLockState();
+        if (hudUnlocked) {
+          setHoveredId(hoveredId);
+        }
+      });
+      updateHudLockState();
 
       renderer.domElement.addEventListener("pointermove", (event) => {
         if (activePointers.has(event.pointerId)) {
