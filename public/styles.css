@@ -58,6 +58,7 @@ body {
   left: 12px;
   z-index: 2;
   display: block;
+  width: 328px;
   min-height: 44px;
   padding: 9px 11px;
   border: 1px solid rgba(255, 105, 180, 0.55);
@@ -106,8 +107,9 @@ body {
 }
 
 #hudDetails {
-  max-width: 246px;
+  width: 100%;
   padding-left: 38px;
+  box-sizing: border-box;
 }
 
 #catSummary {
@@ -117,7 +119,8 @@ body {
 }
 
 #catId {
-  min-width: 54px;
+  display: inline-block;
+  width: 6ch;
   color: hotpink;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -134,7 +137,7 @@ body {
 }
 
 #status {
-  max-width: 246px;
+  max-width: 100%;
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
