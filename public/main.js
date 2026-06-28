@@ -512,28 +512,23 @@ function focusFace(faceIndex) {
   if (!faceNormal || !faceUp) return;
 
   const desiredNormal = camera.position.clone().sub(triacontahedron.position).normalize();
-  const currentNormal = faceNormal.clone().applyQuaternion(triacontahedron.quaternion).normalize();
-  if (!Number.isFinite(currentNormal.lengthSq()) || currentNormal.lengthSq() === 0) return;
-
-  const delta = new THREE.Quaternion().setFromUnitVectors(currentNormal, desiredNormal);
-  const normalAlignedQuaternion = delta.multiply(triacontahedron.quaternion).normalize();
-
   const targetUp = new THREE.Vector3(0, 1, 0).projectOnPlane(desiredNormal);
   if (targetUp.lengthSq() < 0.000001) {
     targetUp.set(0, 0, 1).projectOnPlane(desiredNormal);
   }
   targetUp.normalize();
 
-  const alignedUp = faceUp.clone().applyQuaternion(normalAlignedQuaternion).projectOnPlane(desiredNormal);
-  if (alignedUp.lengthSq() < 0.000001) return;
-  alignedUp.normalize();
+  const faceRight = faceUp.clone().cross(faceNormal).normalize();
+  if (!Number.isFinite(faceRight.lengthSq()) || faceRight.lengthSq() < 0.000001) return;
 
-  const rollAngle = Math.atan2(
-    alignedUp.clone().cross(targetUp).dot(desiredNormal),
-    alignedUp.dot(targetUp)
-  );
-  const roll = new THREE.Quaternion().setFromAxisAngle(desiredNormal, rollAngle);
-  const targetQuaternion = roll.multiply(normalAlignedQuaternion).normalize();
+  const desiredRight = targetUp.clone().cross(desiredNormal).normalize();
+  if (!Number.isFinite(desiredRight.lengthSq()) || desiredRight.lengthSq() < 0.000001) return;
+
+  const canonicalBasis = new THREE.Matrix4().makeBasis(faceRight, faceUp, faceNormal);
+  const targetBasis = new THREE.Matrix4().makeBasis(desiredRight, targetUp, desiredNormal);
+  const canonicalQuaternion = new THREE.Quaternion().setFromRotationMatrix(canonicalBasis);
+  const targetBasisQuaternion = new THREE.Quaternion().setFromRotationMatrix(targetBasis);
+  const targetQuaternion = targetBasisQuaternion.multiply(canonicalQuaternion.invert()).normalize();
 
   focusAnimation = {
     startTime: performance.now(),
