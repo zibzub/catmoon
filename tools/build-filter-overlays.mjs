@@ -1,5 +1,5 @@
 import { deflateSync, inflateSync } from "node:zlib";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -250,30 +250,47 @@ function makeOverlayFace(atlas, metadata, faceIndex, idSet) {
   const slots = metadata.faces[faceIndex];
   assert(Array.isArray(slots) && slots.length === RHOMBUS_CAT_COUNT, `Face ${faceIndex} has invalid slot metadata.`);
 
+  let matchingCats = 0;
   for (const slot of slots) {
     const globalId = faceIndex * RHOMBUS_CAT_COUNT + slot.id;
     if (idSet.has(globalId)) {
       assert(slot.hitRect, `Face ${faceIndex} slot ${slot.id} is missing hitRect.`);
       drawCatNearest(atlas, output, globalId, slot.hitRect);
+      matchingCats += 1;
     }
   }
 
-  return output;
+  return { image: output, matchingCats };
+}
+
+async function removeStaleOverlayPngs(outputDir) {
+  await mkdir(outputDir, { recursive: true });
+  const entries = await readdir(outputDir, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && /^tri-face-\d\d\.png$/.test(entry.name))
+      .map((entry) => rm(path.join(outputDir, entry.name)))
+  );
 }
 
 async function writeOverlaySet({ name, ids, atlas, metadata }) {
   const outputDir = path.join(outputRoot, name);
-  await mkdir(outputDir, { recursive: true });
+  await removeStaleOverlayPngs(outputDir);
 
   let drawn = 0;
+  const faces = [];
   for (let faceIndex = 0; faceIndex < TRI_FACE_COUNT; faceIndex += 1) {
-    const image = makeOverlayFace(atlas, metadata, faceIndex, ids);
+    const { image, matchingCats } = makeOverlayFace(atlas, metadata, faceIndex, ids);
+    if (matchingCats === 0) continue;
+
     const filePath = path.join(outputDir, `${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`);
     await writeFile(filePath, encodeRgbaPng(image));
-    drawn += metadata.faces[faceIndex].filter((slot) => ids.has(faceIndex * RHOMBUS_CAT_COUNT + slot.id)).length;
+    faces.push(faceIndex);
+    drawn += matchingCats;
   }
 
-  console.info(`Wrote ${TRI_FACE_COUNT} ${name} overlay PNGs to ${path.relative(repoRoot, outputDir)}/ (${drawn} matching cats).`);
+  console.info(`Wrote ${faces.length} ${name} overlay PNGs to ${path.relative(repoRoot, outputDir)}/ (${drawn} matching cats).`);
+  return { faces };
 }
 
 async function main() {
@@ -296,8 +313,17 @@ async function main() {
   const genesisIds = categoryIdSet(filters, "genesis");
   const characterIds = unionCategoryIdSet(filters, CHARACTER_CATEGORY_KEYS);
 
-  await writeOverlaySet({ name: "genesis", ids: genesisIds, atlas, metadata });
-  await writeOverlaySet({ name: "characters", ids: characterIds, atlas, metadata });
+  const manifest = {
+    version: 1,
+    filters: {
+      genesis: await writeOverlaySet({ name: "genesis", ids: genesisIds, atlas, metadata }),
+      characters: await writeOverlaySet({ name: "characters", ids: characterIds, atlas, metadata })
+    }
+  };
+  const manifestPath = path.join(outputRoot, "filter-manifest.json");
+  await mkdir(outputRoot, { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.info(`Wrote ${path.relative(repoRoot, manifestPath)}.`);
 }
 
 main().catch((error) => {

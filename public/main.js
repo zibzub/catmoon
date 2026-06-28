@@ -29,6 +29,7 @@ const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
 const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
 const FILTER_DATA_URL = "data/mooncat-filters.json";
 const FILTER_TEXTURE_DIR = "img/filters";
+const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
 const FILTER_BASE_OPACITY = 0.08;
 const CHARACTER_CATEGORY_KEYS = [
   "garfield",
@@ -102,7 +103,9 @@ let hudUnlocked = false;
 let activeFilter = "all";
 let activeFilterSet = null;
 let filterDataPromise = null;
+let filterManifestPromise = null;
 let filterSelectionToken = 0;
+let filterOverlayPreloadStarted = false;
 let previewAtlasLoaded = false;
 let previewAtlasLoading = false;
 let tooltipHideTimer = null;
@@ -201,6 +204,55 @@ function ensureFilterDataLoaded() {
     filterDataPromise = loadFilterData();
   }
   return filterDataPromise;
+}
+
+function validateFilterManifest(manifest) {
+  return manifest
+    && manifest.version === 1
+    && manifest.filters
+    && typeof manifest.filters === "object";
+}
+
+async function loadFilterManifest() {
+  try {
+    const response = await fetch(FILTER_MANIFEST_URL, { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const manifest = await response.json();
+    if (!validateFilterManifest(manifest)) {
+      throw new Error(`${FILTER_MANIFEST_URL} is not a recognized filter manifest.`);
+    }
+
+    return manifest;
+  } catch (error) {
+    console.warn(`Could not load ${FILTER_MANIFEST_URL}; falling back to all filter overlay faces.`, error);
+    return null;
+  }
+}
+
+function ensureFilterManifestLoaded() {
+  if (!filterManifestPromise) {
+    filterManifestPromise = loadFilterManifest();
+  }
+  return filterManifestPromise;
+}
+
+function filterManifestFaces(manifest, filterKey) {
+  const faces = manifest?.filters?.[filterKey]?.faces;
+  if (!Array.isArray(faces)) {
+    if (manifest) {
+      console.warn(`${FILTER_MANIFEST_URL} is missing filters.${filterKey}.faces; falling back to all faces for that filter.`);
+    }
+    return Array.from({ length: TRI_FACE_COUNT }, (_, faceIndex) => faceIndex);
+  }
+
+  return faces.filter((faceIndex) => (
+    Number.isInteger(faceIndex)
+    && faceIndex >= 0
+    && faceIndex < TRI_FACE_COUNT
+  ));
 }
 
 function setLoadingProgress(text) {
@@ -676,9 +728,17 @@ async function ensureFilterTexturesLoaded(filterKey) {
   }
 
   if (!filterTexturePromises.has(filterKey)) {
-    const promise = Promise.all(
-      Array.from({ length: TRI_FACE_COUNT }, (_, faceIndex) => loadFilterTexture(filterKey, faceIndex))
-    ).then((textures) => {
+    const promise = ensureFilterManifestLoaded().then((manifest) => {
+      const faceIndices = filterManifestFaces(manifest, filterKey);
+      const textures = Array(TRI_FACE_COUNT).fill(null);
+      return Promise.all(
+        faceIndices.map((faceIndex) => (
+          loadFilterTexture(filterKey, faceIndex).then((texture) => {
+            textures[faceIndex] = texture;
+          })
+        ))
+      ).then(() => textures);
+    }).then((textures) => {
       filterTextureCache.set(filterKey, textures);
       return textures;
     });
@@ -686,6 +746,17 @@ async function ensureFilterTexturesLoaded(filterKey) {
   }
 
   return filterTexturePromises.get(filterKey);
+}
+
+function preloadFilterOverlayTextures() {
+  if (filterOverlayPreloadStarted) return;
+  filterOverlayPreloadStarted = true;
+
+  for (const filterKey of ["genesis", "characters"]) {
+    ensureFilterTexturesLoaded(filterKey).catch((error) => {
+      console.warn(`Could not preload ${filterKey} CatMoon filter overlays.`, error);
+    });
+  }
 }
 
 function updateFilterAppearance() {
@@ -715,7 +786,13 @@ function updateFilterAppearance() {
       return;
     }
 
-    mesh.material.map = overlayTextures[faceIndex];
+    const texture = overlayTextures[faceIndex];
+    if (!texture) {
+      mesh.visible = false;
+      return;
+    }
+
+    mesh.material.map = texture;
     mesh.material.opacity = 1;
     mesh.material.needsUpdate = true;
     mesh.visible = true;
@@ -945,6 +1022,7 @@ hudLockButton.addEventListener("click", (event) => {
   updateHudLockState();
   if (hudUnlocked) {
     ensurePreviewAtlasLoaded();
+    preloadFilterOverlayTextures();
     setHoveredId(hoveredId);
   }
 });
