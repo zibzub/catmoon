@@ -185,6 +185,32 @@ body {
   image-rendering: crisp-edges;
 }
 
+#filterControls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  color: #bfbfbf;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: auto;
+}
+
+#catFilter {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid rgba(255, 105, 180, 0.45);
+  background: rgba(8, 8, 12, 0.95);
+  color: #f2f2f2;
+  font: inherit;
+  pointer-events: auto;
+}
+
+#catFilter:focus-visible {
+  border-color: hotpink;
+  outline: none;
+}
+
 #status {
   max-width: 100%;
   margin-top: 10px;

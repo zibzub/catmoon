@@ -27,6 +27,19 @@ const TRI_FACE_CAT_PIXEL_SCALE = 2;
 const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.compact.json";
 const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
 const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
+const FILTER_DATA_URL = "data/mooncat-filters.json";
+const FILTER_TEXTURE_DIR = "img/filters";
+const FILTER_BASE_OPACITY = 0.08;
+const CHARACTER_CATEGORY_KEYS = [
+  "garfield",
+  "cheshire",
+  "pinkpanther",
+  "alien",
+  "zombie",
+  "simba",
+  "golden",
+  "pikachu"
+];
 const TOUCH_TWIST_ROLL_SPEED = 1.0;
 const DESKTOP_ROLL_DRAG_SPEED = 0.006;
 const AUTO_ROTATE_ENABLED = true;
@@ -48,6 +61,7 @@ const hud = document.getElementById("hud");
 const hudLockButton = document.getElementById("hudLockButton");
 const catIdEl = document.getElementById("catId");
 const previewEl = document.getElementById("preview");
+const catFilterEl = document.getElementById("catFilter");
 const tooltipEl = document.getElementById("tooltip");
 const statusEl = document.getElementById("status");
 const loadingOverlay = document.getElementById("loadingOverlay");
@@ -85,6 +99,10 @@ let activeObject = null;
 let animationStarted = false;
 let hoveredId = null;
 let hudUnlocked = false;
+let activeFilter = "all";
+let activeFilterSet = null;
+let filterDataPromise = null;
+let filterSelectionToken = 0;
 let previewAtlasLoaded = false;
 let previewAtlasLoading = false;
 let tooltipHideTimer = null;
@@ -94,6 +112,8 @@ let lastClientY = 0;
 let downPoint = null;
 const triFaceSlots = [];
 const triFaceTexturePromises = [];
+const filterTexturePromises = new Map();
+const filterTextureCache = new Map();
 const triTextureStats = {
   prerenderedLoaded: 0,
   metadataLoaded: false,
@@ -126,6 +146,10 @@ function triFaceTextureUrl(faceIndex) {
   return `${TRI_FACE_TEXTURE_DIR}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
 }
 
+function filterTextureUrl(filterKey, faceIndex) {
+  return `${FILTER_TEXTURE_DIR}/${filterKey}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
+}
+
 function applyPixelTextureSettings(texture) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.magFilter = THREE.NearestFilter;
@@ -135,6 +159,48 @@ function applyPixelTextureSettings(texture) {
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;
   return texture;
+}
+
+function categoryIdSet(filters, key) {
+  const ids = filters.categories?.[key]?.ids;
+  if (!Array.isArray(ids)) {
+    throw new Error(`${FILTER_DATA_URL} is missing categories.${key}.ids`);
+  }
+  return new Set(ids);
+}
+
+function unionCategoryIdSet(filters, keys) {
+  const ids = new Set();
+  for (const key of keys) {
+    for (const id of categoryIdSet(filters, key)) {
+      ids.add(id);
+    }
+  }
+  return ids;
+}
+
+async function loadFilterData() {
+  const response = await fetch(FILTER_DATA_URL, { cache: "no-cache" });
+  if (!response.ok) {
+    throw new Error(`Missing MoonCat filter data: ${FILTER_DATA_URL}`);
+  }
+
+  const filters = await response.json();
+  const characterIds = Array.isArray(filters.presets?.characters?.ids)
+    ? new Set(filters.presets.characters.ids)
+    : unionCategoryIdSet(filters, CHARACTER_CATEGORY_KEYS);
+
+  return {
+    genesis: categoryIdSet(filters, "genesis"),
+    characters: characterIds
+  };
+}
+
+function ensureFilterDataLoaded() {
+  if (!filterDataPromise) {
+    filterDataPromise = loadFilterData();
+  }
+  return filterDataPromise;
 }
 
 function setLoadingProgress(text) {
@@ -174,9 +240,15 @@ function idFromTriacontahedronHit(hit) {
   const y = clamp((1 - hit.uv.y) * TRI_FACE_TEX_H, 0, TRI_FACE_TEX_H - 0.0001);
   let closest = null;
   let closestDistance = Infinity;
+  const isFiltered = activeFilterSet !== null;
 
   for (let i = slots.length - 1; i >= 0; i -= 1) {
     const slot = slots[i];
+    const globalId = faceIndex * RHOMBUS_CAT_COUNT + slot.id;
+    if (isFiltered && !activeFilterSet.has(globalId)) {
+      continue;
+    }
+
     const inRect = slot.hitRect
       && x >= slot.hitRect.x
       && x <= slot.hitRect.x + slot.hitRect.w
@@ -186,6 +258,10 @@ function idFromTriacontahedronHit(hit) {
     if (inRect) {
       closest = slot;
       break;
+    }
+
+    if (isFiltered) {
+      continue;
     }
 
     const dx = x - slot.x;
@@ -516,7 +592,8 @@ function orderRhombusFaceVerticesForDiamondUv(points) {
 function makeTriFaceMaterial(faceIndex) {
   const material = new THREE.MeshBasicMaterial({
     map: makePlaceholderTexture(),
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    opacity: 1
   });
 
   const ready = new Promise((resolve, reject) => {
@@ -544,6 +621,146 @@ function makeTriFaceMaterial(faceIndex) {
   return { material, ready };
 }
 
+function makeFilterOverlayMaterial() {
+  return new THREE.MeshBasicMaterial({
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  });
+}
+
+function makeFilterBackingMaterial() {
+  return new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    side: THREE.DoubleSide,
+    transparent: false,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1
+  });
+}
+
+function makeFilterEdgeMaterial() {
+  return new THREE.LineBasicMaterial({
+    color: 0xff69b4,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false
+  });
+}
+
+function loadFilterTexture(filterKey, faceIndex) {
+  return new Promise((resolve, reject) => {
+    const url = filterTextureUrl(filterKey, faceIndex);
+    textureLoader.load(
+      url,
+      (texture) => {
+        if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
+          console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate filter overlay PNGs from the tools script.`);
+        }
+        resolve(applyPixelTextureSettings(texture));
+      },
+      undefined,
+      () => reject(new Error(`Could not load filter overlay texture: ${url}`))
+    );
+  });
+}
+
+async function ensureFilterTexturesLoaded(filterKey) {
+  if (filterTextureCache.has(filterKey)) {
+    return filterTextureCache.get(filterKey);
+  }
+
+  if (!filterTexturePromises.has(filterKey)) {
+    const promise = Promise.all(
+      Array.from({ length: TRI_FACE_COUNT }, (_, faceIndex) => loadFilterTexture(filterKey, faceIndex))
+    ).then((textures) => {
+      filterTextureCache.set(filterKey, textures);
+      return textures;
+    });
+    filterTexturePromises.set(filterKey, promise);
+  }
+
+  return filterTexturePromises.get(filterKey);
+}
+
+function updateFilterAppearance() {
+  if (!triacontahedron?.userData) return;
+
+  const isFiltered = activeFilter !== "all";
+  const overlayTextures = filterTextureCache.get(activeFilter);
+  const overlaysReady = isFiltered && overlayTextures;
+
+  for (const mesh of triacontahedron.userData.baseMeshes || []) {
+    mesh.material.transparent = isFiltered;
+    mesh.material.opacity = isFiltered ? FILTER_BASE_OPACITY : 1;
+    mesh.material.needsUpdate = true;
+  }
+
+  for (const mesh of triacontahedron.userData.backingMeshes || []) {
+    mesh.visible = isFiltered;
+  }
+
+  for (const mesh of triacontahedron.userData.edgeMeshes || []) {
+    mesh.visible = isFiltered;
+  }
+
+  (triacontahedron.userData.overlayMeshes || []).forEach((mesh, faceIndex) => {
+    if (!overlaysReady) {
+      mesh.visible = false;
+      return;
+    }
+
+    mesh.material.map = overlayTextures[faceIndex];
+    mesh.material.opacity = 1;
+    mesh.material.needsUpdate = true;
+    mesh.visible = true;
+  });
+}
+
+async function setActiveFilter(filterKey) {
+  const nextFilter = filterKey === "genesis" || filterKey === "characters" ? filterKey : "all";
+  const token = filterSelectionToken + 1;
+  filterSelectionToken = token;
+
+  if (nextFilter === "all") {
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    updateFilterAppearance();
+    updateHoverFromPointer();
+    return;
+  }
+
+  try {
+    const filterSets = await ensureFilterDataLoaded();
+    if (token !== filterSelectionToken) return;
+
+    activeFilter = nextFilter;
+    activeFilterSet = filterSets[nextFilter];
+    updateFilterAppearance();
+    updateHoverFromPointer();
+
+    await ensureFilterTexturesLoaded(nextFilter);
+    if (token !== filterSelectionToken) return;
+
+    updateFilterAppearance();
+    updateHoverFromPointer();
+  } catch (error) {
+    if (token !== filterSelectionToken) return;
+    console.warn(`Could not apply ${nextFilter} CatMoon filter.`, error);
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    updateFilterAppearance();
+    updateHoverFromPointer();
+  }
+}
+
 function makeTriacontahedron() {
   const group = new THREE.Group();
   const faces = makeRhombicTriacontahedronFaces();
@@ -553,6 +770,10 @@ function makeTriacontahedron() {
     0.5, 0,
     0, 0.5
   ];
+  group.userData.baseMeshes = [];
+  group.userData.backingMeshes = [];
+  group.userData.overlayMeshes = [];
+  group.userData.edgeMeshes = [];
 
   console.assert(faces.length === TRI_FACE_COUNT, `Expected ${TRI_FACE_COUNT} triacontahedron faces, got ${faces.length}`);
   console.assert(TRI_FACE_COUNT * RHOMBUS_CAT_COUNT === MAX_ID + 1, "Triacontahedron face count does not cover the full atlas exactly once");
@@ -571,16 +792,45 @@ function makeTriacontahedron() {
     geometry.setIndex([0, 1, 2, 0, 2, 3]);
     geometry.computeVertexNormals();
 
+    const backingMesh = new THREE.Mesh(geometry, makeFilterBackingMaterial());
+    backingMesh.userData.faceIndex = faceIndex;
+    backingMesh.userData.isFilterBacking = true;
+    backingMesh.visible = false;
+    backingMesh.renderOrder = 0;
+    group.add(backingMesh);
+    group.userData.backingMeshes.push(backingMesh);
+
     const { material, ready } = makeTriFaceMaterial(faceIndex);
     triFaceTexturePromises.push(ready);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.userData.faceIndex = faceIndex;
+    mesh.userData.isBaseFace = true;
+    mesh.renderOrder = 1;
     group.add(mesh);
+    group.userData.baseMeshes.push(mesh);
+
+    const overlayMesh = new THREE.Mesh(geometry, makeFilterOverlayMaterial());
+    overlayMesh.userData.faceIndex = faceIndex;
+    overlayMesh.userData.isFilterOverlay = true;
+    overlayMesh.visible = false;
+    overlayMesh.renderOrder = 2;
+    group.add(overlayMesh);
+    group.userData.overlayMeshes.push(overlayMesh);
+
+    const edgeGeometry = new THREE.EdgesGeometry(geometry);
+    const edgeMesh = new THREE.LineSegments(edgeGeometry, makeFilterEdgeMaterial());
+    edgeMesh.userData.faceIndex = faceIndex;
+    edgeMesh.userData.isFilterEdge = true;
+    edgeMesh.visible = false;
+    edgeMesh.renderOrder = 3;
+    edgeMesh.raycast = () => {};
+    group.add(edgeMesh);
+    group.userData.edgeMeshes.push(edgeMesh);
   });
 
   group.scale.setScalar(0.62);
   group.visible = false;
-  console.info(`Triacontahedron: ${group.children.length} faces x ${RHOMBUS_CAT_COUNT} cats = ${group.children.length * RHOMBUS_CAT_COUNT}`);
+  console.info(`Triacontahedron: ${TRI_FACE_COUNT} faces x ${RHOMBUS_CAT_COUNT} cats = ${TRI_FACE_COUNT * RHOMBUS_CAT_COUNT}`);
   return group;
 }
 
@@ -663,6 +913,7 @@ async function initializeScene() {
   setLoadingProgress(`Loading face textures 0/${TRI_FACE_COUNT}`);
   await triacontahedron.userData.textureReadyPromise;
   console.info(`Tri face textures ready: ${triTextureStats.prerenderedLoaded} PNG.`);
+  updateFilterAppearance();
 
   resize();
   activeObject = triacontahedron;
@@ -698,6 +949,10 @@ hudLockButton.addEventListener("click", (event) => {
   }
 });
 updateHudLockState();
+
+catFilterEl.addEventListener("change", () => {
+  setActiveFilter(catFilterEl.value);
+});
 
 renderer.domElement.addEventListener("pointermove", (event) => {
   if (activePointers.has(event.pointerId)) {
