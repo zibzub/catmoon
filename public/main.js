@@ -30,7 +30,7 @@ const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
 const FILTER_DATA_URL = "data/mooncat-filters.json";
 const FILTER_TEXTURE_DIR = "img/filters";
 const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
-const FILTER_BASE_OPACITY = 0.08;
+const FILTER_BASE_OPACITY = 0.16;
 const CHARACTER_CATEGORY_KEYS = [
   "garfield",
   "cheshire",
@@ -49,10 +49,12 @@ const FILTER_DEFINITIONS = [
   { key: "2017", category: "2017" },
   { key: "2018", category: "2018" },
   { key: "2019", category: "2019" },
-  { key: "2020", category: "2020" }
+  { key: "2020", category: "2020" },
+  { key: "earlyRescues", category: "earlyRescues" },
+  { key: "2021", category: "2021" }
 ];
 const FILTER_KEYS = new Set(FILTER_DEFINITIONS.map((filter) => filter.key));
-const PRELOAD_FILTER_KEYS = ["genesis", "characters"];
+const PRELOAD_FILTER_KEYS = FILTER_DEFINITIONS.map((filter) => filter.key);
 const TOUCH_TWIST_ROLL_SPEED = 1.0;
 const DESKTOP_ROLL_DRAG_SPEED = 0.006;
 const AUTO_ROTATE_ENABLED = true;
@@ -75,6 +77,8 @@ const hudLockButton = document.getElementById("hudLockButton");
 const catIdEl = document.getElementById("catId");
 const previewEl = document.getElementById("preview");
 const catFilterEl = document.getElementById("catFilter");
+const activeFilterBadgeEl = document.getElementById("activeFilterBadge");
+const activeFilterNameEl = document.getElementById("activeFilterName");
 const tooltipEl = document.getElementById("tooltip");
 const statusEl = document.getElementById("status");
 const loadingOverlay = document.getElementById("loadingOverlay");
@@ -778,7 +782,27 @@ function preloadFilterOverlayTextures() {
   }
 }
 
+function filterDisplayName(filterKey) {
+  const option = Array.from(catFilterEl.options).find((item) => item.value === filterKey);
+  return option?.textContent?.trim() || filterKey;
+}
+
+function updateActiveFilterBadge() {
+  const isFiltered = activeFilter !== "all";
+  activeFilterBadgeEl.hidden = !isFiltered;
+  if (isFiltered) {
+    activeFilterNameEl.textContent = filterDisplayName(activeFilter);
+    activeFilterBadgeEl.setAttribute("aria-label", `${filterDisplayName(activeFilter)} active. Reset filter.`);
+    activeFilterBadgeEl.title = `Reset ${filterDisplayName(activeFilter)}`;
+  } else {
+    activeFilterNameEl.textContent = "";
+    activeFilterBadgeEl.removeAttribute("aria-label");
+    activeFilterBadgeEl.removeAttribute("title");
+  }
+}
+
 function updateFilterAppearance() {
+  updateActiveFilterBadge();
   if (!triacontahedron?.userData) return;
 
   const isFiltered = activeFilter !== "all";
@@ -1049,6 +1073,12 @@ updateHudLockState();
 
 catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value);
+});
+
+activeFilterBadgeEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  setActiveFilter("all");
 });
 
 renderer.domElement.addEventListener("pointermove", (event) => {

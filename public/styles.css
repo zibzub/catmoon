@@ -118,11 +118,11 @@ body {
   padding: 5px;
 }
 
-#hud > *:not(#hudLockButton) {
+#hud > *:not(#hudLockButton, #activeFilterBadge) {
   pointer-events: none;
 }
 
-#hud.locked > *:not(#hudLockButton) {
+#hud.locked > *:not(#hudLockButton, #activeFilterBadge) {
   display: none;
 }
 
@@ -148,6 +148,56 @@ body {
 #hudLockButton:focus-visible {
   border-color: hotpink;
   outline: none;
+}
+
+#activeFilterBadge {
+  position: absolute;
+  top: 6px;
+  left: 50px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: min(150px, calc(100vw - 100px));
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d7d7d7;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#activeFilterBadge[hidden] {
+  display: none;
+}
+
+#activeFilterName,
+#activeFilterReset {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#activeFilterReset {
+  color: hotpink;
+}
+
+#activeFilterBadge:hover #activeFilterReset,
+#activeFilterBadge:focus-visible #activeFilterReset {
+  text-decoration: underline;
+}
+
+#activeFilterBadge:focus-visible {
+  outline: 1px solid rgba(255, 105, 180, 0.75);
+  outline-offset: 2px;
 }
 
 #hudDetails {

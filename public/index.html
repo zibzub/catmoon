@@ -46,6 +46,10 @@
 
     <div id="hud" class="locked">
       <button id="hudLockButton" type="button" aria-label="Unlock MoonCat details" title="Unlock MoonCat details">🔒</button>
+      <button id="activeFilterBadge" type="button" hidden>
+        <span id="activeFilterName"></span>
+        <span id="activeFilterReset">Reset Filter</span>
+      </button>
       <div id="hudDetails">
         <div id="catSummary">
           <div>Cat: <span id="catId">-</span></div>
@@ -55,14 +59,16 @@
           Filter
           <select id="catFilter">
             <option value="all">All Cats</option>
-            <option value="genesis">Genesis Coat</option>
+            <option value="genesis">Genesis Cats</option>
             <option value="characters">Character Cats</option>
-            <option value="day1">Day 1</option>
-            <option value="week1">Week 1</option>
-            <option value="2017">2017</option>
-            <option value="2018">2018</option>
-            <option value="2019">2019</option>
-            <option value="2020">2020</option>
+            <option value="day1">Day 1 Rescues</option>
+            <option value="week1">Week 1 Rescues</option>
+            <option value="2017">2017 Rescues</option>
+            <option value="2018">2018 Rescues</option>
+            <option value="2019">2019 Rescues</option>
+            <option value="2020">2020 Rescues</option>
+            <option value="earlyRescues">All Early Rescues</option>
+            <option value="2021">2021 Rescues</option>
           </select>
         </label>
         <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>

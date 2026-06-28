@@ -29,7 +29,9 @@ const FILTER_DEFINITIONS = [
   { key: "2017", category: "2017" },
   { key: "2018", category: "2018" },
   { key: "2019", category: "2019" },
-  { key: "2020", category: "2020" }
+  { key: "2020", category: "2020" },
+  { key: "earlyRescues", category: "earlyRescues" },
+  { key: "2021", category: "2021" }
 ];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
