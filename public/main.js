@@ -63,6 +63,7 @@ const AUTO_ROTATE_SPEED_Y = 0.055;
 const AUTO_ROTATE_SPEED_Z = 0.01;
 const AUTO_ROTATE_RESUME_DELAY_MS = 5000;
 const AUTO_ROTATE_EASE_IN_MS = 1000;
+const FILTER_FOCUS_DURATION_MS = 1250;
 const STAR_PARALLAX_ENABLED = true;
 const STAR_PARALLAX_SMALL_STRENGTH = 36;
 const STAR_PARALLAX_LARGE_STRENGTH = 18;
@@ -142,6 +143,8 @@ const activePointers = new Map();
 let twoFingerLastAngle = null;
 let touchGestureWasTwoFinger = false;
 let rollDrag = null;
+let focusAnimation = null;
+let focusInteractionVersion = 0;
 let autoRotateResumeAt = 0;
 let autoRotateActiveSince = performance.now();
 let lastFrameTime = performance.now();
@@ -497,6 +500,78 @@ function startAutoRotateNow() {
   autoRotateActiveSince = autoRotateResumeAt;
 }
 
+function cancelFocusAnimation() {
+  focusAnimation = null;
+}
+
+function focusFace(faceIndex) {
+  if (!triacontahedron || activePointers.size || rollDrag) return;
+
+  const faceNormal = triacontahedron.userData.faceNormals?.[faceIndex];
+  const faceUp = triacontahedron.userData.faceUps?.[faceIndex];
+  if (!faceNormal || !faceUp) return;
+
+  const desiredNormal = camera.position.clone().sub(triacontahedron.position).normalize();
+  const currentNormal = faceNormal.clone().applyQuaternion(triacontahedron.quaternion).normalize();
+  if (!Number.isFinite(currentNormal.lengthSq()) || currentNormal.lengthSq() === 0) return;
+
+  const delta = new THREE.Quaternion().setFromUnitVectors(currentNormal, desiredNormal);
+  const normalAlignedQuaternion = delta.multiply(triacontahedron.quaternion).normalize();
+
+  const targetUp = new THREE.Vector3(0, 1, 0).projectOnPlane(desiredNormal);
+  if (targetUp.lengthSq() < 0.000001) {
+    targetUp.set(0, 0, 1).projectOnPlane(desiredNormal);
+  }
+  targetUp.normalize();
+
+  const alignedUp = faceUp.clone().applyQuaternion(normalAlignedQuaternion).projectOnPlane(desiredNormal);
+  if (alignedUp.lengthSq() < 0.000001) return;
+  alignedUp.normalize();
+
+  const rollAngle = Math.atan2(
+    alignedUp.clone().cross(targetUp).dot(desiredNormal),
+    alignedUp.dot(targetUp)
+  );
+  const roll = new THREE.Quaternion().setFromAxisAngle(desiredNormal, rollAngle);
+  const targetQuaternion = roll.multiply(normalAlignedQuaternion).normalize();
+
+  focusAnimation = {
+    startTime: performance.now(),
+    duration: FILTER_FOCUS_DURATION_MS,
+    startQuaternion: triacontahedron.quaternion.clone(),
+    targetQuaternion
+  };
+  pauseAutoRotate();
+}
+
+async function focusFilterFace(filterKey, token, interactionVersion) {
+  try {
+    const manifest = await ensureFilterManifestLoaded();
+    if (token !== filterSelectionToken) return;
+    if (interactionVersion !== focusInteractionVersion) return;
+
+    const faces = manifest?.filters?.[filterKey]?.faces;
+    if (!Array.isArray(faces) || faces.length === 0) return;
+
+    focusFace(faces[0]);
+  } catch (error) {
+    console.warn(`Could not focus CatMoon filter face for ${filterKey}.`, error);
+  }
+}
+
+function updateFocusAnimation(now) {
+  if (!focusAnimation || !triacontahedron) return;
+
+  const t = clamp((now - focusAnimation.startTime) / focusAnimation.duration, 0, 1);
+  const eased = 1 - Math.pow(1 - t, 3);
+  triacontahedron.quaternion.copy(focusAnimation.startQuaternion).slerp(focusAnimation.targetQuaternion, eased);
+
+  if (t >= 1) {
+    focusAnimation = null;
+    scheduleAutoRotateResume();
+  }
+}
+
 function applyAutoRotate(deltaSeconds) {
   if (!AUTO_ROTATE_ENABLED || !activeObject) return;
   const now = performance.now();
@@ -543,6 +618,7 @@ function animate() {
   const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.05);
   lastFrameTime = now;
   controls.update();
+  updateFocusAnimation(now);
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
   renderer.render(scene, camera);
@@ -842,7 +918,7 @@ function updateFilterAppearance() {
   });
 }
 
-async function setActiveFilter(filterKey) {
+async function setActiveFilter(filterKey, { focus = false } = {}) {
   const nextFilter = FILTER_KEYS.has(filterKey) ? filterKey : "all";
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
@@ -864,6 +940,9 @@ async function setActiveFilter(filterKey) {
     activeFilterSet = filterSets[nextFilter];
     updateFilterAppearance();
     updateHoverFromPointer();
+    if (focus) {
+      focusFilterFace(nextFilter, token, focusInteractionVersion);
+    }
 
     await ensureFilterTexturesLoaded(nextFilter);
     if (token !== filterSelectionToken) return;
@@ -894,6 +973,8 @@ function makeTriacontahedron() {
   group.userData.backingMeshes = [];
   group.userData.overlayMeshes = [];
   group.userData.edgeMeshes = [];
+  group.userData.faceNormals = [];
+  group.userData.faceUps = [];
 
   console.assert(faces.length === TRI_FACE_COUNT, `Expected ${TRI_FACE_COUNT} triacontahedron faces, got ${faces.length}`);
   console.assert(TRI_FACE_COUNT * RHOMBUS_CAT_COUNT === MAX_ID + 1, "Triacontahedron face count does not cover the full atlas exactly once");
@@ -905,6 +986,11 @@ function makeTriacontahedron() {
     for (const point of sorted) {
       positions.push(point.x, point.y, point.z);
     }
+    const faceCenter = sorted.reduce((sum, point) => sum.add(point), new THREE.Vector3()).multiplyScalar(1 / sorted.length);
+    const faceNormal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0])).normalize();
+    if (faceNormal.dot(faceCenter) < 0) faceNormal.multiplyScalar(-1);
+    group.userData.faceNormals[faceIndex] = faceNormal;
+    group.userData.faceUps[faceIndex] = sorted[0].clone().sub(sorted[2]).normalize();
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -1072,7 +1158,7 @@ hudLockButton.addEventListener("click", (event) => {
 updateHudLockState();
 
 catFilterEl.addEventListener("change", () => {
-  setActiveFilter(catFilterEl.value);
+  setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });
 });
 
 activeFilterBadgeEl.addEventListener("click", (event) => {
@@ -1115,6 +1201,8 @@ renderer.domElement.addEventListener("pointerleave", () => {
 });
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
+  focusInteractionVersion += 1;
+  cancelFocusAnimation();
   pauseAutoRotate();
   activePointers.set(event.pointerId, {
     x: event.clientX,
