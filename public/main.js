@@ -511,8 +511,11 @@ function focusFace(faceIndex) {
   const faceUp = triacontahedron.userData.faceUps?.[faceIndex];
   if (!faceNormal || !faceUp) return;
 
-  const desiredNormal = camera.position.clone().sub(triacontahedron.position).normalize();
-  const targetUp = new THREE.Vector3(0, 1, 0).projectOnPlane(desiredNormal);
+  const desiredNormal = camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1).normalize();
+  const targetUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).projectOnPlane(desiredNormal);
+  if (targetUp.lengthSq() < 0.000001) {
+    targetUp.set(0, 1, 0).projectOnPlane(desiredNormal);
+  }
   if (targetUp.lengthSq() < 0.000001) {
     targetUp.set(0, 0, 1).projectOnPlane(desiredNormal);
   }
