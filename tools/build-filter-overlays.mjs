@@ -21,6 +21,17 @@ const CHARACTER_CATEGORY_KEYS = [
   "pikachu"
 ];
 
+const FILTER_DEFINITIONS = [
+  { key: "genesis", category: "genesis" },
+  { key: "characters", categories: CHARACTER_CATEGORY_KEYS },
+  { key: "day1", category: "day1" },
+  { key: "week1", category: "week1" },
+  { key: "2017", category: "2017" },
+  { key: "2018", category: "2018" },
+  { key: "2019", category: "2019" },
+  { key: "2020", category: "2020" }
+];
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const atlasPath = path.join(__dirname, "img", "allcats.png");
@@ -192,6 +203,13 @@ function unionCategoryIdSet(filters, keys) {
   return ids;
 }
 
+function filterDefinitionIdSet(filters, definition) {
+  if (definition.category) {
+    return categoryIdSet(filters, definition.category);
+  }
+  return unionCategoryIdSet(filters, definition.categories);
+}
+
 function drawCatNearest(atlas, output, id, destRect) {
   const srcX = (id % COLS) * TILE_W;
   const srcY = Math.floor(id / COLS) * TILE_H;
@@ -310,16 +328,18 @@ async function main() {
   assert(Number.isInteger(metadata.faceTextureWidth) && Number.isInteger(metadata.faceTextureHeight), "Slot metadata is missing face texture dimensions.");
 
   const filters = JSON.parse(filtersBuffer);
-  const genesisIds = categoryIdSet(filters, "genesis");
-  const characterIds = unionCategoryIdSet(filters, CHARACTER_CATEGORY_KEYS);
-
   const manifest = {
     version: 1,
-    filters: {
-      genesis: await writeOverlaySet({ name: "genesis", ids: genesisIds, atlas, metadata }),
-      characters: await writeOverlaySet({ name: "characters", ids: characterIds, atlas, metadata })
-    }
+    filters: {}
   };
+  for (const definition of FILTER_DEFINITIONS) {
+    manifest.filters[definition.key] = await writeOverlaySet({
+      name: definition.key,
+      ids: filterDefinitionIdSet(filters, definition),
+      atlas,
+      metadata
+    });
+  }
   const manifestPath = path.join(outputRoot, "filter-manifest.json");
   await mkdir(outputRoot, { recursive: true });
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);

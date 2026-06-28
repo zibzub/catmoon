@@ -41,6 +41,18 @@ const CHARACTER_CATEGORY_KEYS = [
   "golden",
   "pikachu"
 ];
+const FILTER_DEFINITIONS = [
+  { key: "genesis", category: "genesis" },
+  { key: "characters", categories: CHARACTER_CATEGORY_KEYS },
+  { key: "day1", category: "day1" },
+  { key: "week1", category: "week1" },
+  { key: "2017", category: "2017" },
+  { key: "2018", category: "2018" },
+  { key: "2019", category: "2019" },
+  { key: "2020", category: "2020" }
+];
+const FILTER_KEYS = new Set(FILTER_DEFINITIONS.map((filter) => filter.key));
+const PRELOAD_FILTER_KEYS = ["genesis", "characters"];
 const TOUCH_TWIST_ROLL_SPEED = 1.0;
 const DESKTOP_ROLL_DRAG_SPEED = 0.006;
 const AUTO_ROTATE_ENABLED = true;
@@ -182,6 +194,16 @@ function unionCategoryIdSet(filters, keys) {
   return ids;
 }
 
+function filterDefinitionIdSet(filters, definition) {
+  if (definition.key === "characters" && Array.isArray(filters.presets?.characters?.ids)) {
+    return new Set(filters.presets.characters.ids);
+  }
+  if (definition.category) {
+    return categoryIdSet(filters, definition.category);
+  }
+  return unionCategoryIdSet(filters, definition.categories);
+}
+
 async function loadFilterData() {
   const response = await fetch(FILTER_DATA_URL, { cache: "no-cache" });
   if (!response.ok) {
@@ -189,14 +211,11 @@ async function loadFilterData() {
   }
 
   const filters = await response.json();
-  const characterIds = Array.isArray(filters.presets?.characters?.ids)
-    ? new Set(filters.presets.characters.ids)
-    : unionCategoryIdSet(filters, CHARACTER_CATEGORY_KEYS);
-
-  return {
-    genesis: categoryIdSet(filters, "genesis"),
-    characters: characterIds
-  };
+  const filterSets = {};
+  for (const definition of FILTER_DEFINITIONS) {
+    filterSets[definition.key] = filterDefinitionIdSet(filters, definition);
+  }
+  return filterSets;
 }
 
 function ensureFilterDataLoaded() {
@@ -752,7 +771,7 @@ function preloadFilterOverlayTextures() {
   if (filterOverlayPreloadStarted) return;
   filterOverlayPreloadStarted = true;
 
-  for (const filterKey of ["genesis", "characters"]) {
+  for (const filterKey of PRELOAD_FILTER_KEYS) {
     ensureFilterTexturesLoaded(filterKey).catch((error) => {
       console.warn(`Could not preload ${filterKey} CatMoon filter overlays.`, error);
     });
@@ -800,7 +819,7 @@ function updateFilterAppearance() {
 }
 
 async function setActiveFilter(filterKey) {
-  const nextFilter = filterKey === "genesis" || filterKey === "characters" ? filterKey : "all";
+  const nextFilter = FILTER_KEYS.has(filterKey) ? filterKey : "all";
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
 
