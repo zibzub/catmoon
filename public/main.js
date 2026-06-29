@@ -528,6 +528,43 @@ function rollActiveObject(delta) {
   activeObject.rotateOnWorldAxis(axis.normalize(), delta);
 }
 
+function beginRollDrag(event) {
+  rollDrag = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY
+  };
+  controls.enabled = false;
+  renderer.domElement.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}
+
+function releaseRendererPointerCapture(pointerId) {
+  try {
+    renderer.domElement.releasePointerCapture?.(pointerId);
+  } catch (error) {
+    // Pointer capture may already be gone after blur/cancel.
+  }
+}
+
+function endRollDrag(event) {
+  if (!rollDrag) return;
+
+  const pointerId = rollDrag.pointerId;
+  rollDrag = null;
+  controls.enabled = true;
+  if (event) {
+    releaseRendererPointerCapture(event.pointerId);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  } else {
+    releaseRendererPointerCapture(pointerId);
+  }
+  downPoint = null;
+  scheduleAutoRotateResume();
+}
+
 function pointerAngleFromActiveTouches() {
   const touches = Array.from(activePointers.values()).filter((pointerInfo) => pointerInfo.pointerType === "touch");
   if (touches.length !== 2) return null;
@@ -1845,7 +1882,7 @@ async function initializeScene() {
   controls.enabled = true;
   controls.minDistance = TRI_MIN_DISTANCE;
   controls.maxDistance = TRI_MAX_DISTANCE;
-  statusEl.textContent = `Drag to tumble, scroll/pinch zoom, twist or Ctrl/Alt-drag roll.`;
+  statusEl.textContent = `Drag to tumble, scroll/pinch zoom, twist or Ctrl/Alt-drag, right click-drag to roll.`;
   setHoveredId(null);
   updateHoverFromPointer();
   triacontahedron.visible = true;
@@ -2001,6 +2038,10 @@ renderer.domElement.addEventListener("pointerleave", () => {
   setHoveredId(null);
 });
 
+renderer.domElement.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
+
 renderer.domElement.addEventListener("pointerdown", (event) => {
   focusInteractionVersion += 1;
   cancelFocusAnimation();
@@ -2015,16 +2056,9 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
     updateHoverFromClient(event.clientX, event.clientY);
   }
 
-  if ((event.ctrlKey || event.altKey) && canRollActiveObject()) {
-    rollDrag = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY
-    };
-    controls.enabled = false;
-    renderer.domElement.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  const isRightMouseRoll = event.pointerType === "mouse" && event.button === 2;
+  if ((isRightMouseRoll || event.ctrlKey || event.altKey) && canRollActiveObject()) {
+    beginRollDrag(event);
   }
 
   downPoint = {
@@ -2047,13 +2081,7 @@ renderer.domElement.addEventListener("pointerup", (event) => {
   }
 
   if (rollDrag && rollDrag.pointerId === event.pointerId) {
-    rollDrag = null;
-    controls.enabled = true;
-    renderer.domElement.releasePointerCapture?.(event.pointerId);
-    downPoint = null;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    scheduleAutoRotateResume();
+    endRollDrag(event);
     return;
   }
 
@@ -2078,12 +2106,18 @@ renderer.domElement.addEventListener("pointercancel", (event) => {
   twoFingerLastAngle = null;
   touchGestureWasTwoFinger = false;
   if (rollDrag && rollDrag.pointerId === event.pointerId) {
-    rollDrag = null;
-    controls.enabled = true;
+    endRollDrag(event);
+    return;
   }
   downPoint = null;
   scheduleAutoRotateResume();
 }, { capture: true });
+
+window.addEventListener("blur", () => {
+  if (rollDrag) {
+    endRollDrag();
+  }
+});
 
 window.addEventListener("resize", resize);
 resize();

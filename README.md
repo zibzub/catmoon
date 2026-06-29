@@ -12,7 +12,7 @@ You can move around the CatMoon directly:
 |---|---|---|
 |Rotate|Click and drag|Drag with one finger|
 |Zoom|Mouse wheel / trackpad|Pinch|
-|Roll / twist|Ctrl/Alt + drag|Two-finger twist|
+|Roll / Twist|Ctrl/Alt + drag or Right Click + drag|Two-finger twist|
 
 CatMoon also rotates slowly on its own. Manual movement temporarily takes over so you can inspect a specific area.
 
