@@ -160,7 +160,7 @@ body {
   justify-content: center;
   align-items: flex-start;
   gap: 4px;
-  max-width: min(150px, calc(100vw - 100px));
+  max-width: min(220px, calc(100vw - 100px));
   height: 32px;
   padding: 0;
   border: 0;

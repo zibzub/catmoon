@@ -127,6 +127,7 @@ let activeFilter = "all";
 let activeFilterSet = null;
 let walletFilterInput = "";
 let walletFilterIds = [];
+let walletFilterLabel = "";
 let filterDataPromise = null;
 let filterManifestPromise = null;
 let filterSelectionToken = 0;
@@ -936,7 +937,25 @@ async function lookupWalletMoonCats(input) {
     throw new Error(payload?.error || `Wallet lookup failed with HTTP ${response.status}.`);
   }
 
-  return normalizeWalletMoonCatIds(payload?.ids);
+  const ids = normalizeWalletMoonCatIds(payload?.ids);
+  return {
+    ids,
+    label: walletDisplayLabel(payload, input)
+  };
+}
+
+function abbreviateEthAddress(address) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function walletDisplayLabel(payload, fallback) {
+  if (payload?.resolvedName) {
+    return payload.resolvedName;
+  }
+  if (typeof payload?.address === "string" && /^0x[0-9a-fA-F]{40}$/.test(payload.address)) {
+    return abbreviateEthAddress(payload.address);
+  }
+  return fallback;
 }
 
 function setWalletFilterStatus(message, isError = false) {
@@ -947,6 +966,7 @@ function setWalletFilterStatus(message, isError = false) {
 function clearWalletFilterState({ clearStatus = true } = {}) {
   walletFilterInput = "";
   walletFilterIds = [];
+  walletFilterLabel = "";
   clearWalletOverlayTextures();
   if (clearStatus) {
     setWalletFilterStatus("");
@@ -1016,7 +1036,7 @@ function makeWalletOverlayTextures(atlasImage, ids) {
 
 function filterDisplayName(filterKey) {
   if (filterKey === WALLET_FILTER_KEY) {
-    return WALLET_FILTER_LABEL;
+    return walletFilterLabel ? `${walletFilterLabel} ${WALLET_FILTER_LABEL}` : WALLET_FILTER_LABEL;
   }
   const option = Array.from(catFilterEl.options).find((item) => item.value === filterKey);
   return option?.textContent?.trim() || filterKey;
@@ -1136,15 +1156,17 @@ async function applyWalletFilter() {
   setWalletFilterStatus("Looking up wallet cats...");
 
   try {
-    const validIds = await lookupWalletMoonCats(input);
+    const walletResult = await lookupWalletMoonCats(input);
     if (token !== filterSelectionToken) return;
 
+    const validIds = walletResult.ids;
+    const walletLabel = walletResult.label;
     if (validIds.length === 0) {
       clearWalletFilterState({ clearStatus: false });
       activeFilter = "all";
       activeFilterSet = null;
       catFilterEl.value = "all";
-      setWalletFilterStatus("No MoonCats found for this wallet.");
+      setWalletFilterStatus(`No MoonCats found for ${walletLabel}.`);
       updateFilterAppearance();
       updateHoverFromPointer();
       return;
@@ -1152,10 +1174,11 @@ async function applyWalletFilter() {
 
     clearWalletOverlayTextures();
     walletFilterIds = validIds;
+    walletFilterLabel = walletLabel;
     activeFilter = WALLET_FILTER_KEY;
     activeFilterSet = new Set(validIds);
     catFilterEl.value = WALLET_FILTER_KEY;
-    setWalletFilterStatus(`Rendering ${validIds.length} wallet cats...`);
+    setWalletFilterStatus(`Rendering ${validIds.length} MoonCats for ${walletLabel}...`);
     updateFilterAppearance();
     updateHoverFromPointer();
 
@@ -1165,7 +1188,7 @@ async function applyWalletFilter() {
     const walletTextures = makeWalletOverlayTextures(atlasImage, validIds);
     clearWalletOverlayTextures();
     filterTextureCache.set(WALLET_FILTER_KEY, walletTextures);
-    setWalletFilterStatus(`${validIds.length} wallet cats shown.`);
+    setWalletFilterStatus(`Found ${validIds.length} MoonCats for ${walletLabel}.`);
     updateFilterAppearance();
   } catch (error) {
     if (token !== filterSelectionToken) return;

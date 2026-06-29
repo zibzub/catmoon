@@ -24,14 +24,15 @@ export async function onRequestGet({ request, env }) {
 
   try {
     const wallet = await resolveWalletInput(input, env);
-    const ids = await lookupAcclimatedMoonCatIds(wallet.address);
+    const result = await lookupMoonCatIds(wallet.address);
     return jsonResponse({
       input,
       address: wallet.address,
       resolvedName: wallet.resolvedName,
-      ids,
-      count: ids.length,
-      source: "mooncatrescue"
+      ids: result.ids,
+      count: result.ids.length,
+      source: "mooncatrescue",
+      ownershipTypes: result.ownershipTypes
     }, 200, "public, max-age=60");
   } catch (error) {
     const status = Number.isInteger(error.status) ? error.status : 502;
@@ -49,7 +50,7 @@ async function resolveWalletInput(input, env) {
   if (ADDRESS_PATTERN.test(input)) {
     return {
       address: input,
-      resolvedName: null
+      resolvedName: await resolveReverseEnsName(input, env)
     };
   }
 
@@ -63,10 +64,7 @@ async function resolveWalletInput(input, env) {
     throw new HttpError("ENS resolution is not configured. Missing ETH_RPC_URL.", 500);
   }
 
-  const client = createPublicClient({
-    chain: mainnet,
-    transport: http(rpcUrl)
-  });
+  const client = makeEnsClient(rpcUrl);
   const address = await client.getEnsAddress({ name });
   if (!address) {
     throw new HttpError("ENS name not found.", 404);
@@ -78,17 +76,45 @@ async function resolveWalletInput(input, env) {
   };
 }
 
-async function lookupAcclimatedMoonCatIds(address) {
+function makeEnsClient(rpcUrl) {
+  return createPublicClient({
+    chain: mainnet,
+    transport: http(rpcUrl)
+  });
+}
+
+async function resolveReverseEnsName(address, env) {
+  const rpcUrl = env?.ETH_RPC_URL;
+  if (!rpcUrl) return null;
+
+  try {
+    const client = makeEnsClient(rpcUrl);
+    const name = await client.getEnsName({ address });
+    if (!name) return null;
+
+    const normalizedName = name.toLowerCase();
+    if (!ENS_PATTERN.test(normalizedName)) return null;
+
+    const forwardAddress = await client.getEnsAddress({ name: normalizedName });
+    if (forwardAddress?.toLowerCase() !== address.toLowerCase()) return null;
+
+    return normalizedName;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function lookupMoonCatIds(address) {
   const profilePayload = await fetchJson(`${OWNER_PROFILE_BASE_URL}/${encodeURIComponent(address)}`);
-  const profileIds = extractAcclimatedRescueOrdersFromProfile(profilePayload);
-  if (profileIds !== null) {
-    return normalizeRescueOrders(profileIds);
+  const profileResult = extractMoonCatOwnershipFromProfile(profilePayload);
+  if (profileResult !== null) {
+    return normalizeMoonCatOwnership(profileResult);
   }
 
   for (const baseUrl of OWNED_MOONCATS_FALLBACK_URLS) {
     try {
       const fallbackPayload = await fetchJson(`${baseUrl}/${encodeURIComponent(address)}`);
-      return normalizeRescueOrders(extractAcclimatedRescueOrdersFromOwnedMoonCats(fallbackPayload));
+      return normalizeMoonCatOwnership(extractMoonCatOwnershipFromOwnedMoonCats(fallbackPayload));
     } catch (error) {
       if (baseUrl === OWNED_MOONCATS_FALLBACK_URLS[OWNED_MOONCATS_FALLBACK_URLS.length - 1]) {
         throw error;
@@ -96,7 +122,7 @@ async function lookupAcclimatedMoonCatIds(address) {
     }
   }
 
-  return [];
+  return normalizeMoonCatOwnership([]);
 }
 
 async function fetchJson(url) {
@@ -117,7 +143,7 @@ async function fetchJson(url) {
   }
 }
 
-function extractAcclimatedRescueOrdersFromProfile(payload) {
+function extractMoonCatOwnershipFromProfile(payload) {
   if (!payload || typeof payload !== "object") return null;
 
   const ownedMoonCats = firstArray(
@@ -128,10 +154,10 @@ function extractAcclimatedRescueOrdersFromProfile(payload) {
   );
   if (!ownedMoonCats) return null;
 
-  return extractAcclimatedRescueOrdersFromOwnedMoonCats(ownedMoonCats);
+  return extractMoonCatOwnershipFromOwnedMoonCats(ownedMoonCats);
 }
 
-function extractAcclimatedRescueOrdersFromOwnedMoonCats(payload) {
+function extractMoonCatOwnershipFromOwnedMoonCats(payload) {
   const cats = Array.isArray(payload) ? payload : firstArray(
     payload?.ownedMoonCats,
     payload?.moonCats,
@@ -141,27 +167,36 @@ function extractAcclimatedRescueOrdersFromOwnedMoonCats(payload) {
   if (!cats) return [];
 
   return cats
-    .filter(isAcclimatedMoonCat)
-    .map(rescueOrderFromMoonCat)
-    .filter(Number.isInteger);
+    .map((cat) => ({
+      id: rescueOrderFromMoonCat(cat),
+      type: ownershipTypeFromMoonCat(cat)
+    }))
+    .filter((entry) => Number.isInteger(entry.id));
 }
 
 function firstArray(...values) {
   return values.find(Array.isArray) || null;
 }
 
-function isAcclimatedMoonCat(cat) {
+function ownershipTypeFromMoonCat(cat) {
   if (!cat || typeof cat !== "object") return false;
 
-  const contractNames = [
+  const labels = [
     cat.contract?.name,
     cat.collection?.name,
     cat.location,
+    cat.location?.name,
+    cat.contract?.location,
+    cat.collection?.location,
     cat.contract,
     cat.collection
   ].filter((value) => typeof value === "string");
 
-  return contractNames.some((value) => value.toLowerCase().includes("acclimated"));
+  const label = labels.join(" ").toLowerCase();
+  if (label.includes("acclimated")) return "acclimated";
+  if (label.includes("jumpport") || label.includes("jump port")) return "jumpport";
+  if (label.includes("original") || label.includes("unwrapped")) return "original";
+  return "unknown";
 }
 
 function rescueOrderFromMoonCat(cat) {
@@ -173,12 +208,29 @@ function rescueOrderFromMoonCat(cat) {
   return null;
 }
 
-function normalizeRescueOrders(ids) {
-  return Array.from(new Set(ids.filter((id) => (
-    Number.isInteger(id)
-    && id >= 0
-    && id <= MAX_RESCUE_ORDER
-  )))).sort((a, b) => a - b);
+function normalizeMoonCatOwnership(entries) {
+  const ids = [];
+  const ownershipTypes = {};
+  const seen = new Set();
+
+  for (const entry of entries) {
+    if (
+      !Number.isInteger(entry.id)
+      || entry.id < 0
+      || entry.id > MAX_RESCUE_ORDER
+      || seen.has(entry.id)
+    ) {
+      continue;
+    }
+
+    seen.add(entry.id);
+    ids.push(entry.id);
+    const type = entry.type || "unknown";
+    ownershipTypes[type] = (ownershipTypes[type] || 0) + 1;
+  }
+
+  ids.sort((a, b) => a - b);
+  return { ids, ownershipTypes };
 }
 
 class HttpError extends Error {
