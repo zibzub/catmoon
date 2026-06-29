@@ -1,31 +1,33 @@
-export async function onRequestGet({ request }) {
+export async function onRequestGet(context) {
+  const { request } = context;
   const url = new URL(request.url);
-  const address = (url.searchParams.get("address") || "").trim();
+  const address = url.searchParams.get("address")?.trim();
+
+  const headers = {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  };
 
   if (!address) {
-    return jsonResponse({
-      error: "Missing address query parameter.",
-      ids: [],
-      count: 0
-    }, 400);
+    return new Response(
+      JSON.stringify({
+        error: "Missing address",
+        ids: [],
+        count: 0,
+      }),
+      { status: 400, headers }
+    );
   }
 
-  // TODO: Resolve ownership from the official acclimated MoonCats wrapper first.
-  // TODO: Add original/unwrapped MoonCats ownership after the wrapper source is live.
-  return jsonResponse({
-    address,
-    error: "Wallet MoonCat lookup is not implemented yet.",
-    ids: [],
-    count: 0
-  }, 501);
-}
-
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
-    }
-  });
+  // Real wallet lookup will go here later.
+  // For now, return 501 so the frontend does not keep pretending every wallet has 4 cats.
+  return new Response(
+    JSON.stringify({
+      error: "Wallet lookup not implemented yet",
+      address,
+      ids: [],
+      count: 0,
+    }),
+    { status: 501, headers }
+  );
 }
