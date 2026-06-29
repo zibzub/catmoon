@@ -283,6 +283,7 @@ body {
   align-items: center;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: visible;
 }
 
 #walletFilterInput {
@@ -319,6 +320,49 @@ body {
 
 #walletFilterClear[hidden] {
   display: none;
+}
+
+#walletHistoryDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 172px;
+  overflow-y: auto;
+  padding: 3px;
+  border: 1px solid rgba(255, 105, 180, 0.55);
+  background: rgba(8, 8, 12, 0.98);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.38);
+  box-sizing: border-box;
+}
+
+#walletHistoryDropdown[hidden] {
+  display: none;
+}
+
+.walletHistoryOption {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 7px;
+  border: 0;
+  background: transparent;
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.walletHistoryOption:hover,
+.walletHistoryOption:focus-visible,
+.walletHistoryOption:active {
+  background: rgba(255, 105, 180, 0.18);
+  color: #ffffff;
+  outline: none;
 }
 
 #walletFilterButton {

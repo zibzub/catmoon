@@ -90,7 +90,7 @@ const walletFilterInputEl = document.getElementById("walletFilterInput");
 const walletFilterClearEl = document.getElementById("walletFilterClear");
 const walletFilterButtonEl = document.getElementById("walletFilterButton");
 const walletFilterStatusEl = document.getElementById("walletFilterStatus");
-const walletLookupHistoryEl = document.getElementById("walletLookupHistory");
+const walletHistoryDropdownEl = document.getElementById("walletHistoryDropdown");
 const activeFilterBadgeEl = document.getElementById("activeFilterBadge");
 const activeFilterNameEl = document.getElementById("activeFilterName");
 const tooltipEl = document.getElementById("tooltip");
@@ -140,6 +140,8 @@ let walletLookupHistory = [];
 let walletHistoryAutoLoadTimer = null;
 let pendingAutoLoadWalletInput = "";
 let lastAutoLoadedWalletInput = "";
+let walletHistoryDropdownOpen = false;
+let walletHistorySelectionInProgress = false;
 let filterDataPromise = null;
 let filterManifestPromise = null;
 let filterSelectionToken = 0;
@@ -1055,14 +1057,75 @@ function findWalletHistoryEntryByInput(value) {
   )) || null;
 }
 
-function updateWalletLookupHistoryUi() {
-  walletLookupHistoryEl.replaceChildren();
-  for (const record of walletLookupHistory) {
-    const option = document.createElement("option");
-    option.value = record.resolvedName || record.address || record.input;
-    option.label = record.label;
-    walletLookupHistoryEl.appendChild(option);
+function walletHistoryLookupValue(record) {
+  return getWalletUrlValue(record) || record.input || record.label || "";
+}
+
+function walletHistoryDisplayLabel(record) {
+  if (record?.resolvedName) return record.resolvedName;
+  if (typeof record?.address === "string" && /^0x[0-9a-fA-F]{40}$/.test(record.address)) {
+    return abbreviateEthAddress(record.address);
   }
+  return record?.label || record?.input || walletHistoryLookupValue(record);
+}
+
+function walletHistoryMatchesQuery(record, query) {
+  const matchValue = normalizeWalletMatchValue(query);
+  if (!matchValue) return true;
+
+  return [
+    walletHistoryDisplayLabel(record),
+    record.input,
+    record.resolvedName,
+    record.address,
+    record.label
+  ].some((candidate) => normalizeWalletMatchValue(candidate).includes(matchValue));
+}
+
+function filteredWalletHistoryEntries() {
+  const query = walletFilterInputEl.value.trim();
+  return walletLookupHistory.filter((record) => walletHistoryMatchesQuery(record, query));
+}
+
+function hideWalletHistoryDropdown() {
+  walletHistoryDropdownOpen = false;
+  walletHistoryDropdownEl.hidden = true;
+  walletFilterInputEl.setAttribute("aria-expanded", "false");
+}
+
+function showWalletHistoryDropdown() {
+  const entries = filteredWalletHistoryEntries();
+  walletHistoryDropdownEl.replaceChildren();
+
+  if (!entries.length) {
+    hideWalletHistoryDropdown();
+    return;
+  }
+
+  entries.forEach((record, index) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "walletHistoryOption";
+    option.setAttribute("role", "option");
+    option.id = `walletHistoryOption${index}`;
+    option.dataset.historyIndex = String(walletLookupHistory.indexOf(record));
+    option.textContent = walletHistoryDisplayLabel(record);
+    walletHistoryDropdownEl.appendChild(option);
+  });
+
+  walletHistoryDropdownOpen = true;
+  walletHistoryDropdownEl.hidden = false;
+  walletFilterInputEl.setAttribute("aria-expanded", "true");
+}
+
+function refreshWalletHistoryDropdown() {
+  if (walletHistorySelectionInProgress) return;
+  if (document.activeElement !== walletFilterInputEl && !walletHistoryDropdownOpen) return;
+  showWalletHistoryDropdown();
+}
+
+function updateWalletLookupHistoryUi() {
+  refreshWalletHistoryDropdown();
 
   if (!lastWalletLookup && walletLookupHistory.length) {
     lastWalletLookup = walletLookupHistory[0];
@@ -1524,6 +1587,38 @@ function scheduleWalletHistoryAutoLoad() {
   }, WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS);
 }
 
+function selectWalletHistoryEntry(entry) {
+  if (walletHistorySelectionInProgress) return;
+
+  const lookupValue = walletHistoryLookupValue(entry);
+  if (!lookupValue) return;
+
+  walletHistorySelectionInProgress = true;
+  if (walletHistoryAutoLoadTimer) {
+    window.clearTimeout(walletHistoryAutoLoadTimer);
+    walletHistoryAutoLoadTimer = null;
+  }
+  pendingAutoLoadWalletInput = normalizeWalletMatchValue(lookupValue);
+  walletFilterInputEl.value = lookupValue;
+  updateWalletClearButton();
+  hideWalletHistoryDropdown();
+
+  sceneReadyPromise
+    .then(() => restoreWalletLookupFromHistory(entry))
+    .then(() => {
+      lastAutoLoadedWalletInput = normalizeWalletMatchValue(lookupValue);
+    })
+    .catch((error) => {
+      console.warn("Could not load selected CatMoon wallet history entry.", error);
+    })
+    .finally(() => {
+      pendingAutoLoadWalletInput = "";
+      window.setTimeout(() => {
+        walletHistorySelectionInProgress = false;
+      }, WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS);
+    });
+}
+
 async function applyWalletFromUrl({ updateUrl = true } = {}) {
   const walletParam = getWalletParamFromUrl();
   if (!walletParam) return;
@@ -1799,25 +1894,59 @@ walletFilterClearEl.addEventListener("click", (event) => {
   walletFilterInputEl.value = "";
   updateWalletClearButton();
   walletFilterInputEl.focus();
+  showWalletHistoryDropdown();
 });
 
 walletFilterInputEl.addEventListener("input", () => {
   updateWalletClearButton();
+  showWalletHistoryDropdown();
   scheduleWalletHistoryAutoLoad();
 });
 
 walletFilterInputEl.addEventListener("change", scheduleWalletHistoryAutoLoad);
 
+walletFilterInputEl.addEventListener("focus", showWalletHistoryDropdown);
+
 walletFilterInputEl.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    hideWalletHistoryDropdown();
+    return;
+  }
   if (event.key !== "Enter") return;
   event.preventDefault();
+  hideWalletHistoryDropdown();
   applyWalletFilter();
+});
+
+walletHistoryDropdownEl.addEventListener("pointerdown", (event) => {
+  const option = event.target.closest(".walletHistoryOption");
+  if (!option) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const historyIndex = Number(option.dataset.historyIndex);
+  const entry = walletLookupHistory[historyIndex];
+  if (entry) {
+    selectWalletHistoryEntry(entry);
+  }
 });
 
 activeFilterBadgeEl.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   setActiveFilter("all");
+});
+
+document.addEventListener("pointerdown", (event) => {
+  if (
+    event.target === walletFilterInputEl
+    || walletFilterInputEl.contains(event.target)
+    || walletHistoryDropdownEl.contains(event.target)
+    || walletFilterClearEl.contains(event.target)
+  ) {
+    return;
+  }
+  hideWalletHistoryDropdown();
 });
 
 window.addEventListener("popstate", () => {
