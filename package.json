@@ -1,5 +1,23 @@
 {
   "dependencies": {
     "viem": "^2.53.1"
-  }
+  },
+  "name": "catmoon",
+  "version": "1.0.0",
+  "description": "CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the full collection, filter special groups, and look up the cats owned by a wallet.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zibzub/catmoon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zibzub/catmoon/issues"
+  },
+  "homepage": "https://github.com/zibzub/catmoon#readme"
 }
