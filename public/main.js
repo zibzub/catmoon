@@ -9,7 +9,7 @@ const ATLAS_W = COLS * TILE_W;
 const ATLAS_H = ROWS * TILE_H;
 const MAX_ID = COLS * ROWS - 1;
 const ALL_CATS_ATLAS_URL = "img/allcats.png";
-const PREVIEW_SCALE = 8;
+const PREVIEW_SCALE = 4;
 const CLICK_MOVE_LIMIT = 6;
 const TOOLTIP_INACTIVITY_HIDE_MS = 3000;
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -410,6 +410,14 @@ function applyCachedPreviewAtlas() {
   updatePreview(hoveredId);
 }
 
+function ensurePreviewAtlasLoaded() {
+  if (!hudUnlocked || hoveredId === null || allCatsAtlasImage) return;
+
+  loadAllCatsAtlas().catch((error) => {
+    console.warn("Could not load CatMoon preview atlas.", error);
+  });
+}
+
 function loadAllCatsAtlas() {
   if (allCatsAtlasImage) {
     return Promise.resolve(allCatsAtlasImage);
@@ -463,6 +471,7 @@ function setHoveredId(id) {
   hoveredId = id;
   catIdEl.textContent = id === null ? "-" : String(id);
   updatePreview(id);
+  ensurePreviewAtlasLoaded();
 
   if (id === null) {
     clearTooltipHideTimer();
@@ -492,6 +501,14 @@ function updateHoverFromPointer() {
   }
 
   setHoveredId(id);
+}
+
+function updateHoverFromClient(clientX, clientY) {
+  pointerInside = true;
+  lastClientX = clientX;
+  lastClientY = clientY;
+  updatePointerFromClient(clientX, clientY);
+  updateHoverFromPointer();
 }
 
 function openCat(id) {
@@ -1976,11 +1993,7 @@ renderer.domElement.addEventListener("pointermove", (event) => {
 
   updateTouchTwistRoll();
 
-  pointerInside = true;
-  lastClientX = event.clientX;
-  lastClientY = event.clientY;
-  updatePointerFromClient(event.clientX, event.clientY);
-  updateHoverFromPointer();
+  updateHoverFromClient(event.clientX, event.clientY);
 }, { capture: true });
 
 renderer.domElement.addEventListener("pointerleave", () => {
@@ -1997,6 +2010,10 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
     y: event.clientY,
     pointerType: event.pointerType
   });
+
+  if (hudUnlocked && event.pointerType === "touch") {
+    updateHoverFromClient(event.clientX, event.clientY);
+  }
 
   if ((event.ctrlKey || event.altKey) && canRollActiveObject()) {
     rollDrag = {
@@ -2046,10 +2063,7 @@ renderer.domElement.addEventListener("pointerup", (event) => {
   const dy = event.clientY - downPoint.y;
   const moved = Math.hypot(dx, dy);
 
-  lastClientX = event.clientX;
-  lastClientY = event.clientY;
-  updatePointerFromClient(event.clientX, event.clientY);
-  updateHoverFromPointer();
+  updateHoverFromClient(event.clientX, event.clientY);
 
   if (moved <= CLICK_MOVE_LIMIT) {
     openCat(hoveredId);

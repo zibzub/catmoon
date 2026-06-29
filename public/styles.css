@@ -210,22 +210,27 @@ body {
 
 #catSummary {
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
   gap: 8px;
 }
 
+#catSummary > :first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 #catId {
   display: inline-block;
-  width: 6ch;
+  width: 5ch;
   color: hotpink;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 #preview {
-  width: 100%;
-  max-width: 168px;
+  flex: 0 0 84px;
+  width: 84px;
+  max-width: 84px;
   aspect-ratio: 21 / 22;
   border: 2px solid hotpink;
   background-color: #000;
