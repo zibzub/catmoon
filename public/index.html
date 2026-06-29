@@ -75,8 +75,12 @@
         <div id="walletControls">
           <label for="walletFilterInput">Wallet</label>
           <div id="walletFilterRow">
-            <input id="walletFilterInput" type="text" placeholder="0x... or name.eth" autocomplete="off" spellcheck="false">
-            <button id="walletFilterButton" type="button">Show Wallet Cats</button>
+            <div id="walletFilterInputWrap">
+              <input id="walletFilterInput" type="text" placeholder="0x... or name.eth" list="walletLookupHistory" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false">
+              <button id="walletFilterClear" type="button" aria-label="Clear wallet input" hidden>×</button>
+            </div>
+            <datalist id="walletLookupHistory"></datalist>
+            <button id="walletFilterButton" type="button">Lookup</button>
           </div>
           <div id="walletFilterStatus" role="status" aria-live="polite"></div>
         </div>

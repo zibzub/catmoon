@@ -3,7 +3,7 @@ import { mainnet } from "viem/chains";
 
 const MAX_RESCUE_ORDER = 25439;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
-const ENS_PATTERN = /^[a-z0-9-_.]+\.eth$/i;
+const ENS_PATTERN = /^[a-z0-9-_.]+\.[a-z0-9-_.]+$/i;
 const OWNER_PROFILE_BASE_URL = "https://api.mooncatrescue.com/owner-profile";
 const OWNED_MOONCATS_FALLBACK_URLS = [
   "https://api.mooncatrescue.com/owned-mooncats",
@@ -39,6 +39,7 @@ export async function onRequestGet({ request, env }) {
     return jsonResponse({
       error: error.message || "MoonCat Rescue API lookup failed.",
       input,
+      resolvedName: error.resolvedName,
       ids: [],
       count: 0,
       source: "mooncatrescue"
@@ -54,11 +55,11 @@ async function resolveWalletInput(input, env) {
     };
   }
 
-  if (!ENS_PATTERN.test(input)) {
+  const name = normalizeEnsName(input);
+  if (!name) {
     throw new HttpError("Invalid Ethereum address or ENS name.", 400);
   }
 
-  const name = input.toLowerCase();
   const rpcUrl = env?.ETH_RPC_URL;
   if (!rpcUrl) {
     throw new HttpError("ENS resolution is not configured. Missing ETH_RPC_URL.", 500);
@@ -67,13 +68,20 @@ async function resolveWalletInput(input, env) {
   const client = makeEnsClient(rpcUrl);
   const address = await client.getEnsAddress({ name });
   if (!address) {
-    throw new HttpError("ENS name not found.", 404);
+    throw new HttpError("ENS name not found.", 404, { resolvedName: name });
   }
 
   return {
     address,
     resolvedName: name
   };
+}
+
+function normalizeEnsName(input) {
+  const name = input.toLowerCase().replace(/\.+$/, "");
+  const normalizedName = name.endsWith(".eth") ? name : `${name}.eth`;
+  if (!ENS_PATTERN.test(normalizedName)) return null;
+  return normalizedName;
 }
 
 function makeEnsClient(rpcUrl) {
@@ -234,9 +242,10 @@ function normalizeMoonCatOwnership(entries) {
 }
 
 class HttpError extends Error {
-  constructor(message, status) {
+  constructor(message, status, details = {}) {
     super(message);
     this.status = status;
+    Object.assign(this, details);
   }
 }
 

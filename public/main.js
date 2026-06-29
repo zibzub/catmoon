@@ -34,6 +34,10 @@ const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
 const FILTER_BASE_OPACITY = 0.16;
 const WALLET_FILTER_KEY = "wallet";
 const WALLET_FILTER_LABEL = "Wallet Cats";
+const WALLET_LOOKUP_HISTORY_KEY = "catmoon.walletLookupHistory";
+const WALLET_LOOKUP_HISTORY_LIMIT = 8;
+const WALLET_CAT_SCALE = 1.5;
+const WALLET_OVERLAY_SURFACE_OFFSET = 0.02;
 const CHARACTER_CATEGORY_KEYS = [
   "garfield",
   "cheshire",
@@ -82,8 +86,10 @@ const catIdEl = document.getElementById("catId");
 const previewEl = document.getElementById("preview");
 const catFilterEl = document.getElementById("catFilter");
 const walletFilterInputEl = document.getElementById("walletFilterInput");
+const walletFilterClearEl = document.getElementById("walletFilterClear");
 const walletFilterButtonEl = document.getElementById("walletFilterButton");
 const walletFilterStatusEl = document.getElementById("walletFilterStatus");
+const walletLookupHistoryEl = document.getElementById("walletLookupHistory");
 const activeFilterBadgeEl = document.getElementById("activeFilterBadge");
 const activeFilterNameEl = document.getElementById("activeFilterName");
 const tooltipEl = document.getElementById("tooltip");
@@ -128,6 +134,8 @@ let activeFilterSet = null;
 let walletFilterInput = "";
 let walletFilterIds = [];
 let walletFilterLabel = "";
+let lastWalletLookup = null;
+let walletLookupHistory = [];
 let filterDataPromise = null;
 let filterManifestPromise = null;
 let filterSelectionToken = 0;
@@ -143,6 +151,7 @@ const triFaceSlots = [];
 const triFaceTexturePromises = [];
 const filterTexturePromises = new Map();
 const filterTextureCache = new Map();
+const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 const triTextureStats = {
   prerenderedLoaded: 0,
   metadataLoaded: false,
@@ -917,6 +926,102 @@ function normalizeWalletMoonCatIds(ids) {
   )))).sort((a, b) => a - b);
 }
 
+function walletLookupStorageKey(record) {
+  return (record.address || record.resolvedName || record.input || record.label || "").toLowerCase();
+}
+
+function normalizeWalletLookupRecord(record) {
+  let ids;
+  try {
+    ids = normalizeWalletMoonCatIds(record?.ids);
+  } catch (error) {
+    return null;
+  }
+  if (ids.length === 0) return null;
+
+  const address = typeof record.address === "string" ? record.address : "";
+  const resolvedName = typeof record.resolvedName === "string" ? record.resolvedName : "";
+  const input = typeof record.input === "string" ? record.input : (resolvedName || address);
+  const label = record.label || walletDisplayLabel({ resolvedName, address }, input);
+  const key = walletLookupStorageKey({ address, resolvedName, input, label });
+  if (!key) return null;
+
+  return {
+    input,
+    address,
+    resolvedName,
+    label,
+    ids,
+    count: ids.length,
+    lastUsed: Number.isFinite(record.lastUsed) ? record.lastUsed : Date.now()
+  };
+}
+
+function loadWalletLookupHistory() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(WALLET_LOOKUP_HISTORY_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeWalletLookupRecord)
+      .filter(Boolean)
+      .sort((a, b) => b.lastUsed - a.lastUsed)
+      .slice(0, WALLET_LOOKUP_HISTORY_LIMIT);
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveWalletLookupHistory() {
+  try {
+    window.localStorage.setItem(WALLET_LOOKUP_HISTORY_KEY, JSON.stringify(walletLookupHistory));
+  } catch (error) {
+    console.warn("Could not save CatMoon wallet lookup history.", error);
+  }
+}
+
+function rememberWalletLookup(record) {
+  const normalizedRecord = normalizeWalletLookupRecord({
+    ...record,
+    lastUsed: Date.now()
+  });
+  if (!normalizedRecord) return null;
+
+  const key = walletLookupStorageKey(normalizedRecord);
+  walletLookupHistory = [
+    normalizedRecord,
+    ...walletLookupHistory.filter((item) => walletLookupStorageKey(item) !== key)
+  ].slice(0, WALLET_LOOKUP_HISTORY_LIMIT);
+  lastWalletLookup = normalizedRecord;
+  saveWalletLookupHistory();
+  updateWalletLookupHistoryUi();
+  return normalizedRecord;
+}
+
+function updateWalletLookupHistoryUi() {
+  walletLookupHistoryEl.replaceChildren();
+  for (const record of walletLookupHistory) {
+    const option = document.createElement("option");
+    option.value = record.resolvedName || record.address || record.input;
+    option.label = record.label;
+    walletLookupHistoryEl.appendChild(option);
+  }
+
+  if (!lastWalletLookup && walletLookupHistory.length) {
+    lastWalletLookup = walletLookupHistory[0];
+  }
+
+  if (!walletFilterOptionEl) return;
+  if (lastWalletLookup) {
+    walletFilterOptionEl.hidden = false;
+    walletFilterOptionEl.disabled = false;
+    walletFilterOptionEl.textContent = `Wallet Cats — ${lastWalletLookup.label}`;
+  } else {
+    walletFilterOptionEl.hidden = true;
+    walletFilterOptionEl.disabled = true;
+    walletFilterOptionEl.textContent = "Wallet Cats";
+  }
+}
+
 async function lookupWalletMoonCats(input) {
   const response = await fetch(`/api/wallet-cats?address=${encodeURIComponent(input)}`, {
     headers: {
@@ -939,6 +1044,9 @@ async function lookupWalletMoonCats(input) {
 
   const ids = normalizeWalletMoonCatIds(payload?.ids);
   return {
+    input: payload?.input || input,
+    address: payload?.address || "",
+    resolvedName: payload?.resolvedName || "",
     ids,
     label: walletDisplayLabel(payload, input)
   };
@@ -963,6 +1071,10 @@ function setWalletFilterStatus(message, isError = false) {
   walletFilterStatusEl.classList.toggle("error", isError);
 }
 
+function updateWalletClearButton() {
+  walletFilterClearEl.hidden = walletFilterInputEl.value.length === 0;
+}
+
 function clearWalletFilterState({ clearStatus = true } = {}) {
   walletFilterInput = "";
   walletFilterIds = [];
@@ -976,16 +1088,20 @@ function clearWalletFilterState({ clearStatus = true } = {}) {
 function drawCatFromAtlas(context, atlasImage, id, destRect) {
   const srcCol = id % COLS;
   const srcRow = Math.floor(id / COLS);
+  const centerX = destRect.x + destRect.w / 2;
+  const centerY = destRect.y + destRect.h / 2;
+  const scaledW = destRect.w * WALLET_CAT_SCALE;
+  const scaledH = destRect.h * WALLET_CAT_SCALE;
   context.drawImage(
     atlasImage,
     srcCol * TILE_W,
     srcRow * TILE_H,
     TILE_W,
     TILE_H,
-    Math.round(destRect.x),
-    Math.round(destRect.y),
-    Math.round(destRect.w),
-    Math.round(destRect.h)
+    Math.round(centerX - scaledW / 2),
+    Math.round(centerY - scaledH / 2),
+    Math.round(scaledW),
+    Math.round(scaledH)
   );
 }
 
@@ -1063,6 +1179,7 @@ function updateFilterAppearance() {
   const isFiltered = activeFilter !== "all";
   const overlayTextures = filterTextureCache.get(activeFilter);
   const overlaysReady = isFiltered && overlayTextures;
+  const isWalletFilter = activeFilter === WALLET_FILTER_KEY;
 
   for (const mesh of triacontahedron.userData.baseMeshes || []) {
     mesh.material.transparent = isFiltered;
@@ -1079,6 +1196,13 @@ function updateFilterAppearance() {
   }
 
   (triacontahedron.userData.overlayMeshes || []).forEach((mesh, faceIndex) => {
+    const faceNormal = triacontahedron.userData.faceNormals?.[faceIndex];
+    if (isWalletFilter && faceNormal) {
+      mesh.position.copy(faceNormal).multiplyScalar(WALLET_OVERLAY_SURFACE_OFFSET);
+    } else {
+      mesh.position.set(0, 0, 0);
+    }
+
     if (!overlaysReady) {
       mesh.visible = false;
       return;
@@ -1098,11 +1222,17 @@ function updateFilterAppearance() {
 }
 
 async function setActiveFilter(filterKey, { focus = false } = {}) {
-  const nextFilter = FILTER_KEYS.has(filterKey) ? filterKey : "all";
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
   clearWalletFilterState();
   updateFilterAppearance();
+
+  if (filterKey === WALLET_FILTER_KEY) {
+    await restoreWalletFilter(token);
+    return;
+  }
+
+  const nextFilter = FILTER_KEYS.has(filterKey) ? filterKey : "all";
 
   if (nextFilter === "all") {
     activeFilter = "all";
@@ -1141,6 +1271,58 @@ async function setActiveFilter(filterKey, { focus = false } = {}) {
   }
 }
 
+async function applyWalletLookupRecord(record, token, { restored = false } = {}) {
+  const walletRecord = normalizeWalletLookupRecord(record);
+  if (!walletRecord) {
+    throw new Error("Saved wallet lookup is missing MoonCat IDs. Run lookup again.");
+  }
+
+  clearWalletOverlayTextures();
+  walletFilterInput = walletRecord.input;
+  walletFilterIds = walletRecord.ids;
+  walletFilterLabel = walletRecord.label;
+  activeFilter = WALLET_FILTER_KEY;
+  activeFilterSet = new Set(walletRecord.ids);
+  catFilterEl.value = WALLET_FILTER_KEY;
+  setWalletFilterStatus(`${restored ? "Restoring" : "Rendering"} ${walletRecord.count} MoonCats for ${walletRecord.label}...`);
+  updateFilterAppearance();
+  updateHoverFromPointer();
+
+  const atlasImage = await loadAllCatsAtlas();
+  if (token !== filterSelectionToken) return;
+
+  const walletTextures = makeWalletOverlayTextures(atlasImage, walletRecord.ids);
+  clearWalletOverlayTextures();
+  filterTextureCache.set(WALLET_FILTER_KEY, walletTextures);
+  setWalletFilterStatus(`${restored ? "Restored" : "Found"} ${walletRecord.count} MoonCats for ${walletRecord.label}.`);
+  updateFilterAppearance();
+}
+
+async function restoreWalletFilter(token) {
+  if (!lastWalletLookup) {
+    setWalletFilterStatus("Run a wallet lookup before selecting Wallet Cats.", true);
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    updateFilterAppearance();
+    updateHoverFromPointer();
+    return;
+  }
+
+  try {
+    await applyWalletLookupRecord(lastWalletLookup, token, { restored: true });
+  } catch (error) {
+    if (token !== filterSelectionToken) return;
+    console.warn("Could not restore CatMoon wallet filter.", error);
+    setWalletFilterStatus(error.message || "Run wallet lookup again.", true);
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    updateFilterAppearance();
+    updateHoverFromPointer();
+  }
+}
+
 async function applyWalletFilter() {
   const input = walletFilterInputEl.value.trim();
   const token = filterSelectionToken + 1;
@@ -1160,36 +1342,19 @@ async function applyWalletFilter() {
     if (token !== filterSelectionToken) return;
 
     const validIds = walletResult.ids;
-    const walletLabel = walletResult.label;
     if (validIds.length === 0) {
       clearWalletFilterState({ clearStatus: false });
       activeFilter = "all";
       activeFilterSet = null;
       catFilterEl.value = "all";
-      setWalletFilterStatus(`No MoonCats found for ${walletLabel}.`);
+      setWalletFilterStatus(`No MoonCats found for ${walletResult.label}.`);
       updateFilterAppearance();
       updateHoverFromPointer();
       return;
     }
 
-    clearWalletOverlayTextures();
-    walletFilterIds = validIds;
-    walletFilterLabel = walletLabel;
-    activeFilter = WALLET_FILTER_KEY;
-    activeFilterSet = new Set(validIds);
-    catFilterEl.value = WALLET_FILTER_KEY;
-    setWalletFilterStatus(`Rendering ${validIds.length} MoonCats for ${walletLabel}...`);
-    updateFilterAppearance();
-    updateHoverFromPointer();
-
-    const atlasImage = await loadAllCatsAtlas();
-    if (token !== filterSelectionToken) return;
-
-    const walletTextures = makeWalletOverlayTextures(atlasImage, validIds);
-    clearWalletOverlayTextures();
-    filterTextureCache.set(WALLET_FILTER_KEY, walletTextures);
-    setWalletFilterStatus(`Found ${validIds.length} MoonCats for ${walletLabel}.`);
-    updateFilterAppearance();
+    const rememberedLookup = rememberWalletLookup(walletResult);
+    await applyWalletLookupRecord(rememberedLookup, token);
   } catch (error) {
     if (token !== filterSelectionToken) return;
     console.warn("Could not apply wallet CatMoon filter.", error);
@@ -1400,6 +1565,8 @@ hudLockButton.addEventListener("click", (event) => {
   }
 });
 updateHudLockState();
+walletLookupHistory = loadWalletLookupHistory();
+updateWalletLookupHistoryUi();
 
 catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });
@@ -1411,11 +1578,22 @@ walletFilterButtonEl.addEventListener("click", (event) => {
   applyWalletFilter();
 });
 
+walletFilterClearEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  walletFilterInputEl.value = "";
+  updateWalletClearButton();
+  walletFilterInputEl.focus();
+});
+
+walletFilterInputEl.addEventListener("input", updateWalletClearButton);
+
 walletFilterInputEl.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
   applyWalletFilter();
 });
+updateWalletClearButton();
 
 activeFilterBadgeEl.addEventListener("click", (event) => {
   event.preventDefault();
