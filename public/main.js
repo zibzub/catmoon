@@ -38,6 +38,7 @@ const WALLET_LOOKUP_HISTORY_KEY = "catmoon.walletLookupHistory";
 const WALLET_LOOKUP_HISTORY_LIMIT = 8;
 const WALLET_CAT_SCALE = 1.5;
 const WALLET_OVERLAY_SURFACE_OFFSET = 0.02;
+const WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS = 80;
 const CHARACTER_CATEGORY_KEYS = [
   "garfield",
   "cheshire",
@@ -136,6 +137,9 @@ let walletFilterIds = [];
 let walletFilterLabel = "";
 let lastWalletLookup = null;
 let walletLookupHistory = [];
+let walletHistoryAutoLoadTimer = null;
+let pendingAutoLoadWalletInput = "";
+let lastAutoLoadedWalletInput = "";
 let filterDataPromise = null;
 let filterManifestPromise = null;
 let filterSelectionToken = 0;
@@ -930,6 +934,10 @@ function walletLookupStorageKey(record) {
   return (record.address || record.resolvedName || record.input || record.label || "").toLowerCase();
 }
 
+function normalizeWalletMatchValue(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 function getWalletUrlValue(lookupResult) {
   const resolvedName = typeof lookupResult?.resolvedName === "string" ? lookupResult.resolvedName.trim() : "";
   if (resolvedName) return resolvedName;
@@ -1031,6 +1039,20 @@ function rememberWalletLookup(record) {
   saveWalletLookupHistory();
   updateWalletLookupHistoryUi();
   return normalizedRecord;
+}
+
+function findWalletHistoryEntryByInput(value) {
+  const matchValue = normalizeWalletMatchValue(value);
+  if (!matchValue) return null;
+
+  return walletLookupHistory.find((record) => (
+    [
+      record.input,
+      record.resolvedName,
+      record.address,
+      record.label
+    ].some((candidate) => normalizeWalletMatchValue(candidate) === matchValue)
+  )) || null;
 }
 
 function updateWalletLookupHistoryUi() {
@@ -1418,6 +1440,90 @@ async function applyWalletFilter({ updateUrl = true } = {}) {
   }
 }
 
+async function restoreWalletLookupFromHistory(entry) {
+  const walletRecord = normalizeWalletLookupRecord(entry);
+  if (!walletRecord) {
+    await applyWalletFilter();
+    return;
+  }
+
+  const rememberedLookup = rememberWalletLookup(walletRecord);
+  const token = filterSelectionToken + 1;
+  filterSelectionToken = token;
+
+  try {
+    await applyWalletLookupRecord(rememberedLookup, token, { restored: true });
+    if (token !== filterSelectionToken) return;
+    setWalletUrl(getWalletUrlValue(rememberedLookup));
+  } catch (error) {
+    if (token !== filterSelectionToken) return;
+    console.warn("Could not restore CatMoon wallet lookup from history.", error);
+    setWalletFilterStatus(error.message || "Run wallet lookup again.", true);
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    updateFilterAppearance();
+    updateHoverFromPointer();
+  }
+}
+
+function isWalletHistoryEntryActive(entry, value) {
+  if (activeFilter !== WALLET_FILTER_KEY) return false;
+  const matchValue = normalizeWalletMatchValue(value);
+  if (!matchValue) return false;
+
+  const activeRecord = lastWalletLookup || entry;
+  return [
+    activeRecord.input,
+    activeRecord.resolvedName,
+    activeRecord.address,
+    activeRecord.label,
+    getWalletUrlValue(activeRecord)
+  ].some((candidate) => normalizeWalletMatchValue(candidate) === matchValue);
+}
+
+function scheduleWalletHistoryAutoLoad() {
+  if (walletHistoryAutoLoadTimer) {
+    window.clearTimeout(walletHistoryAutoLoadTimer);
+    walletHistoryAutoLoadTimer = null;
+  }
+
+  const value = walletFilterInputEl.value.trim();
+  const historyEntry = findWalletHistoryEntryByInput(value);
+  if (!historyEntry) return;
+
+  const matchValue = normalizeWalletMatchValue(value);
+  if (!matchValue) return;
+  if (pendingAutoLoadWalletInput === matchValue) return;
+  if (lastAutoLoadedWalletInput === matchValue && isWalletHistoryEntryActive(historyEntry, value)) return;
+
+  walletHistoryAutoLoadTimer = window.setTimeout(() => {
+    walletHistoryAutoLoadTimer = null;
+
+    const currentValue = walletFilterInputEl.value.trim();
+    const currentEntry = findWalletHistoryEntryByInput(currentValue);
+    const currentMatchValue = normalizeWalletMatchValue(currentValue);
+    if (!currentEntry || !currentMatchValue) return;
+    if (pendingAutoLoadWalletInput === currentMatchValue) return;
+    if (lastAutoLoadedWalletInput === currentMatchValue && isWalletHistoryEntryActive(currentEntry, currentValue)) return;
+
+    pendingAutoLoadWalletInput = currentMatchValue;
+    sceneReadyPromise
+      .then(() => restoreWalletLookupFromHistory(currentEntry))
+      .then(() => {
+        lastAutoLoadedWalletInput = currentMatchValue;
+      })
+      .catch((error) => {
+        console.warn("Could not auto-load CatMoon wallet history entry.", error);
+      })
+      .finally(() => {
+        if (pendingAutoLoadWalletInput === currentMatchValue) {
+          pendingAutoLoadWalletInput = "";
+        }
+      });
+  }, WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS);
+}
+
 async function applyWalletFromUrl({ updateUrl = true } = {}) {
   const walletParam = getWalletParamFromUrl();
   if (!walletParam) return;
@@ -1684,12 +1790,23 @@ walletFilterButtonEl.addEventListener("click", (event) => {
 walletFilterClearEl.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
+  if (walletHistoryAutoLoadTimer) {
+    window.clearTimeout(walletHistoryAutoLoadTimer);
+    walletHistoryAutoLoadTimer = null;
+  }
+  pendingAutoLoadWalletInput = "";
+  lastAutoLoadedWalletInput = "";
   walletFilterInputEl.value = "";
   updateWalletClearButton();
   walletFilterInputEl.focus();
 });
 
-walletFilterInputEl.addEventListener("input", updateWalletClearButton);
+walletFilterInputEl.addEventListener("input", () => {
+  updateWalletClearButton();
+  scheduleWalletHistoryAutoLoad();
+});
+
+walletFilterInputEl.addEventListener("change", scheduleWalletHistoryAutoLoad);
 
 walletFilterInputEl.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
