@@ -59,6 +59,7 @@
           Filter
           <select id="catFilter">
             <option value="all">All Cats</option>
+            <option value="wallet" hidden>Wallet Cats</option>
             <option value="genesis">Genesis Cats</option>
             <option value="characters">Character Cats</option>
             <option value="day1">Day 1 Rescues</option>
@@ -71,6 +72,14 @@
             <option value="2021">2021 Rescues</option>
           </select>
         </label>
+        <div id="walletControls">
+          <label for="walletFilterInput">Wallet</label>
+          <div id="walletFilterRow">
+            <input id="walletFilterInput" type="text" placeholder="0x... or name.eth" autocomplete="off" spellcheck="false">
+            <button id="walletFilterButton" type="button">Show Wallet Cats</button>
+          </div>
+          <div id="walletFilterStatus" role="status" aria-live="polite"></div>
+        </div>
         <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>
       </div>
     </div>

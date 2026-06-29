@@ -8,6 +8,7 @@ const TILE_H = 22;
 const ATLAS_W = COLS * TILE_W;
 const ATLAS_H = ROWS * TILE_H;
 const MAX_ID = COLS * ROWS - 1;
+const ALL_CATS_ATLAS_URL = "img/allcats.png";
 const PREVIEW_SCALE = 8;
 const CLICK_MOVE_LIMIT = 6;
 const TOOLTIP_INACTIVITY_HIDE_MS = 3000;
@@ -31,6 +32,8 @@ const FILTER_DATA_URL = "data/mooncat-filters.json";
 const FILTER_TEXTURE_DIR = "img/filters";
 const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
 const FILTER_BASE_OPACITY = 0.16;
+const WALLET_FILTER_KEY = "wallet";
+const WALLET_FILTER_LABEL = "Wallet Cats";
 const CHARACTER_CATEGORY_KEYS = [
   "garfield",
   "cheshire",
@@ -78,6 +81,9 @@ const hudLockButton = document.getElementById("hudLockButton");
 const catIdEl = document.getElementById("catId");
 const previewEl = document.getElementById("preview");
 const catFilterEl = document.getElementById("catFilter");
+const walletFilterInputEl = document.getElementById("walletFilterInput");
+const walletFilterButtonEl = document.getElementById("walletFilterButton");
+const walletFilterStatusEl = document.getElementById("walletFilterStatus");
 const activeFilterBadgeEl = document.getElementById("activeFilterBadge");
 const activeFilterNameEl = document.getElementById("activeFilterName");
 const tooltipEl = document.getElementById("tooltip");
@@ -119,12 +125,14 @@ let hoveredId = null;
 let hudUnlocked = false;
 let activeFilter = "all";
 let activeFilterSet = null;
+let walletFilterInput = "";
+let walletFilterIds = [];
 let filterDataPromise = null;
 let filterManifestPromise = null;
 let filterSelectionToken = 0;
 let filterOverlayPreloadStarted = false;
-let previewAtlasLoaded = false;
-let previewAtlasLoading = false;
+let allCatsAtlasImage = null;
+let allCatsAtlasPromise = null;
 let tooltipHideTimer = null;
 let pointerInside = false;
 let lastClientX = 0;
@@ -368,8 +376,9 @@ function updatePreview(id) {
     return;
   }
 
-  if (hudUnlocked) {
-    ensurePreviewAtlasLoaded();
+  if (!allCatsAtlasImage) {
+    previewEl.style.backgroundPosition = "9999px 9999px";
+    return;
   }
 
   const row = Math.floor(id / COLS);
@@ -378,13 +387,37 @@ function updatePreview(id) {
   previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
 }
 
-function ensurePreviewAtlasLoaded() {
-  if (previewAtlasLoaded || previewAtlasLoading) return;
+function applyCachedPreviewAtlas() {
+  if (!allCatsAtlasImage) return;
 
-  previewAtlasLoading = true;
-  previewEl.style.backgroundImage = 'url("img/allcats.png")';
-  previewAtlasLoaded = true;
-  previewAtlasLoading = false;
+  previewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
+  updatePreview(hoveredId);
+}
+
+function loadAllCatsAtlas() {
+  if (allCatsAtlasImage) {
+    return Promise.resolve(allCatsAtlasImage);
+  }
+  if (!allCatsAtlasPromise) {
+    allCatsAtlasPromise = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        if (image.naturalWidth !== ATLAS_W || image.naturalHeight !== ATLAS_H) {
+          reject(new Error(`${ALL_CATS_ATLAS_URL} is ${image.naturalWidth}x${image.naturalHeight}; expected ${ATLAS_W}x${ATLAS_H}.`));
+          return;
+        }
+        allCatsAtlasImage = image;
+        applyCachedPreviewAtlas();
+        resolve(image);
+      };
+      image.onerror = () => reject(new Error(`Could not load ${ALL_CATS_ATLAS_URL}.`));
+      image.src = ALL_CATS_ATLAS_URL;
+    }).catch((error) => {
+      allCatsAtlasPromise = null;
+      throw error;
+    });
+  }
+  return allCatsAtlasPromise;
 }
 
 function updateHudLockState() {
@@ -856,7 +889,135 @@ function preloadFilterOverlayTextures() {
   }
 }
 
+function disposeTexture(texture) {
+  if (!texture) return;
+  texture.dispose();
+}
+
+function clearWalletOverlayTextures() {
+  const textures = filterTextureCache.get(WALLET_FILTER_KEY);
+  if (!textures) return;
+
+  for (const texture of textures) {
+    disposeTexture(texture);
+  }
+  filterTextureCache.delete(WALLET_FILTER_KEY);
+}
+
+function normalizeWalletMoonCatIds(ids) {
+  if (!Array.isArray(ids)) {
+    throw new Error("Wallet lookup response did not include an ids array.");
+  }
+
+  return Array.from(new Set(ids.filter((id) => (
+    Number.isInteger(id)
+    && id >= 0
+    && id <= MAX_ID
+  )))).sort((a, b) => a - b);
+}
+
+async function lookupWalletMoonCats(input) {
+  const response = await fetch(`/api/wallet-cats?address=${encodeURIComponent(input)}`, {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    if (response.ok) {
+      throw new Error("Wallet lookup response was not valid JSON.");
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error || `Wallet lookup failed with HTTP ${response.status}.`);
+  }
+
+  return normalizeWalletMoonCatIds(payload?.ids);
+}
+
+function setWalletFilterStatus(message, isError = false) {
+  walletFilterStatusEl.textContent = message;
+  walletFilterStatusEl.classList.toggle("error", isError);
+}
+
+function clearWalletFilterState({ clearStatus = true } = {}) {
+  walletFilterInput = "";
+  walletFilterIds = [];
+  clearWalletOverlayTextures();
+  if (clearStatus) {
+    setWalletFilterStatus("");
+  }
+}
+
+function drawCatFromAtlas(context, atlasImage, id, destRect) {
+  const srcCol = id % COLS;
+  const srcRow = Math.floor(id / COLS);
+  context.drawImage(
+    atlasImage,
+    srcCol * TILE_W,
+    srcRow * TILE_H,
+    TILE_W,
+    TILE_H,
+    Math.round(destRect.x),
+    Math.round(destRect.y),
+    Math.round(destRect.w),
+    Math.round(destRect.h)
+  );
+}
+
+function groupWalletIdsByFace(ids) {
+  const idsByFace = new Map();
+  for (const id of ids) {
+    const faceIndex = Math.floor(id / RHOMBUS_CAT_COUNT);
+    if (faceIndex < 0 || faceIndex >= TRI_FACE_COUNT) continue;
+
+    const slotId = id % RHOMBUS_CAT_COUNT;
+    if (!idsByFace.has(faceIndex)) {
+      idsByFace.set(faceIndex, new Set());
+    }
+    idsByFace.get(faceIndex).add(slotId);
+  }
+  return idsByFace;
+}
+
+function makeWalletOverlayTexture(atlasImage, faceIndex, slotIds) {
+  const faceCanvas = document.createElement("canvas");
+  faceCanvas.width = TRI_FACE_TEX_W;
+  faceCanvas.height = TRI_FACE_TEX_H;
+
+  const context = faceCanvas.getContext("2d");
+  context.imageSmoothingEnabled = false;
+  context.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+
+  const slots = triFaceSlots[faceIndex] || [];
+  for (const slot of slots) {
+    if (!slotIds.has(slot.id) || !slot.hitRect) continue;
+    drawCatFromAtlas(context, atlasImage, faceIndex * RHOMBUS_CAT_COUNT + slot.id, slot.hitRect);
+  }
+
+  return applyPixelTextureSettings(new THREE.CanvasTexture(faceCanvas));
+}
+
+function makeWalletOverlayTextures(atlasImage, ids) {
+  const textures = Array(TRI_FACE_COUNT).fill(null);
+  const idsByFace = groupWalletIdsByFace(ids);
+
+  for (const [faceIndex, slotIds] of idsByFace) {
+    if (!slotIds.size) continue;
+    textures[faceIndex] = makeWalletOverlayTexture(atlasImage, faceIndex, slotIds);
+  }
+
+  return textures;
+}
+
 function filterDisplayName(filterKey) {
+  if (filterKey === WALLET_FILTER_KEY) {
+    return WALLET_FILTER_LABEL;
+  }
   const option = Array.from(catFilterEl.options).find((item) => item.value === filterKey);
   return option?.textContent?.trim() || filterKey;
 }
@@ -920,6 +1081,8 @@ async function setActiveFilter(filterKey, { focus = false } = {}) {
   const nextFilter = FILTER_KEYS.has(filterKey) ? filterKey : "all";
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
+  clearWalletFilterState();
+  updateFilterAppearance();
 
   if (nextFilter === "all") {
     activeFilter = "all";
@@ -955,6 +1118,67 @@ async function setActiveFilter(filterKey, { focus = false } = {}) {
     catFilterEl.value = "all";
     updateFilterAppearance();
     updateHoverFromPointer();
+  }
+}
+
+async function applyWalletFilter() {
+  const input = walletFilterInputEl.value.trim();
+  const token = filterSelectionToken + 1;
+  filterSelectionToken = token;
+
+  if (!input) {
+    setWalletFilterStatus("Enter a wallet or ENS name.", true);
+    return;
+  }
+
+  walletFilterButtonEl.disabled = true;
+  walletFilterInput = input;
+  setWalletFilterStatus("Looking up wallet cats...");
+
+  try {
+    const validIds = await lookupWalletMoonCats(input);
+    if (token !== filterSelectionToken) return;
+
+    if (validIds.length === 0) {
+      clearWalletFilterState({ clearStatus: false });
+      activeFilter = "all";
+      activeFilterSet = null;
+      catFilterEl.value = "all";
+      setWalletFilterStatus("No MoonCats found for this wallet.");
+      updateFilterAppearance();
+      updateHoverFromPointer();
+      return;
+    }
+
+    clearWalletOverlayTextures();
+    walletFilterIds = validIds;
+    activeFilter = WALLET_FILTER_KEY;
+    activeFilterSet = new Set(validIds);
+    catFilterEl.value = WALLET_FILTER_KEY;
+    setWalletFilterStatus(`Rendering ${validIds.length} wallet cats...`);
+    updateFilterAppearance();
+    updateHoverFromPointer();
+
+    const atlasImage = await loadAllCatsAtlas();
+    if (token !== filterSelectionToken) return;
+
+    const walletTextures = makeWalletOverlayTextures(atlasImage, validIds);
+    clearWalletOverlayTextures();
+    filterTextureCache.set(WALLET_FILTER_KEY, walletTextures);
+    setWalletFilterStatus(`${validIds.length} wallet cats shown.`);
+    updateFilterAppearance();
+  } catch (error) {
+    if (token !== filterSelectionToken) return;
+    console.warn("Could not apply wallet CatMoon filter.", error);
+    clearWalletFilterState({ clearStatus: false });
+    activeFilter = "all";
+    activeFilterSet = null;
+    catFilterEl.value = "all";
+    setWalletFilterStatus(error.message.includes("allcats.png") ? "Wallet overlays failed to load." : "Wallet lookup failed.", true);
+    updateFilterAppearance();
+    updateHoverFromPointer();
+  } finally {
+    walletFilterButtonEl.disabled = false;
   }
 }
 
@@ -1148,7 +1372,6 @@ hudLockButton.addEventListener("click", (event) => {
   hudUnlocked = !hudUnlocked;
   updateHudLockState();
   if (hudUnlocked) {
-    ensurePreviewAtlasLoaded();
     preloadFilterOverlayTextures();
     setHoveredId(hoveredId);
   }
@@ -1157,6 +1380,18 @@ updateHudLockState();
 
 catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });
+});
+
+walletFilterButtonEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  applyWalletFilter();
+});
+
+walletFilterInputEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  applyWalletFilter();
 });
 
 activeFilterBadgeEl.addEventListener("click", (event) => {

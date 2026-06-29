@@ -261,6 +261,65 @@ body {
   outline: none;
 }
 
+#walletControls {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+  color: #bfbfbf;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: auto;
+}
+
+#walletFilterRow {
+  display: flex;
+  gap: 6px;
+}
+
+#walletFilterInput {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 30px;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 105, 180, 0.45);
+  background: rgba(8, 8, 12, 0.95);
+  color: #f2f2f2;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+#walletFilterButton {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 105, 180, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+#walletFilterInput:focus-visible,
+#walletFilterButton:focus-visible,
+#walletFilterButton:hover {
+  border-color: hotpink;
+  outline: none;
+}
+
+#walletFilterStatus {
+  min-height: 1.2em;
+  color: #d7d7d7;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#walletFilterStatus.error {
+  color: hotpink;
+}
+
 #status {
   max-width: 100%;
   margin-top: 10px;
