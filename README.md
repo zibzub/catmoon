@@ -1,77 +1,63 @@
 # CatMoon
 
-CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the full collection, filter special groups, and look up the cats owned by a wallet.
+![CatMoon screenshot](screenshot.png)
 
-## How to Use CatMoon
+CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the collection, highlight special rescue groups, and look up MoonCats owned by a wallet.
 
-### Rotate, Zoom, and Explore
+---
 
-You can move around the CatMoon directly:
+# User Manual
 
-|Action|Desktop|Mobile|
-|---|---|---|
-|Rotate|Click and drag|Drag with one finger|
-|Zoom|Mouse wheel / trackpad|Pinch|
-|Roll / Twist|Ctrl/Alt + drag or Right Click + drag|Two-finger twist|
+## Explore the CatMoon
 
-CatMoon also rotates slowly on its own. Manual movement temporarily takes over so you can inspect a specific area.
+| Action       | Desktop                           | Mobile               |
+| ------------ | --------------------------------- | -------------------- |
+| Rotate       | Click and drag                    | Drag with one finger |
+| Zoom         | Mouse wheel / trackpad            | Pinch                |
+| Roll / twist | Ctrl/Alt-drag or right-click-drag | Two-finger twist     |
 
-## The Lock / Details Panel
+CatMoon rotates slowly on its own. Manual movement pauses auto-rotation briefly so you can inspect the shape.
 
-The top-left control opens and closes the MoonCat details panel.
+## Lock and Details Panel
 
-### Locked Mode
+The lock button in the top-left controls whether MoonCat details and links are active.
 
-When the panel is locked/closed:
+**Locked**
 
-- Only the lock control is shown.
-    
-- CatMoon can still be rotated and explored.
-    
-- Clicking MoonCats will **not** open MoonCat links.
-    
-- This prevents accidental link clicks while you are just navigating the shape.
-    
+* Only the lock button is shown.
+* You can rotate, zoom, and explore.
+* MoonCat links are disabled to prevent accidental clicks.
 
-### Unlocked Mode
+**Unlocked**
 
-When the panel is unlocked/open:
-
-- The details panel appears.
-    
-- Hovering or selecting a MoonCat can show its information.
-    
-- Clicking a MoonCat opens its page on MoonCatRescue.
-    
-- Filters, wallet lookup, and extra controls are available.
-    
+* The details panel appears.
+* Hovering a MoonCat shows its ID and preview.
+* Clicking a MoonCat opens its MoonCatRescue page.
+* Filters and wallet lookup are available.
 
 ## Filters
 
-The filter selector highlights specific groups of MoonCats.
+Use the filter dropdown to highlight groups of MoonCats.
 
-When a filter is active:
+Available filters include:
 
-- Matching MoonCats stay bright.
-    
-- Non-matching cats are dimmed.
-    
-- A label appears beside the lock control showing the active filter.
-    
-- The **Reset Filter** text clears the current filter and returns to all cats.
-    
+* Genesis Cats
+* Character Cats
+* Day 1 Rescues
+* Week 1 Rescues
+* 2017–2021 rescue-year groups
+* All Early Rescues
+* Wallet Cats, after a wallet lookup
 
-Selecting a filter may also rotate CatMoon toward a face containing matching cats.
+When a filter is active, matching cats stay bright and the rest of the CatMoon is dimmed. Use the active filter badge to reset back to all cats.
 
 ## Wallet Cats
 
-CatMoon can look up MoonCats owned by a wallet and highlight them on the moon.
+CatMoon can highlight MoonCats owned by an Ethereum wallet.
 
-### Looking Up a Wallet
+Enter an address or ENS name, then press **Lookup**.
 
-Enter an Ethereum address or ENS name in the wallet field, then press **Lookup**.
-
-Supported examples:
+Examples:
 
 ```text
 0x1234567890abcdef1234567890abcdef12345678
@@ -81,136 +67,214 @@ cats.vitalik
 cats.vitalik.eth
 ```
 
-If you enter an ENS name without `.eth`, CatMoon assumes `.eth`.
+ENS shortcuts are normalized:
 
-If an Ethereum address has a reverse ENS name, CatMoon may display the ENS name instead of the shortened address.
-
-### Wallet Cat Display
+```text
+vitalik -> vitalik.eth
+cats.vitalik -> cats.vitalik.eth
+cats.vitalik.eth -> cats.vitalik.eth
+```
 
 When Wallet Cats are active:
 
-- Cats owned by the wallet are highlighted.
-    
-- Wallet cats appear larger and lifted slightly above the surface.
-    
-- The active filter label shows the wallet or ENS name.
-    
-- You can switch to another filter and then return to the previous Wallet Cats entry from the filter selector.
-    
+* owned cats are highlighted on the moon
+* wallet cats appear slightly larger and lifted from the surface
+* the active filter label shows the wallet or ENS name
+* the wallet view can be bookmarked or shared
 
-### Wallet History
-
-Recent wallet lookups are stored **locally in your browser**.
-
-This means:
-
-- History is saved only on your device/browser.
-    
-- It is not shared with the site owner.
-    
-- Clearing your browser storage may remove the history.
-    
-- Other browsers or devices will not automatically have the same history.
-    
-
-Selecting a previous wallet from the wallet field history can reload that wallet without pressing Lookup again.
-
-### Bookmarking Wallet Cats
-
-Wallet lookups can be bookmarked and shared.
-
-After a successful lookup, the URL updates with a wallet parameter, such as:
+Example wallet URL:
 
 ```text
 https://catmoon.zibzub.art/?wallet=vitalik.eth
 ```
 
-or:
+## Wallet History and Privacy
+
+Recent wallet lookups are stored locally in your browser.
+
+CatMoon does not require:
+
+* wallet connection
+* account login
+* signature approval
+
+Wallet history is not synced between browsers or devices. Clearing browser storage may remove it.
+
+---
+
+# Technical Details
+
+## Project Structure
+
+CatMoon is a static Cloudflare Pages site.
 
 ```text
-https://catmoon.zibzub.art/?wallet=0x1234567890abcdef1234567890abcdef12345678
+public/
+  index.html
+  main.js
+  styles.css
+  js/
+    config.js
+    dom.js
+    utils.js
+    wallet.js
+    filters.js
+    preview.js
+    catmoon-geometry.js
+    controls.js
+  data/
+    mooncat-filters.json
+  img/
+    allcats.png
+    tri-faces/
+    filters/
+
+functions/
+  api/
+    wallet-cats.js
+
+test/
+  config.test.js
+  utils.test.js
+  wallet.test.js
 ```
 
-Opening a bookmarked wallet URL will automatically load that wallet’s MoonCats.
+The frontend uses browser-native ES modules. There is no frontend build step.
 
-## MoonCat Links
+Three.js is loaded from jsDelivr through the import map in `public/index.html`.
 
-When the details panel is unlocked, clicking a MoonCat opens its page on MoonCatRescue.
+## Local Development
 
-When the details panel is locked, MoonCat links are disabled so the shape can be explored without accidental navigation.
+Install dependencies:
 
-## The Geometry
-
-CatMoon is based on a **rhombic triacontahedron**.
-
-A rhombic triacontahedron is a 30-sided polyhedron made entirely of rhombus-shaped faces. It has:
-
-- **30 rhombus faces**
-    
-- **60 edges**
-    
-- **32 vertices**
-    
-
-Each face of CatMoon contains **848 MoonCats**.
-
-The full MoonCat rescue set contains:
-
-```text
-30 faces × 848 MoonCats per face = 25,440 MoonCats
+```bash
+npm ci
 ```
 
-So every rescued MoonCat has a place on the CatMoon.
+Run syntax checks:
 
-### Why This Shape?
-
-The rhombic triacontahedron is round enough to feel moon-like, but still has clear flat faces that work well for arranging pixel art. Each face acts like a small MoonCat panel, while the full shape forms a complete 3D collection view.
-
-The rhombus faces are related to the golden ratio. Their angles are approximately:
-
-```text
-63.435° and 116.565°
+```bash
+npm run check
 ```
 
-This gives the shape its balanced, crystalline look.
+Run unit tests:
 
-## MoonCat Arrangement
+```bash
+npm test
+```
 
-MoonCats are placed by rescue-order ID.
+Preview locally with Cloudflare Pages:
 
-Each face contains a consecutive group of 848 cats:
+```bash
+npx wrangler pages dev public
+```
+
+## Cloudflare Pages
+
+Recommended Cloudflare Pages settings:
 
 ```text
-Face 0: IDs 0–847
-Face 1: IDs 848–1695
-Face 2: IDs 1696–2543
+Build command: npm ci
+Output directory: public
+```
+
+The wallet lookup function requires an Ethereum RPC endpoint:
+
+```text
+ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+## Wallet Lookup API
+
+The frontend calls:
+
+```text
+/api/wallet-cats?address=...
+```
+
+The Cloudflare Pages Function:
+
+```text
+functions/api/wallet-cats.js
+```
+
+supports Ethereum addresses and ENS names. It uses `viem` for Ethereum and ENS resolution.
+
+## Geometry
+
+CatMoon is a **rhombic triacontahedron**:
+
+```text
+30 rhombus faces
+848 MoonCats per face
+25,440 total MoonCats
+```
+
+MoonCats are arranged by rescue-order ID:
+
+```text
+globalId = faceIndex * 848 + slot.id
+```
+
+Example ranges:
+
+```text
+Face 0:  IDs 0–847
+Face 1:  IDs 848–1695
+Face 2:  IDs 1696–2543
 ...
 Face 29: IDs 24592–25439
 ```
 
-This makes CatMoon both a visual artwork and a spatial map of the MoonCat rescue order.
+This makes the CatMoon both a visual artwork and a spatial map of the full MoonCat rescue set.
 
-## Tips
+## Image Assets
 
-- Unlock the panel before clicking MoonCats.
-    
-- Lock the panel again when you only want to rotate or zoom.
-    
-- Use filters to find important rescue groups quickly.
-    
-- Use wallet lookup to highlight owned cats.
-    
-- Bookmark a wallet URL to return directly to that wallet’s CatMoon view.
-    
-- On mobile, use pinch and two-finger twist gestures for easier navigation.
-    
+Base face textures:
 
-## Privacy Notes
+```text
+public/img/tri-faces/tri-face-00.png
+...
+public/img/tri-faces/tri-face-29.png
+```
 
-Wallet lookups use public blockchain/MoonCat ownership data.
+Slot metadata:
 
-Wallet history is stored locally in your browser. CatMoon does not need an account, login, or wallet connection to show wallet cats.
+```text
+public/img/tri-faces/tri-face-slots.compact.json
+```
+
+Full MoonCat atlas:
+
+```text
+public/img/allcats.png
+```
+
+The full atlas is lazy-loaded only when needed for previews or wallet overlays.
+
+Filter overlays:
+
+```text
+public/img/filters/<filterKey>/tri-face-XX.png
+public/img/filters/filter-manifest.json
+```
+
+## Tests
+
+The test suite uses Node’s built-in test runner.
+
+Current coverage focuses on:
+
+* config constants and URL helpers
+* utility helpers
+* wallet normalization and history helpers
+
+Run:
+
+```bash
+npm test
+```
 
 ## License
 
-CatMoon is licensed under GPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+CatMoon is licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE) for details.
