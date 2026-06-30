@@ -1,102 +1,83 @@
 import * as THREE from "three";
 import { TrackballControls } from "three/addons/controls/TrackballControls.js";
+import {
+  ALL_CATS_ATLAS_URL,
+  ATLAS_H,
+  ATLAS_W,
+  AUTO_ROTATE_EASE_IN_MS,
+  AUTO_ROTATE_ENABLED,
+  AUTO_ROTATE_RESUME_DELAY_MS,
+  AUTO_ROTATE_SPEED_X,
+  AUTO_ROTATE_SPEED_Y,
+  AUTO_ROTATE_SPEED_Z,
+  CLICK_MOVE_LIMIT,
+  COLS,
+  DESKTOP_ROLL_DRAG_SPEED,
+  DRAG_RELEASE_MOMENTUM_MULTIPLIER,
+  FILTER_BASE_OPACITY,
+  FILTER_DATA_URL,
+  FILTER_DEFINITIONS,
+  FILTER_FOCUS_DURATION_MS,
+  FILTER_KEYS,
+  FILTER_MANIFEST_URL,
+  MAX_ID,
+  PHI,
+  PRELOAD_FILTER_KEYS,
+  PREVIEW_SCALE,
+  RHOMBUS_CAT_COUNT,
+  ROWS,
+  STAR_PARALLAX_EASE,
+  STAR_PARALLAX_ENABLED,
+  STAR_PARALLAX_LARGE_STRENGTH,
+  STAR_PARALLAX_SMALL_STRENGTH,
+  TILE_H,
+  TILE_W,
+  TOOLTIP_INACTIVITY_HIDE_MS,
+  TOUCH_TWIST_ROLL_SPEED,
+  TRI_FACE_CAT_PIXEL_SCALE,
+  TRI_FACE_COUNT,
+  TRI_FACE_LONG_DIAG,
+  TRI_FACE_METADATA_URL,
+  TRI_FACE_TEX_H,
+  TRI_FACE_TEX_W,
+  TRI_FACE_TEXTURE_SCALE,
+  TRI_FACE_SHORT_DIAG,
+  TRI_MAX_DISTANCE,
+  TRI_MIN_DISTANCE,
+  WALLET_CAT_SCALE,
+  WALLET_FILTER_KEY,
+  WALLET_FILTER_LABEL,
+  WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS,
+  WALLET_LOOKUP_HISTORY_KEY,
+  WALLET_LOOKUP_HISTORY_LIMIT,
+  WALLET_OVERLAY_SURFACE_OFFSET,
+  filterTextureUrl,
+  triFaceTextureUrl
+} from "./js/config.js";
+import { clamp } from "./js/utils.js";
+import { getDomRefs } from "./js/dom.js";
 
-const COLS = 160;
-const ROWS = 159;
-const TILE_W = 21;
-const TILE_H = 22;
-const ATLAS_W = COLS * TILE_W;
-const ATLAS_H = ROWS * TILE_H;
-const MAX_ID = COLS * ROWS - 1;
-const ALL_CATS_ATLAS_URL = "img/allcats.png";
-const PREVIEW_SCALE = 4;
-const CLICK_MOVE_LIMIT = 6;
-const TOOLTIP_INACTIVITY_HIDE_MS = 3000;
-const PHI = (1 + Math.sqrt(5)) / 2;
-const TRI_FACE_COUNT = 30;
-const RHOMBUS_CAT_COUNT = 848;
-const TRI_MIN_DISTANCE = 0.55;
-const TRI_MAX_DISTANCE = 7;
-const TRI_FACE_BASE_SHORT_DIAG = 768;
-const TRI_FACE_TEXTURE_SCALE = 2;
-// Future mobile optimization: lower scale, alternate img/tri-faces-mobile/, a face atlas, or compressed textures.
-const TRI_FACE_SHORT_DIAG = TRI_FACE_BASE_SHORT_DIAG * TRI_FACE_TEXTURE_SCALE;
-const TRI_FACE_LONG_DIAG = Math.round(TRI_FACE_SHORT_DIAG * PHI);
-const TRI_FACE_TEX_W = TRI_FACE_SHORT_DIAG;
-const TRI_FACE_TEX_H = TRI_FACE_LONG_DIAG;
-const TRI_FACE_CAT_PIXEL_SCALE = 2;
-const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.compact.json";
-const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
-const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
-const FILTER_DATA_URL = "data/mooncat-filters.json";
-const FILTER_TEXTURE_DIR = "img/filters";
-const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
-const FILTER_BASE_OPACITY = 0.16;
-const WALLET_FILTER_KEY = "wallet";
-const WALLET_FILTER_LABEL = "Wallet Cats";
-const WALLET_LOOKUP_HISTORY_KEY = "catmoon.walletLookupHistory";
-const WALLET_LOOKUP_HISTORY_LIMIT = 8;
-const WALLET_CAT_SCALE = 1.5;
-const WALLET_OVERLAY_SURFACE_OFFSET = 0.02;
-const WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS = 80;
-const CHARACTER_CATEGORY_KEYS = [
-  "garfield",
-  "cheshire",
-  "pinkpanther",
-  "alien",
-  "zombie",
-  "simba",
-  "golden",
-  "pikachu"
-];
-const FILTER_DEFINITIONS = [
-  { key: "genesis", category: "genesis" },
-  { key: "characters", categories: CHARACTER_CATEGORY_KEYS },
-  { key: "day1", category: "day1" },
-  { key: "week1", category: "week1" },
-  { key: "2017", category: "2017" },
-  { key: "2018", category: "2018" },
-  { key: "2019", category: "2019" },
-  { key: "2020", category: "2020" },
-  { key: "earlyRescues", category: "earlyRescues" },
-  { key: "2021", category: "2021" }
-];
-const FILTER_KEYS = new Set(FILTER_DEFINITIONS.map((filter) => filter.key));
-const PRELOAD_FILTER_KEYS = FILTER_DEFINITIONS.map((filter) => filter.key);
-const TOUCH_TWIST_ROLL_SPEED = 1.0;
-const DESKTOP_ROLL_DRAG_SPEED = 0.006;
-const AUTO_ROTATE_ENABLED = true;
-const AUTO_ROTATE_SPEED_X = 0.035;
-const AUTO_ROTATE_SPEED_Y = 0.055;
-const AUTO_ROTATE_SPEED_Z = 0.01;
-const AUTO_ROTATE_RESUME_DELAY_MS = 5000;
-const AUTO_ROTATE_EASE_IN_MS = 1000;
-const FILTER_FOCUS_DURATION_MS = 1250;
-const STAR_PARALLAX_ENABLED = true;
-const STAR_PARALLAX_SMALL_STRENGTH = 36;
-const STAR_PARALLAX_LARGE_STRENGTH = 18;
-const STAR_PARALLAX_EASE = 0.06;
-const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 1.6;
-
-const smallStarsEl = document.getElementById("small-stars");
-const largeStarsEl = document.getElementById("large-stars");
-const canvas = document.getElementById("scene");
-const hud = document.getElementById("hud");
-const hudLockButton = document.getElementById("hudLockButton");
-const catIdEl = document.getElementById("catId");
-const previewEl = document.getElementById("preview");
-const catFilterEl = document.getElementById("catFilter");
-const walletFilterInputEl = document.getElementById("walletFilterInput");
-const walletFilterClearEl = document.getElementById("walletFilterClear");
-const walletFilterButtonEl = document.getElementById("walletFilterButton");
-const walletFilterStatusEl = document.getElementById("walletFilterStatus");
-const walletHistoryDropdownEl = document.getElementById("walletHistoryDropdown");
-const activeFilterBadgeEl = document.getElementById("activeFilterBadge");
-const activeFilterNameEl = document.getElementById("activeFilterName");
-const tooltipEl = document.getElementById("tooltip");
-const statusEl = document.getElementById("status");
-const loadingOverlay = document.getElementById("loadingOverlay");
-const loadingProgressEl = document.getElementById("loadingProgress");
+const {
+  smallStarsEl,
+  largeStarsEl,
+  canvas,
+  hud,
+  hudLockButton,
+  catIdEl,
+  previewEl,
+  catFilterEl,
+  walletFilterInputEl,
+  walletFilterClearEl,
+  walletFilterButtonEl,
+  walletFilterStatusEl,
+  walletHistoryDropdownEl,
+  activeFilterBadgeEl,
+  activeFilterNameEl,
+  tooltipEl,
+  statusEl,
+  loadingOverlay,
+  loadingProgressEl
+} = getDomRefs();
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -179,22 +160,6 @@ const starParallax = {
   largeY: 0
 };
 const parallaxCameraVector = new THREE.Vector3();
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function pad2(value) {
-  return String(value).padStart(2, "0");
-}
-
-function triFaceTextureUrl(faceIndex) {
-  return `${TRI_FACE_TEXTURE_DIR}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
-}
-
-function filterTextureUrl(filterKey, faceIndex) {
-  return `${FILTER_TEXTURE_DIR}/${filterKey}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;
-}
 
 function applyPixelTextureSettings(texture) {
   texture.colorSpace = THREE.SRGBColorSpace;
