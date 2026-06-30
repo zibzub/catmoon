@@ -210,3 +210,7 @@ This makes CatMoon both a visual artwork and a spatial map of the MoonCat rescue
 Wallet lookups use public blockchain/MoonCat ownership data.
 
 Wallet history is stored locally in your browser. CatMoon does not need an account, login, or wallet connection to show wallet cats.
+
+## License
+
+CatMoon is licensed under GPL-3.0-or-later. See [LICENSE](LICENSE) for details.
