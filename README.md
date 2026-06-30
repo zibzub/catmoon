@@ -199,6 +199,9 @@ functions/api/wallet-cats.js
 ```
 
 supports Ethereum addresses and ENS names. It uses `viem` for Ethereum and ENS resolution.
+Wallet ownership data comes from the MoonCatRescue API.
+
+Successful wallet lookup responses are cached at the Cloudflare edge for 5 minutes. Invalid inputs return `400` with `cache-control: no-store`.
 
 ## Geometry
 
@@ -238,6 +241,8 @@ public/img/tri-faces/tri-face-00.png
 public/img/tri-faces/tri-face-29.png
 ```
 
+Triangular face textures are generated with deterministic jittering, so the same inputs produce stable, repeatable face images.
+
 Slot metadata:
 
 ```text
@@ -274,6 +279,10 @@ Run:
 ```bash
 npm test
 ```
+
+## Acknowledgements
+
+CatMoon was inspired by the Allcats site, created by cmfb.
 
 ## License
 
