@@ -6,8 +6,10 @@
   "version": "1.0.0",
   "description": "CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the full collection, filter special groups, and look up the cats owned by a wallet.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "check": "node --check public/main.js && for file in public/js/*.js; do node --check \"$file\"; done",
+    "test": "node --test test/*.test.js"
   },
   "repository": {
     "type": "git",
