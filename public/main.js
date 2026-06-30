@@ -1,31 +1,19 @@
 import * as THREE from "three";
 import { TrackballControls } from "three/addons/controls/TrackballControls.js";
 import {
-  ALL_CATS_ATLAS_URL,
-  ATLAS_H,
-  ATLAS_W,
   AUTO_ROTATE_EASE_IN_MS,
   AUTO_ROTATE_ENABLED,
   AUTO_ROTATE_RESUME_DELAY_MS,
   AUTO_ROTATE_SPEED_X,
   AUTO_ROTATE_SPEED_Y,
   AUTO_ROTATE_SPEED_Z,
-  CLICK_MOVE_LIMIT,
   COLS,
-  DESKTOP_ROLL_DRAG_SPEED,
   DRAG_RELEASE_MOMENTUM_MULTIPLIER,
   FILTER_BASE_OPACITY,
-  FILTER_DATA_URL,
-  FILTER_DEFINITIONS,
   FILTER_FOCUS_DURATION_MS,
   FILTER_KEYS,
-  FILTER_MANIFEST_URL,
   MAX_ID,
-  PHI,
-  PRELOAD_FILTER_KEYS,
-  PREVIEW_SCALE,
   RHOMBUS_CAT_COUNT,
-  ROWS,
   STAR_PARALLAX_EASE,
   STAR_PARALLAX_ENABLED,
   STAR_PARALLAX_LARGE_STRENGTH,
@@ -33,15 +21,9 @@ import {
   TILE_H,
   TILE_W,
   TOOLTIP_INACTIVITY_HIDE_MS,
-  TOUCH_TWIST_ROLL_SPEED,
-  TRI_FACE_CAT_PIXEL_SCALE,
   TRI_FACE_COUNT,
-  TRI_FACE_LONG_DIAG,
-  TRI_FACE_METADATA_URL,
   TRI_FACE_TEX_H,
   TRI_FACE_TEX_W,
-  TRI_FACE_TEXTURE_SCALE,
-  TRI_FACE_SHORT_DIAG,
   TRI_MAX_DISTANCE,
   TRI_MIN_DISTANCE,
   WALLET_CAT_SCALE,
@@ -49,12 +31,14 @@ import {
   WALLET_FILTER_LABEL,
   WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS,
   WALLET_LOOKUP_HISTORY_LIMIT,
-  WALLET_OVERLAY_SURFACE_OFFSET,
-  filterTextureUrl,
-  triFaceTextureUrl
+  WALLET_OVERLAY_SURFACE_OFFSET
 } from "./js/config.js";
 import { clamp } from "./js/utils.js";
 import { getDomRefs } from "./js/dom.js";
+import { createFilterManager } from "./js/filters.js";
+import { createPreviewManager } from "./js/preview.js";
+import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
+import { setupCatMoonControls } from "./js/controls.js";
 import {
   clearWalletUrl,
   findWalletHistoryEntryByInput,
@@ -138,31 +122,13 @@ let pendingAutoLoadWalletInput = "";
 let lastAutoLoadedWalletInput = "";
 let walletHistoryDropdownOpen = false;
 let walletHistorySelectionInProgress = false;
-let filterDataPromise = null;
-let filterManifestPromise = null;
 let filterSelectionToken = 0;
-let filterOverlayPreloadStarted = false;
-let allCatsAtlasImage = null;
-let allCatsAtlasPromise = null;
 let tooltipHideTimer = null;
 let pointerInside = false;
 let lastClientX = 0;
 let lastClientY = 0;
-let downPoint = null;
-const triFaceSlots = [];
-const triFaceTexturePromises = [];
-const filterTexturePromises = new Map();
-const filterTextureCache = new Map();
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
-const triTextureStats = {
-  prerenderedLoaded: 0,
-  metadataLoaded: false,
-  textureErrors: 0
-};
-const activePointers = new Map();
-let twoFingerLastAngle = null;
-let touchGestureWasTwoFinger = false;
-let rollDrag = null;
+let controlsApi = null;
 let focusAnimation = null;
 let focusInteractionVersion = 0;
 let autoRotateResumeAt = 0;
@@ -185,104 +151,6 @@ function applyPixelTextureSettings(texture) {
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;
   return texture;
-}
-
-function categoryIdSet(filters, key) {
-  const ids = filters.categories?.[key]?.ids;
-  if (!Array.isArray(ids)) {
-    throw new Error(`${FILTER_DATA_URL} is missing categories.${key}.ids`);
-  }
-  return new Set(ids);
-}
-
-function unionCategoryIdSet(filters, keys) {
-  const ids = new Set();
-  for (const key of keys) {
-    for (const id of categoryIdSet(filters, key)) {
-      ids.add(id);
-    }
-  }
-  return ids;
-}
-
-function filterDefinitionIdSet(filters, definition) {
-  if (definition.key === "characters" && Array.isArray(filters.presets?.characters?.ids)) {
-    return new Set(filters.presets.characters.ids);
-  }
-  if (definition.category) {
-    return categoryIdSet(filters, definition.category);
-  }
-  return unionCategoryIdSet(filters, definition.categories);
-}
-
-async function loadFilterData() {
-  const response = await fetch(FILTER_DATA_URL, { cache: "no-cache" });
-  if (!response.ok) {
-    throw new Error(`Missing MoonCat filter data: ${FILTER_DATA_URL}`);
-  }
-
-  const filters = await response.json();
-  const filterSets = {};
-  for (const definition of FILTER_DEFINITIONS) {
-    filterSets[definition.key] = filterDefinitionIdSet(filters, definition);
-  }
-  return filterSets;
-}
-
-function ensureFilterDataLoaded() {
-  if (!filterDataPromise) {
-    filterDataPromise = loadFilterData();
-  }
-  return filterDataPromise;
-}
-
-function validateFilterManifest(manifest) {
-  return manifest
-    && manifest.version === 1
-    && manifest.filters
-    && typeof manifest.filters === "object";
-}
-
-async function loadFilterManifest() {
-  try {
-    const response = await fetch(FILTER_MANIFEST_URL, { cache: "no-cache" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const manifest = await response.json();
-    if (!validateFilterManifest(manifest)) {
-      throw new Error(`${FILTER_MANIFEST_URL} is not a recognized filter manifest.`);
-    }
-
-    return manifest;
-  } catch (error) {
-    console.warn(`Could not load ${FILTER_MANIFEST_URL}; falling back to all filter overlay faces.`, error);
-    return null;
-  }
-}
-
-function ensureFilterManifestLoaded() {
-  if (!filterManifestPromise) {
-    filterManifestPromise = loadFilterManifest();
-  }
-  return filterManifestPromise;
-}
-
-function filterManifestFaces(manifest, filterKey) {
-  const faces = manifest?.filters?.[filterKey]?.faces;
-  if (!Array.isArray(faces)) {
-    if (manifest) {
-      console.warn(`${FILTER_MANIFEST_URL} is missing filters.${filterKey}.faces; falling back to all faces for that filter.`);
-    }
-    return Array.from({ length: TRI_FACE_COUNT }, (_, faceIndex) => faceIndex);
-  }
-
-  return faces.filter((faceIndex) => (
-    Number.isInteger(faceIndex)
-    && faceIndex >= 0
-    && faceIndex < TRI_FACE_COUNT
-  ));
 }
 
 function setLoadingProgress(text) {
@@ -310,6 +178,36 @@ function makePlaceholderTexture() {
   context.fillRect(1, 1, 1, 1);
   return applyPixelTextureSettings(new THREE.CanvasTexture(placeholderCanvas));
 }
+
+const {
+  filterTextureCache,
+  ensureFilterDataLoaded,
+  ensureFilterManifestLoaded,
+  ensureFilterTexturesLoaded,
+  preloadFilterOverlayTextures
+} = createFilterManager({ textureLoader, applyPixelTextureSettings });
+
+const {
+  updatePreview,
+  ensurePreviewAtlasLoaded,
+  loadAllCatsAtlas
+} = createPreviewManager({
+  previewEl,
+  getHoveredId: () => hoveredId,
+  isHudUnlocked: () => hudUnlocked
+});
+
+const {
+  triFaceSlots,
+  triFaceTexturePromises,
+  triTextureStats,
+  makeTriacontahedron,
+  loadTriFaceSlotMetadata
+} = createCatMoonGeometry({
+  textureLoader,
+  applyPixelTextureSettings,
+  makePlaceholderTexture
+});
 
 function idFromTriacontahedronHit(hit) {
   if (!hit.uv || !hit.object.userData) return null;
@@ -364,64 +262,6 @@ function updatePointerFromClient(clientX, clientY) {
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
-}
-
-function updatePreview(id) {
-  if (id === null) {
-    previewEl.style.backgroundPosition = "9999px 9999px";
-    return;
-  }
-
-  if (!allCatsAtlasImage) {
-    previewEl.style.backgroundPosition = "9999px 9999px";
-    return;
-  }
-
-  const row = Math.floor(id / COLS);
-  const col = id % COLS;
-  previewEl.style.backgroundSize = `${ATLAS_W * PREVIEW_SCALE}px ${ATLAS_H * PREVIEW_SCALE}px`;
-  previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
-}
-
-function applyCachedPreviewAtlas() {
-  if (!allCatsAtlasImage) return;
-
-  previewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
-  updatePreview(hoveredId);
-}
-
-function ensurePreviewAtlasLoaded() {
-  if (!hudUnlocked || hoveredId === null || allCatsAtlasImage) return;
-
-  loadAllCatsAtlas().catch((error) => {
-    console.warn("Could not load CatMoon preview atlas.", error);
-  });
-}
-
-function loadAllCatsAtlas() {
-  if (allCatsAtlasImage) {
-    return Promise.resolve(allCatsAtlasImage);
-  }
-  if (!allCatsAtlasPromise) {
-    allCatsAtlasPromise = new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => {
-        if (image.naturalWidth !== ATLAS_W || image.naturalHeight !== ATLAS_H) {
-          reject(new Error(`${ALL_CATS_ATLAS_URL} is ${image.naturalWidth}x${image.naturalHeight}; expected ${ATLAS_W}x${ATLAS_H}.`));
-          return;
-        }
-        allCatsAtlasImage = image;
-        applyCachedPreviewAtlas();
-        resolve(image);
-      };
-      image.onerror = () => reject(new Error(`Could not load ${ALL_CATS_ATLAS_URL}.`));
-      image.src = ALL_CATS_ATLAS_URL;
-    }).catch((error) => {
-      allCatsAtlasPromise = null;
-      throw error;
-    });
-  }
-  return allCatsAtlasPromise;
 }
 
 function updateHudLockState() {
@@ -489,84 +329,13 @@ function updateHoverFromClient(clientX, clientY) {
   lastClientY = clientY;
   updatePointerFromClient(clientX, clientY);
   updateHoverFromPointer();
+  return hoveredId;
 }
 
 function openCat(id) {
   if (!hudUnlocked) return;
   if (id === null) return;
   window.open(`https://mooncatrescue.com/mooncats/${id}`, "_blank", "noopener,noreferrer");
-}
-
-function canRollActiveObject() {
-  return Boolean(activeObject);
-}
-
-function rollActiveObject(delta) {
-  if (!canRollActiveObject()) return;
-  const axis = new THREE.Vector3();
-  camera.getWorldDirection(axis);
-  activeObject.rotateOnWorldAxis(axis.normalize(), delta);
-}
-
-function beginRollDrag(event) {
-  rollDrag = {
-    pointerId: event.pointerId,
-    x: event.clientX,
-    y: event.clientY
-  };
-  controls.enabled = false;
-  renderer.domElement.setPointerCapture?.(event.pointerId);
-  event.preventDefault();
-  event.stopImmediatePropagation();
-}
-
-function releaseRendererPointerCapture(pointerId) {
-  try {
-    renderer.domElement.releasePointerCapture?.(pointerId);
-  } catch (error) {
-    // Pointer capture may already be gone after blur/cancel.
-  }
-}
-
-function endRollDrag(event) {
-  if (!rollDrag) return;
-
-  const pointerId = rollDrag.pointerId;
-  rollDrag = null;
-  controls.enabled = true;
-  if (event) {
-    releaseRendererPointerCapture(event.pointerId);
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  } else {
-    releaseRendererPointerCapture(pointerId);
-  }
-  downPoint = null;
-  scheduleAutoRotateResume();
-}
-
-function pointerAngleFromActiveTouches() {
-  const touches = Array.from(activePointers.values()).filter((pointerInfo) => pointerInfo.pointerType === "touch");
-  if (touches.length !== 2) return null;
-  return Math.atan2(touches[1].y - touches[0].y, touches[1].x - touches[0].x);
-}
-
-function updateTouchTwistRoll() {
-  const angle = pointerAngleFromActiveTouches();
-  if (angle === null) {
-    twoFingerLastAngle = null;
-    return;
-  }
-
-  touchGestureWasTwoFinger = true;
-  if (twoFingerLastAngle !== null) {
-    let delta = angle - twoFingerLastAngle;
-    if (delta > Math.PI) delta -= Math.PI * 2;
-    if (delta < -Math.PI) delta += Math.PI * 2;
-    rollActiveObject(delta * TOUCH_TWIST_ROLL_SPEED);
-  }
-
-  twoFingerLastAngle = angle;
 }
 
 function pauseAutoRotate() {
@@ -588,7 +357,7 @@ function cancelFocusAnimation() {
 }
 
 function focusFace(faceIndex) {
-  if (!triacontahedron || activePointers.size || rollDrag) return;
+  if (!triacontahedron || controlsApi?.hasActiveInput()) return;
 
   const faceNormal = triacontahedron.userData.faceNormals?.[faceIndex];
   const faceUp = triacontahedron.userData.faceUps?.[faceIndex];
@@ -703,240 +472,6 @@ function animate() {
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
   renderer.render(scene, camera);
-}
-
-function makeIcosahedronData() {
-  const p = PHI;
-  const vertices = [
-    [-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0],
-    [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p],
-    [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]
-  ].map(([x, y, z]) => new THREE.Vector3(x, y, z).normalize());
-
-  const faces = [
-    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
-    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
-    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
-  ];
-
-  return { vertices, faces };
-}
-
-function edgeKey(a, b) {
-  return a < b ? `${a}-${b}` : `${b}-${a}`;
-}
-
-function makeRhombicTriacontahedronFaces() {
-  const { vertices, faces } = makeIcosahedronData();
-  const edgeMap = new Map();
-  const vertexNeighbors = Array.from({ length: vertices.length }, () => new Set());
-
-  faces.forEach((face, faceIndex) => {
-    for (let i = 0; i < 3; i += 1) {
-      const a = face[i];
-      const b = face[(i + 1) % 3];
-      const key = edgeKey(a, b);
-      if (!edgeMap.has(key)) {
-        edgeMap.set(key, { a: Math.min(a, b), b: Math.max(a, b), faces: [] });
-      }
-      edgeMap.get(key).faces.push(faceIndex);
-      vertexNeighbors[a].add(b);
-      vertexNeighbors[b].add(a);
-    }
-  });
-
-  const vertexDuals = vertices.map((vertex, index) => {
-    const neighborIndex = vertexNeighbors[index].values().next().value;
-    const planeDistance = vertex.dot(vertices[neighborIndex].clone().add(vertex).multiplyScalar(0.5));
-    return vertex.clone().multiplyScalar(1 / planeDistance);
-  });
-
-  const faceDuals = faces.map((face) => {
-    const a = vertices[face[0]];
-    const b = vertices[face[1]];
-    const c = vertices[face[2]];
-    const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
-    const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
-    if (normal.dot(centroid) < 0) normal.multiplyScalar(-1);
-    const planeDistance = normal.dot(a);
-    return normal.multiplyScalar(1 / planeDistance);
-  });
-
-  return Array.from(edgeMap.values()).map((edge) => {
-    const [faceA, faceB] = edge.faces;
-    console.assert(edge.faces.length === 2, `Icosahedron edge ${edge.a}-${edge.b} has ${edge.faces.length} adjacent faces`);
-    return [
-      vertexDuals[edge.a].clone(),
-      faceDuals[faceA].clone(),
-      vertexDuals[edge.b].clone(),
-      faceDuals[faceB].clone()
-    ];
-  });
-}
-
-function sortFaceVertices(points) {
-  const center = points.reduce((acc, point) => acc.add(point), new THREE.Vector3()).multiplyScalar(1 / points.length);
-  const normal = center.clone().normalize();
-  const basisX = points[0].clone().sub(center).normalize();
-  const basisY = normal.clone().cross(basisX).normalize();
-
-  const sorted = [...points].sort((a, b) => {
-    const av = a.clone().sub(center);
-    const bv = b.clone().sub(center);
-    const aa = Math.atan2(av.dot(basisY), av.dot(basisX));
-    const ba = Math.atan2(bv.dot(basisY), bv.dot(basisX));
-    return aa - ba;
-  });
-
-  const faceNormal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0]));
-  if (faceNormal.dot(center) < 0) sorted.reverse();
-  return sorted;
-}
-
-function orderRhombusFaceVerticesForDiamondUv(points) {
-  const sorted = sortFaceVertices(points);
-  const center = sorted.reduce((acc, point) => acc.add(point), new THREE.Vector3()).multiplyScalar(1 / sorted.length);
-  const diagonalA = sorted[0].distanceTo(sorted[2]);
-  const diagonalB = sorted[1].distanceTo(sorted[3]);
-  const longPair = diagonalA >= diagonalB ? [sorted[0], sorted[2]] : [sorted[1], sorted[3]];
-  const shortPair = diagonalA >= diagonalB ? [sorted[1], sorted[3]] : [sorted[0], sorted[2]];
-  const normal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0])).normalize();
-  if (normal.dot(center) < 0) normal.multiplyScalar(-1);
-
-  let localUp = new THREE.Vector3(0, 1, 0).projectOnPlane(normal);
-  if (localUp.lengthSq() < 0.000001) {
-    localUp = new THREE.Vector3(0, 0, 1).projectOnPlane(normal);
-  }
-  localUp.normalize();
-  const localRight = localUp.clone().cross(normal).normalize();
-
-  const [top, bottom] = longPair[0].clone().sub(center).dot(localUp) >= longPair[1].clone().sub(center).dot(localUp)
-    ? [longPair[0], longPair[1]]
-    : [longPair[1], longPair[0]];
-  const [right, left] = shortPair[0].clone().sub(center).dot(localRight) >= shortPair[1].clone().sub(center).dot(localRight)
-    ? [shortPair[0], shortPair[1]]
-    : [shortPair[1], shortPair[0]];
-
-  return [top, right, bottom, left];
-}
-
-function makeTriFaceMaterial(faceIndex) {
-  const material = new THREE.MeshBasicMaterial({
-    map: makePlaceholderTexture(),
-    side: THREE.DoubleSide,
-    opacity: 1
-  });
-
-  const ready = new Promise((resolve, reject) => {
-    const url = triFaceTextureUrl(faceIndex);
-    textureLoader.load(
-      url,
-      (texture) => {
-        if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
-          console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate production tri-face PNGs from the dev tool.`);
-        }
-        applyPixelTextureSettings(texture);
-        material.map = texture;
-        material.needsUpdate = true;
-        triTextureStats.prerenderedLoaded += 1;
-        resolve();
-      },
-      undefined,
-      () => {
-        triTextureStats.textureErrors += 1;
-        reject(new Error(`Missing required tri-face texture: ${url}`));
-      }
-    );
-  });
-
-  return { material, ready };
-}
-
-function makeFilterOverlayMaterial() {
-  return new THREE.MeshBasicMaterial({
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 1,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1
-  });
-}
-
-function makeFilterBackingMaterial() {
-  return new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    side: THREE.DoubleSide,
-    transparent: false,
-    polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 1
-  });
-}
-
-function makeFilterEdgeMaterial() {
-  return new THREE.LineBasicMaterial({
-    color: 0xff69b4,
-    transparent: true,
-    opacity: 0.72,
-    depthWrite: false
-  });
-}
-
-function loadFilterTexture(filterKey, faceIndex) {
-  return new Promise((resolve, reject) => {
-    const url = filterTextureUrl(filterKey, faceIndex);
-    textureLoader.load(
-      url,
-      (texture) => {
-        if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
-          console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate filter overlay PNGs from the tools script.`);
-        }
-        resolve(applyPixelTextureSettings(texture));
-      },
-      undefined,
-      () => reject(new Error(`Could not load filter overlay texture: ${url}`))
-    );
-  });
-}
-
-async function ensureFilterTexturesLoaded(filterKey) {
-  if (filterTextureCache.has(filterKey)) {
-    return filterTextureCache.get(filterKey);
-  }
-
-  if (!filterTexturePromises.has(filterKey)) {
-    const promise = ensureFilterManifestLoaded().then((manifest) => {
-      const faceIndices = filterManifestFaces(manifest, filterKey);
-      const textures = Array(TRI_FACE_COUNT).fill(null);
-      return Promise.all(
-        faceIndices.map((faceIndex) => (
-          loadFilterTexture(filterKey, faceIndex).then((texture) => {
-            textures[faceIndex] = texture;
-          })
-        ))
-      ).then(() => textures);
-    }).then((textures) => {
-      filterTextureCache.set(filterKey, textures);
-      return textures;
-    });
-    filterTexturePromises.set(filterKey, promise);
-  }
-
-  return filterTexturePromises.get(filterKey);
-}
-
-function preloadFilterOverlayTextures() {
-  if (filterOverlayPreloadStarted) return;
-  filterOverlayPreloadStarted = true;
-
-  for (const filterKey of PRELOAD_FILTER_KEYS) {
-    ensureFilterTexturesLoaded(filterKey).catch((error) => {
-      console.warn(`Could not preload ${filterKey} CatMoon filter overlays.`, error);
-    });
-  }
 }
 
 function disposeTexture(texture) {
@@ -1504,140 +1039,6 @@ async function syncWalletFilterFromUrl() {
   await applyWalletFilter({ updateUrl: false });
 }
 
-function makeTriacontahedron() {
-  const group = new THREE.Group();
-  const faces = makeRhombicTriacontahedronFaces();
-  const uvs = [
-    0.5, 1,
-    1, 0.5,
-    0.5, 0,
-    0, 0.5
-  ];
-  group.userData.baseMeshes = [];
-  group.userData.backingMeshes = [];
-  group.userData.overlayMeshes = [];
-  group.userData.edgeMeshes = [];
-  group.userData.faceNormals = [];
-  group.userData.faceUps = [];
-
-  console.assert(faces.length === TRI_FACE_COUNT, `Expected ${TRI_FACE_COUNT} triacontahedron faces, got ${faces.length}`);
-  console.assert(TRI_FACE_COUNT * RHOMBUS_CAT_COUNT === MAX_ID + 1, "Triacontahedron face count does not cover the full atlas exactly once");
-
-  faces.forEach((points, faceIndex) => {
-    console.assert(points.length === 4, `Face ${faceIndex} does not have 4 vertices`);
-    const sorted = orderRhombusFaceVerticesForDiamondUv(points);
-    const positions = [];
-    for (const point of sorted) {
-      positions.push(point.x, point.y, point.z);
-    }
-    const faceCenter = sorted.reduce((sum, point) => sum.add(point), new THREE.Vector3()).multiplyScalar(1 / sorted.length);
-    const faceNormal = sorted[1].clone().sub(sorted[0]).cross(sorted[2].clone().sub(sorted[0])).normalize();
-    if (faceNormal.dot(faceCenter) < 0) faceNormal.multiplyScalar(-1);
-    group.userData.faceNormals[faceIndex] = faceNormal;
-    group.userData.faceUps[faceIndex] = sorted[0].clone().sub(sorted[2]).normalize();
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setIndex([0, 1, 2, 0, 2, 3]);
-    geometry.computeVertexNormals();
-
-    const backingMesh = new THREE.Mesh(geometry, makeFilterBackingMaterial());
-    backingMesh.userData.faceIndex = faceIndex;
-    backingMesh.userData.isFilterBacking = true;
-    backingMesh.visible = false;
-    backingMesh.renderOrder = 0;
-    group.add(backingMesh);
-    group.userData.backingMeshes.push(backingMesh);
-
-    const { material, ready } = makeTriFaceMaterial(faceIndex);
-    triFaceTexturePromises.push(ready);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.userData.faceIndex = faceIndex;
-    mesh.userData.isBaseFace = true;
-    mesh.renderOrder = 1;
-    group.add(mesh);
-    group.userData.baseMeshes.push(mesh);
-
-    const overlayMesh = new THREE.Mesh(geometry, makeFilterOverlayMaterial());
-    overlayMesh.userData.faceIndex = faceIndex;
-    overlayMesh.userData.isFilterOverlay = true;
-    overlayMesh.visible = false;
-    overlayMesh.renderOrder = 2;
-    group.add(overlayMesh);
-    group.userData.overlayMeshes.push(overlayMesh);
-
-    const edgeGeometry = new THREE.EdgesGeometry(geometry);
-    const edgeMesh = new THREE.LineSegments(edgeGeometry, makeFilterEdgeMaterial());
-    edgeMesh.userData.faceIndex = faceIndex;
-    edgeMesh.userData.isFilterEdge = true;
-    edgeMesh.visible = false;
-    edgeMesh.renderOrder = 3;
-    edgeMesh.raycast = () => {};
-    group.add(edgeMesh);
-    group.userData.edgeMeshes.push(edgeMesh);
-  });
-
-  group.scale.setScalar(0.62);
-  group.visible = false;
-  console.info(`Triacontahedron: ${TRI_FACE_COUNT} faces x ${RHOMBUS_CAT_COUNT} cats = ${TRI_FACE_COUNT * RHOMBUS_CAT_COUNT}`);
-  return group;
-}
-
-function validateCompactTriFaceSlotMetadata(metadata) {
-  if (!metadata || metadata.v !== 1) return false;
-  if (metadata.tw !== TRI_FACE_TEX_W) return false;
-  if (metadata.th !== TRI_FACE_TEX_H) return false;
-  if (metadata.fc !== TRI_FACE_COUNT) return false;
-  if (metadata.cpf !== RHOMBUS_CAT_COUNT) return false;
-  if (!Array.isArray(metadata.faces) || metadata.faces.length !== TRI_FACE_COUNT) return false;
-
-  return metadata.faces.every((faceSlots) => (
-    Array.isArray(faceSlots)
-    && faceSlots.length === RHOMBUS_CAT_COUNT
-    && faceSlots.every((slotTuple) => (
-      Array.isArray(slotTuple)
-      && slotTuple.length === 7
-      && slotTuple.every(Number.isFinite)
-    ))
-  ));
-}
-
-function normalizeCompactTriFaceSlots(faceSlots) {
-  return faceSlots.map(([id, hitX, hitY, hitW, hitH, centerX, centerY]) => ({
-    id,
-    x: centerX,
-    y: centerY,
-    w: hitW,
-    h: hitH,
-    polygon: null,
-    hitRect: {
-      x: hitX,
-      y: hitY,
-      w: hitW,
-      h: hitH
-    }
-  }));
-}
-
-async function loadTriFaceSlotMetadata() {
-  const response = await fetch(TRI_FACE_METADATA_URL, { cache: "no-cache" });
-  if (!response.ok) {
-    throw new Error(`Missing required tri-face slot metadata: ${TRI_FACE_METADATA_URL}`);
-  }
-
-  const metadata = await response.json();
-  if (!validateCompactTriFaceSlotMetadata(metadata)) {
-    throw new Error(`${TRI_FACE_METADATA_URL} does not match current CatMoon texture settings.`);
-  }
-
-  metadata.faces.forEach((faceSlots, faceIndex) => {
-    triFaceSlots[faceIndex] = normalizeCompactTriFaceSlots(faceSlots);
-  });
-  triTextureStats.metadataLoaded = true;
-  console.info(`Loaded tri-face slot metadata from ${TRI_FACE_METADATA_URL}`);
-}
-
 window.triFaceTextureStats = triTextureStats;
 
 async function initializeScene() {
@@ -1797,113 +1198,23 @@ window.addEventListener("popstate", () => {
     .catch(() => {});
 });
 
-renderer.domElement.addEventListener("pointermove", (event) => {
-  if (activePointers.has(event.pointerId)) {
-    activePointers.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-      pointerType: event.pointerType
-    });
-  }
-
-  if (rollDrag) {
-    const dx = event.clientX - rollDrag.x;
-    rollActiveObject(dx * DESKTOP_ROLL_DRAG_SPEED);
-    rollDrag.x = event.clientX;
-    rollDrag.y = event.clientY;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    return;
-  }
-
-  updateTouchTwistRoll();
-
-  updateHoverFromClient(event.clientX, event.clientY);
-}, { capture: true });
-
-renderer.domElement.addEventListener("pointerleave", () => {
-  pointerInside = false;
-  setHoveredId(null);
-});
-
-renderer.domElement.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
-
-renderer.domElement.addEventListener("pointerdown", (event) => {
-  focusInteractionVersion += 1;
-  cancelFocusAnimation();
-  pauseAutoRotate();
-  activePointers.set(event.pointerId, {
-    x: event.clientX,
-    y: event.clientY,
-    pointerType: event.pointerType
-  });
-
-  if (hudUnlocked && event.pointerType === "touch") {
-    updateHoverFromClient(event.clientX, event.clientY);
-  }
-
-  const isRightMouseRoll = event.pointerType === "mouse" && event.button === 2;
-  if ((isRightMouseRoll || event.ctrlKey || event.altKey) && canRollActiveObject()) {
-    beginRollDrag(event);
-  }
-
-  downPoint = {
-    x: event.clientX,
-    y: event.clientY
-  };
-}, { capture: true });
-
-renderer.domElement.addEventListener("pointerup", (event) => {
-  activePointers.delete(event.pointerId);
-  updateTouchTwistRoll();
-
-  if (touchGestureWasTwoFinger && event.pointerType === "touch") {
-    if (activePointers.size < 2) {
-      touchGestureWasTwoFinger = false;
-    }
-    downPoint = null;
-    scheduleAutoRotateResume();
-    return;
-  }
-
-  if (rollDrag && rollDrag.pointerId === event.pointerId) {
-    endRollDrag(event);
-    return;
-  }
-
-  if (!downPoint) return;
-
-  const dx = event.clientX - downPoint.x;
-  const dy = event.clientY - downPoint.y;
-  const moved = Math.hypot(dx, dy);
-
-  updateHoverFromClient(event.clientX, event.clientY);
-
-  if (moved <= CLICK_MOVE_LIMIT) {
-    openCat(hoveredId);
-  }
-
-  downPoint = null;
-  scheduleAutoRotateResume();
-}, { capture: true });
-
-renderer.domElement.addEventListener("pointercancel", (event) => {
-  activePointers.delete(event.pointerId);
-  twoFingerLastAngle = null;
-  touchGestureWasTwoFinger = false;
-  if (rollDrag && rollDrag.pointerId === event.pointerId) {
-    endRollDrag(event);
-    return;
-  }
-  downPoint = null;
-  scheduleAutoRotateResume();
-}, { capture: true });
-
-window.addEventListener("blur", () => {
-  if (rollDrag) {
-    endRollDrag();
+controlsApi = setupCatMoonControls({
+  renderer,
+  controls,
+  camera,
+  getActiveObject: () => activeObject,
+  isHudUnlocked: () => hudUnlocked,
+  updateHoverFromClient,
+  clearHover: () => {
+    pointerInside = false;
+    setHoveredId(null);
+  },
+  openCat,
+  pauseAutoRotate,
+  scheduleAutoRotateResume,
+  cancelFocusAnimation,
+  incrementFocusInteractionVersion: () => {
+    focusInteractionVersion += 1;
   }
 });
 
