@@ -2,15 +2,19 @@ import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 
 const MAX_RESCUE_ORDER = 25439;
+const MAX_LOOKUP_INPUT_LENGTH = 80;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const ENS_PATTERN = /^[a-z0-9-_.]+\.[a-z0-9-_.]+$/i;
+const LOOKUP_INPUT_PATTERN = /^[a-z0-9-_.]+$/i;
+const SUCCESS_CACHE_CONTROL = "public, max-age=300";
 const OWNER_PROFILE_BASE_URL = "https://api.mooncatrescue.com/owner-profile";
 const OWNED_MOONCATS_FALLBACK_URLS = [
   "https://api.mooncatrescue.com/owned-mooncats",
   "https://api.mooncat.community/owned-mooncats"
 ];
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet(context) {
+  const { request, env } = context;
   const url = new URL(request.url);
   const input = (url.searchParams.get("address") || "").trim();
 
@@ -22,10 +26,40 @@ export async function onRequestGet({ request, env }) {
     }, 400, "no-store");
   }
 
+  if (input.length > MAX_LOOKUP_INPUT_LENGTH) {
+    return jsonResponse({
+      error: "Address query parameter is too long.",
+      input,
+      ids: [],
+      count: 0
+    }, 400, "no-store");
+  }
+
+  if (!LOOKUP_INPUT_PATTERN.test(input)) {
+    return jsonResponse({
+      error: "Invalid characters in address query parameter.",
+      input,
+      ids: [],
+      count: 0
+    }, 400, "no-store");
+  }
+
+  const cache = globalThis.caches?.default;
+  const cacheKey = getWalletCacheKey(url, input);
+  if (cache && cacheKey) {
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      return responseWithHeaders(cachedResponse, {
+        "x-catmoon-cache": "hit",
+        "cache-control": SUCCESS_CACHE_CONTROL
+      });
+    }
+  }
+
   try {
     const wallet = await resolveWalletInput(input, env);
     const result = await lookupMoonCatIds(wallet.address);
-    return jsonResponse({
+    const response = jsonResponse({
       input,
       address: wallet.address,
       resolvedName: wallet.resolvedName,
@@ -33,7 +67,15 @@ export async function onRequestGet({ request, env }) {
       count: result.ids.length,
       source: "mooncatrescue",
       ownershipTypes: result.ownershipTypes
-    }, 200, "public, max-age=60");
+    }, 200, SUCCESS_CACHE_CONTROL, {
+      "x-catmoon-cache": "miss"
+    });
+
+    if (cache && cacheKey) {
+      await writeCache(cache, cacheKey, response.clone(), context);
+    }
+
+    return response;
   } catch (error) {
     const status = Number.isInteger(error.status) ? error.status : 502;
     return jsonResponse({
@@ -45,6 +87,25 @@ export async function onRequestGet({ request, env }) {
       source: "mooncatrescue"
     }, status, "no-store");
   }
+}
+
+function getWalletCacheKey(url, input) {
+  const normalizedInput = ADDRESS_PATTERN.test(input)
+    ? input.toLowerCase()
+    : normalizeEnsName(input);
+  if (!normalizedInput) return null;
+
+  return new Request(`${url.origin}/api/wallet-cats?address=${encodeURIComponent(normalizedInput)}`);
+}
+
+function writeCache(cache, cacheKey, response, context) {
+  const cacheWrite = cache.put(cacheKey, response).catch(() => {});
+  if (typeof context.waitUntil === "function") {
+    context.waitUntil(cacheWrite);
+    return;
+  }
+
+  return cacheWrite;
 }
 
 async function resolveWalletInput(input, env) {
@@ -249,12 +310,26 @@ class HttpError extends Error {
   }
 }
 
-function jsonResponse(body, status = 200, cacheControl = "public, max-age=60") {
+function responseWithHeaders(response, extraHeaders = {}) {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(extraHeaders)) {
+    headers.set(key, value);
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
+function jsonResponse(body, status = 200, cacheControl = "public, max-age=60", extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": cacheControl
+      "cache-control": cacheControl,
+      ...extraHeaders
     }
   });
 }
