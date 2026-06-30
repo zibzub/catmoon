@@ -282,7 +282,9 @@ npm test
 
 ## Acknowledgements
 
-CatMoon was inspired by the Allcats site, created by cmfb.
+CatMoon uses MoonCat artwork/background PNG assets sourced from MoonCatRescue.com, and wallet ownership lookup data from the MoonCatRescue API. These external artwork assets are included for MoonCat visualization purposes and are not relicensed by CatMoon’s GPL-3.0-or-later license.
+
+CatMoon was inspired by the Allcats site created by cmfb.
 
 ## License
 
