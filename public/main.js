@@ -48,7 +48,6 @@ import {
   WALLET_FILTER_KEY,
   WALLET_FILTER_LABEL,
   WALLET_HISTORY_AUTO_LOAD_DEBOUNCE_MS,
-  WALLET_LOOKUP_HISTORY_KEY,
   WALLET_LOOKUP_HISTORY_LIMIT,
   WALLET_OVERLAY_SURFACE_OFFSET,
   filterTextureUrl,
@@ -56,6 +55,22 @@ import {
 } from "./js/config.js";
 import { clamp } from "./js/utils.js";
 import { getDomRefs } from "./js/dom.js";
+import {
+  clearWalletUrl,
+  findWalletHistoryEntryByInput,
+  getWalletParamFromUrl,
+  getWalletUrlValue,
+  loadWalletLookupHistory,
+  lookupWalletMoonCats,
+  normalizeWalletLookupRecord,
+  normalizeWalletMatchValue,
+  saveWalletLookupHistory,
+  setWalletUrl,
+  walletHistoryDisplayLabel,
+  walletHistoryLookupValue,
+  walletHistoryMatchesQuery,
+  walletLookupStorageKey
+} from "./js/wallet.js";
 
 const {
   smallStarsEl,
@@ -939,111 +954,6 @@ function clearWalletOverlayTextures() {
   filterTextureCache.delete(WALLET_FILTER_KEY);
 }
 
-function normalizeWalletMoonCatIds(ids) {
-  if (!Array.isArray(ids)) {
-    throw new Error("Wallet lookup response did not include an ids array.");
-  }
-
-  return Array.from(new Set(ids.filter((id) => (
-    Number.isInteger(id)
-    && id >= 0
-    && id <= MAX_ID
-  )))).sort((a, b) => a - b);
-}
-
-function walletLookupStorageKey(record) {
-  return (record.address || record.resolvedName || record.input || record.label || "").toLowerCase();
-}
-
-function normalizeWalletMatchValue(value) {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function getWalletUrlValue(lookupResult) {
-  const resolvedName = typeof lookupResult?.resolvedName === "string" ? lookupResult.resolvedName.trim() : "";
-  if (resolvedName) return resolvedName;
-
-  const address = typeof lookupResult?.address === "string" ? lookupResult.address.trim() : "";
-  return address;
-}
-
-function setWalletUrl(value) {
-  if (!window.history?.replaceState) return;
-
-  const walletValue = typeof value === "string" ? value.trim() : "";
-  if (!walletValue) {
-    clearWalletUrl();
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  url.searchParams.set("wallet", walletValue);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function clearWalletUrl() {
-  if (!window.history?.replaceState) return;
-
-  const url = new URL(window.location.href);
-  if (!url.searchParams.has("wallet")) return;
-  url.searchParams.delete("wallet");
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function getWalletParamFromUrl() {
-  const value = new URLSearchParams(window.location.search).get("wallet");
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeWalletLookupRecord(record) {
-  let ids;
-  try {
-    ids = normalizeWalletMoonCatIds(record?.ids);
-  } catch (error) {
-    return null;
-  }
-  if (ids.length === 0) return null;
-
-  const address = typeof record.address === "string" ? record.address : "";
-  const resolvedName = typeof record.resolvedName === "string" ? record.resolvedName : "";
-  const input = typeof record.input === "string" ? record.input : (resolvedName || address);
-  const label = record.label || walletDisplayLabel({ resolvedName, address }, input);
-  const key = walletLookupStorageKey({ address, resolvedName, input, label });
-  if (!key) return null;
-
-  return {
-    input,
-    address,
-    resolvedName,
-    label,
-    ids,
-    count: ids.length,
-    lastUsed: Number.isFinite(record.lastUsed) ? record.lastUsed : Date.now()
-  };
-}
-
-function loadWalletLookupHistory() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(WALLET_LOOKUP_HISTORY_KEY) || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(normalizeWalletLookupRecord)
-      .filter(Boolean)
-      .sort((a, b) => b.lastUsed - a.lastUsed)
-      .slice(0, WALLET_LOOKUP_HISTORY_LIMIT);
-  } catch (error) {
-    return [];
-  }
-}
-
-function saveWalletLookupHistory() {
-  try {
-    window.localStorage.setItem(WALLET_LOOKUP_HISTORY_KEY, JSON.stringify(walletLookupHistory));
-  } catch (error) {
-    console.warn("Could not save CatMoon wallet lookup history.", error);
-  }
-}
-
 function rememberWalletLookup(record) {
   const normalizedRecord = normalizeWalletLookupRecord({
     ...record,
@@ -1057,48 +967,9 @@ function rememberWalletLookup(record) {
     ...walletLookupHistory.filter((item) => walletLookupStorageKey(item) !== key)
   ].slice(0, WALLET_LOOKUP_HISTORY_LIMIT);
   lastWalletLookup = normalizedRecord;
-  saveWalletLookupHistory();
+  saveWalletLookupHistory(walletLookupHistory);
   updateWalletLookupHistoryUi();
   return normalizedRecord;
-}
-
-function findWalletHistoryEntryByInput(value) {
-  const matchValue = normalizeWalletMatchValue(value);
-  if (!matchValue) return null;
-
-  return walletLookupHistory.find((record) => (
-    [
-      record.input,
-      record.resolvedName,
-      record.address,
-      record.label
-    ].some((candidate) => normalizeWalletMatchValue(candidate) === matchValue)
-  )) || null;
-}
-
-function walletHistoryLookupValue(record) {
-  return getWalletUrlValue(record) || record.input || record.label || "";
-}
-
-function walletHistoryDisplayLabel(record) {
-  if (record?.resolvedName) return record.resolvedName;
-  if (typeof record?.address === "string" && /^0x[0-9a-fA-F]{40}$/.test(record.address)) {
-    return abbreviateEthAddress(record.address);
-  }
-  return record?.label || record?.input || walletHistoryLookupValue(record);
-}
-
-function walletHistoryMatchesQuery(record, query) {
-  const matchValue = normalizeWalletMatchValue(query);
-  if (!matchValue) return true;
-
-  return [
-    walletHistoryDisplayLabel(record),
-    record.input,
-    record.resolvedName,
-    record.address,
-    record.label
-  ].some((candidate) => normalizeWalletMatchValue(candidate).includes(matchValue));
 }
 
 function filteredWalletHistoryEntries() {
@@ -1160,50 +1031,6 @@ function updateWalletLookupHistoryUi() {
     walletFilterOptionEl.disabled = true;
     walletFilterOptionEl.textContent = "Wallet Cats";
   }
-}
-
-async function lookupWalletMoonCats(input) {
-  const response = await fetch(`/api/wallet-cats?address=${encodeURIComponent(input)}`, {
-    headers: {
-      Accept: "application/json"
-    }
-  });
-
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch (error) {
-    if (response.ok) {
-      throw new Error("Wallet lookup response was not valid JSON.");
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(payload?.error || `Wallet lookup failed with HTTP ${response.status}.`);
-  }
-
-  const ids = normalizeWalletMoonCatIds(payload?.ids);
-  return {
-    input: payload?.input || input,
-    address: payload?.address || "",
-    resolvedName: payload?.resolvedName || "",
-    ids,
-    label: walletDisplayLabel(payload, input)
-  };
-}
-
-function abbreviateEthAddress(address) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function walletDisplayLabel(payload, fallback) {
-  if (payload?.resolvedName) {
-    return payload.resolvedName;
-  }
-  if (typeof payload?.address === "string" && /^0x[0-9a-fA-F]{40}$/.test(payload.address)) {
-    return abbreviateEthAddress(payload.address);
-  }
-  return fallback;
 }
 
 function setWalletFilterStatus(message, isError = false) {
@@ -1571,7 +1398,7 @@ function scheduleWalletHistoryAutoLoad() {
   }
 
   const value = walletFilterInputEl.value.trim();
-  const historyEntry = findWalletHistoryEntryByInput(value);
+  const historyEntry = findWalletHistoryEntryByInput(walletLookupHistory, value);
   if (!historyEntry) return;
 
   const matchValue = normalizeWalletMatchValue(value);
@@ -1583,7 +1410,7 @@ function scheduleWalletHistoryAutoLoad() {
     walletHistoryAutoLoadTimer = null;
 
     const currentValue = walletFilterInputEl.value.trim();
-    const currentEntry = findWalletHistoryEntryByInput(currentValue);
+    const currentEntry = findWalletHistoryEntryByInput(walletLookupHistory, currentValue);
     const currentMatchValue = normalizeWalletMatchValue(currentValue);
     if (!currentEntry || !currentMatchValue) return;
     if (pendingAutoLoadWalletInput === currentMatchValue) return;
@@ -1654,11 +1481,7 @@ async function syncWalletFilterFromUrl() {
     return;
   }
 
-  const savedLookup = walletLookupHistory.find((record) => (
-    [getWalletUrlValue(record), record.input]
-      .filter(Boolean)
-      .some((value) => value.toLowerCase() === walletParam.toLowerCase())
-  ));
+  const savedLookup = findWalletHistoryEntryByInput(walletLookupHistory, walletParam);
 
   walletFilterInputEl.value = walletParam;
   updateWalletClearButton();
