@@ -82,6 +82,7 @@ const {
 
 const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
+const MOONCAT_NAMES_URL = "data/mooncat-names.json";
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -134,6 +135,9 @@ let lastClientX = 0;
 let lastClientY = 0;
 let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
 let autoTumbleEnabled = loadAutoTumbleSetting();
+let moonCatNames = null;
+let moonCatNamesPromise = null;
+let moonCatNamesLoadFailed = false;
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -359,6 +363,63 @@ function positionTooltip() {
   tooltipEl.setAttribute("aria-hidden", "false");
 }
 
+async function loadMoonCatNames() {
+  if (moonCatNames) return moonCatNames;
+  if (moonCatNamesLoadFailed) return null;
+  if (!moonCatNamesPromise) {
+    moonCatNamesPromise = fetch(MOONCAT_NAMES_URL)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((names) => {
+        if (!names || typeof names !== "object" || Array.isArray(names)) {
+          throw new Error("invalid names payload");
+        }
+        moonCatNames = names;
+        return moonCatNames;
+      })
+      .catch((error) => {
+        moonCatNamesPromise = null;
+        moonCatNamesLoadFailed = true;
+        console.warn("Could not load MoonCat names.", error);
+        return null;
+      });
+  }
+
+  return moonCatNamesPromise;
+}
+
+function updateTooltipLabel(id) {
+  tooltipLabelEl.replaceChildren();
+  if (id === null) return;
+
+  const idEl = document.createElement("div");
+  idEl.className = "tooltipCatId";
+  idEl.textContent = `${id}`;
+  tooltipLabelEl.append(idEl);
+
+  const name = moonCatNames?.[id];
+  if (typeof name === "string" && name) {
+    const nameEl = document.createElement("div");
+    nameEl.className = "tooltipCatName";
+    nameEl.textContent = name;
+    tooltipLabelEl.append(nameEl);
+  }
+}
+
+function ensureMoonCatNamesLoaded(id) {
+  if (id === null || moonCatNames || moonCatNamesLoadFailed) return;
+
+  loadMoonCatNames().then((names) => {
+    if (!names || hoveredId !== id) return;
+    updateTooltipLabel(id);
+    positionTooltip();
+  });
+}
+
 function setHoveredId(id) {
   hoveredId = id;
   updateTooltipPreview(id);
@@ -369,8 +430,9 @@ function setHoveredId(id) {
     return;
   }
 
-  tooltipLabelEl.textContent = `${id}`;
+  updateTooltipLabel(id);
   positionTooltip();
+  ensureMoonCatNamesLoaded(id);
   scheduleTooltipHide();
 }
 

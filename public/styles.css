@@ -457,8 +457,25 @@ body {
 
 #tooltipLabel {
   overflow: hidden;
+}
+
+.tooltipCatId,
+.tooltipCatName {
+  overflow: hidden;
+}
+
+.tooltipCatId {
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.tooltipCatName {
+  margin-top: 2px;
+  color: #f2f2f2;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 #loadingOverlay {
