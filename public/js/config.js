@@ -28,6 +28,7 @@ export const TRI_FACE_METADATA_URL = "img/tri-faces/tri-face-slots.compact.json"
 export const TRI_FACE_TEXTURE_DIR = "img/tri-faces";
 export const TRI_FACE_TEXTURE_PREFIX = "tri-face-";
 export const FILTER_DATA_URL = "data/mooncat-filters.json";
+export const MOONCAT_NAMES_URL = "data/mooncat-names.json";
 export const FILTER_TEXTURE_DIR = "img/filters";
 export const FILTER_MANIFEST_URL = `${FILTER_TEXTURE_DIR}/filter-manifest.json`;
 export const FILTER_BASE_OPACITY = 0.16;
@@ -49,6 +50,7 @@ export const CHARACTER_CATEGORY_KEYS = [
   "pikachu"
 ];
 export const FILTER_DEFINITIONS = [
+  { key: "named", names: true, setOnly: true },
   { key: "genesis", category: "genesis" },
   { key: "characters", categories: CHARACTER_CATEGORY_KEYS },
   { key: "day1", category: "day1" },
@@ -61,7 +63,8 @@ export const FILTER_DEFINITIONS = [
   { key: "2021", category: "2021" }
 ];
 export const FILTER_KEYS = new Set(FILTER_DEFINITIONS.map((filter) => filter.key));
-export const PRELOAD_FILTER_KEYS = FILTER_DEFINITIONS.map((filter) => filter.key);
+export const SET_ONLY_FILTER_KEYS = new Set(FILTER_DEFINITIONS.filter((filter) => filter.setOnly).map((filter) => filter.key));
+export const PRELOAD_FILTER_KEYS = FILTER_DEFINITIONS.filter((filter) => !filter.setOnly).map((filter) => filter.key);
 export const TOUCH_TWIST_ROLL_SPEED = 1.0;
 export const DESKTOP_ROLL_DRAG_SPEED = 0.006;
 export const AUTO_ROTATE_ENABLED = true;

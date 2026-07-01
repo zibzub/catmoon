@@ -13,7 +13,9 @@ import {
   FILTER_FOCUS_DURATION_MS,
   FILTER_KEYS,
   MAX_ID,
+  MOONCAT_NAMES_URL,
   RHOMBUS_CAT_COUNT,
+  SET_ONLY_FILTER_KEYS,
   STAR_PARALLAX_EASE,
   STAR_PARALLAX_ENABLED,
   STAR_PARALLAX_LARGE_STRENGTH,
@@ -82,7 +84,6 @@ const {
 
 const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
-const MOONCAT_NAMES_URL = "data/mooncat-names.json";
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -609,14 +610,18 @@ function disposeTexture(texture) {
   texture.dispose();
 }
 
-function clearWalletOverlayTextures() {
-  const textures = filterTextureCache.get(WALLET_FILTER_KEY);
+function clearCachedOverlayTextures(filterKey) {
+  const textures = filterTextureCache.get(filterKey);
   if (!textures) return;
 
   for (const texture of textures) {
     disposeTexture(texture);
   }
-  filterTextureCache.delete(WALLET_FILTER_KEY);
+  filterTextureCache.delete(filterKey);
+}
+
+function clearWalletOverlayTextures() {
+  clearCachedOverlayTextures(WALLET_FILTER_KEY);
 }
 
 function rememberWalletLookup(record) {
@@ -717,13 +722,13 @@ function clearWalletFilterState({ clearStatus = true } = {}) {
   }
 }
 
-function drawCatFromAtlas(context, atlasImage, id, destRect) {
+function drawCatFromAtlas(context, atlasImage, id, destRect, scale = 1) {
   const srcCol = id % COLS;
   const srcRow = Math.floor(id / COLS);
   const centerX = destRect.x + destRect.w / 2;
   const centerY = destRect.y + destRect.h / 2;
-  const scaledW = destRect.w * WALLET_CAT_SCALE;
-  const scaledH = destRect.h * WALLET_CAT_SCALE;
+  const scaledW = destRect.w * scale;
+  const scaledH = destRect.h * scale;
   context.drawImage(
     atlasImage,
     srcCol * TILE_W,
@@ -737,7 +742,7 @@ function drawCatFromAtlas(context, atlasImage, id, destRect) {
   );
 }
 
-function groupWalletIdsByFace(ids) {
+function groupIdsByFace(ids) {
   const idsByFace = new Map();
   for (const id of ids) {
     const faceIndex = Math.floor(id / RHOMBUS_CAT_COUNT);
@@ -752,7 +757,7 @@ function groupWalletIdsByFace(ids) {
   return idsByFace;
 }
 
-function makeWalletOverlayTexture(atlasImage, faceIndex, slotIds) {
+function makeIdOverlayTexture(atlasImage, faceIndex, slotIds, { scale = 1 } = {}) {
   const faceCanvas = document.createElement("canvas");
   faceCanvas.width = TRI_FACE_TEX_W;
   faceCanvas.height = TRI_FACE_TEX_H;
@@ -764,19 +769,19 @@ function makeWalletOverlayTexture(atlasImage, faceIndex, slotIds) {
   const slots = triFaceSlots[faceIndex] || [];
   for (const slot of slots) {
     if (!slotIds.has(slot.id) || !slot.hitRect) continue;
-    drawCatFromAtlas(context, atlasImage, faceIndex * RHOMBUS_CAT_COUNT + slot.id, slot.hitRect);
+    drawCatFromAtlas(context, atlasImage, faceIndex * RHOMBUS_CAT_COUNT + slot.id, slot.hitRect, scale);
   }
 
   return applyPixelTextureSettings(new THREE.CanvasTexture(faceCanvas));
 }
 
-function makeWalletOverlayTextures(atlasImage, ids) {
+function makeIdOverlayTextures(atlasImage, ids, options = {}) {
   const textures = Array(TRI_FACE_COUNT).fill(null);
-  const idsByFace = groupWalletIdsByFace(ids);
+  const idsByFace = groupIdsByFace(ids);
 
   for (const [faceIndex, slotIds] of idsByFace) {
     if (!slotIds.size) continue;
-    textures[faceIndex] = makeWalletOverlayTexture(atlasImage, faceIndex, slotIds);
+    textures[faceIndex] = makeIdOverlayTexture(atlasImage, faceIndex, slotIds, options);
   }
 
   return textures;
@@ -788,6 +793,16 @@ function filterDisplayName(filterKey) {
   }
   const option = Array.from(catFilterEl.options).find((item) => item.value === filterKey);
   return option?.textContent?.trim() || filterKey;
+}
+
+async function ensureRuntimeFilterOverlayTextures(filterKey, ids, token) {
+  if (filterTextureCache.has(filterKey)) return;
+
+  const atlasImage = await loadAllCatsAtlas();
+  if (token !== filterSelectionToken) return;
+
+  clearCachedOverlayTextures(filterKey);
+  filterTextureCache.set(filterKey, makeIdOverlayTextures(atlasImage, ids));
 }
 
 function updateActiveFilterBadge() {
@@ -882,13 +897,25 @@ async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = 
   try {
     const filterSets = await ensureFilterDataLoaded();
     if (token !== filterSelectionToken) return;
+    if (!(filterSets[nextFilter] instanceof Set)) {
+      throw new Error(`${filterDisplayName(nextFilter)} is unavailable.`);
+    }
 
     activeFilter = nextFilter;
     activeFilterSet = filterSets[nextFilter];
     updateFilterAppearance();
     updateHoverFromPointer();
-    if (focus) {
+    const isSetOnlyFilter = SET_ONLY_FILTER_KEYS.has(nextFilter);
+    if (focus && !isSetOnlyFilter) {
       focusFilterFace(nextFilter, token, focusInteractionVersion);
+    }
+
+    if (isSetOnlyFilter) {
+      await ensureRuntimeFilterOverlayTextures(nextFilter, Array.from(activeFilterSet), token);
+      if (token !== filterSelectionToken) return;
+      updateFilterAppearance();
+      updateHoverFromPointer();
+      return;
     }
 
     await ensureFilterTexturesLoaded(nextFilter);
@@ -902,6 +929,7 @@ async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = 
     activeFilter = "all";
     activeFilterSet = null;
     catFilterEl.value = "all";
+    statusEl.textContent = error.message || `${filterDisplayName(nextFilter)} filter unavailable.`;
     updateFilterAppearance();
     updateHoverFromPointer();
   }
@@ -927,7 +955,7 @@ async function applyWalletLookupRecord(record, token, { restored = false } = {})
   const atlasImage = await loadAllCatsAtlas();
   if (token !== filterSelectionToken) return;
 
-  const walletTextures = makeWalletOverlayTextures(atlasImage, walletRecord.ids);
+  const walletTextures = makeIdOverlayTextures(atlasImage, walletRecord.ids, { scale: WALLET_CAT_SCALE });
   clearWalletOverlayTextures();
   filterTextureCache.set(WALLET_FILTER_KEY, walletTextures);
   setWalletFilterStatus(`${restored ? "Restored" : "Found"} ${walletRecord.count} MoonCats for ${walletRecord.label}.`);

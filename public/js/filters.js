@@ -2,6 +2,7 @@ import {
   FILTER_DATA_URL,
   FILTER_DEFINITIONS,
   FILTER_MANIFEST_URL,
+  MOONCAT_NAMES_URL,
   PRELOAD_FILTER_KEYS,
   TRI_FACE_COUNT,
   TRI_FACE_TEX_H,
@@ -28,6 +29,12 @@ function unionCategoryIdSet(filters, keys) {
 }
 
 function filterDefinitionIdSet(filters, definition) {
+  if (definition.names) {
+    if (!filters.names || typeof filters.names !== "object") {
+      throw new Error(`${MOONCAT_NAMES_URL} is missing or invalid`);
+    }
+    return new Set(Object.keys(filters.names).map((id) => Number(id)).filter(Number.isInteger));
+  }
   if (definition.key === "characters" && Array.isArray(filters.presets?.characters?.ids)) {
     return new Set(filters.presets.characters.ids);
   }
@@ -58,8 +65,23 @@ export function createFilterManager({ textureLoader, applyPixelTextureSettings }
     }
 
     const filters = await response.json();
+    try {
+      const namesResponse = await fetch(MOONCAT_NAMES_URL, { cache: "no-cache" });
+      if (!namesResponse.ok) {
+        throw new Error(`HTTP ${namesResponse.status}`);
+      }
+      filters.names = await namesResponse.json();
+    } catch (error) {
+      filters.namesError = error;
+      console.warn(`Could not load ${MOONCAT_NAMES_URL}; Named Cats filter will be unavailable.`, error);
+    }
+
     const filterSets = {};
     for (const definition of FILTER_DEFINITIONS) {
+      if (definition.names && filters.namesError) {
+        filterSets[definition.key] = null;
+        continue;
+      }
       filterSets[definition.key] = filterDefinitionIdSet(filters, definition);
     }
     return filterSets;
