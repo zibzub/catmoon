@@ -33,8 +33,8 @@ The lock button in the top-left expands or collapses the settings panel.
 
 - Filters and wallet lookup are available.
 - Toggle controls are available:
-  - **Hover preview**: show or hide preview images in hover/pinned cards.
   - **Auto tumble**: turn automatic rotation on or off.
+  - **Hover preview**: show or hide preview images in hover/pinned cards.
   - **Cat links**: allow the pinned cat image to open the cat on [https://mooncatrescue.com](mooncatrescue.com)
 
 These toggle preferences are stored locally in your browser.

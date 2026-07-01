@@ -236,7 +236,7 @@ body {
 }
 
 #hoverPreviewToggle,
-#autoTumbleToggle {
+#autoTumbleToggle, #catLinksToggle {
   width: 14px;
   height: 14px;
   margin: 0;
