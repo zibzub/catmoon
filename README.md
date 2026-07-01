@@ -35,7 +35,7 @@ The lock button in the top-left expands or collapses the settings panel.
 - Toggle controls are available:
   - **Auto tumble**: turn automatic rotation on or off.
   - **Hover preview**: show or hide preview images in hover/pinned cards.
-  - **Cat links**: allow the pinned cat image to open the cat on [https://mooncatrescue.com](mooncatrescue.com)
+  - **Cat links**: allow the pinned cat image to open the cat on [mooncatrescue.com](https://mooncatrescue.com)
 
 These toggle preferences are stored locally in your browser.
 
@@ -51,7 +51,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [https://mooncatrescue.com](mooncatrescue.com)
+When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [mooncatrescue.com](https://mooncatrescue.com)
 
 ## Filters
 
