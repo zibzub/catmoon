@@ -1,8 +1,13 @@
 import * as THREE from "three";
 import {
+  DESKTOP_ROTATE_SPEED,
   CLICK_MOVE_LIMIT,
   DESKTOP_ROLL_DRAG_SPEED,
-  TOUCH_TWIST_ROLL_SPEED
+  TOUCH_ROTATE_SPEED,
+  TOUCH_TWIST_ROLL_SPEED,
+  TOUCH_ZOOMED_ROTATE_SPEED,
+  TRI_MAX_DISTANCE,
+  TRI_MIN_DISTANCE
 } from "./config.js";
 
 export function setupCatMoonControls({
@@ -26,6 +31,24 @@ export function setupCatMoonControls({
 
   function canRollActiveObject() {
     return Boolean(getActiveObject());
+  }
+
+  function getTouchRotateSpeed() {
+    const distance = controls.object.position.length();
+    const zoomedT = Math.max(0, Math.min(1, (distance - TRI_MIN_DISTANCE) / (TRI_MAX_DISTANCE - TRI_MIN_DISTANCE)));
+    return TOUCH_ZOOMED_ROTATE_SPEED + ((TOUCH_ROTATE_SPEED - TOUCH_ZOOMED_ROTATE_SPEED) * zoomedT);
+  }
+
+  function updateRotateSpeedForPointer(pointerType) {
+    if (pointerType === "touch") {
+      const hasActiveTouch = Array.from(activePointers.values()).some((pointerInfo) => pointerInfo.pointerType === "touch");
+      controls.rotateSpeed = hasActiveTouch ? getTouchRotateSpeed() : DESKTOP_ROTATE_SPEED;
+      return;
+    }
+
+    if (!Array.from(activePointers.values()).some((pointerInfo) => pointerInfo.pointerType === "touch")) {
+      controls.rotateSpeed = DESKTOP_ROTATE_SPEED;
+    }
   }
 
   function rollActiveObject(delta) {
@@ -117,6 +140,7 @@ export function setupCatMoonControls({
     }
 
     updateTouchTwistRoll();
+    updateRotateSpeedForPointer(event.pointerType);
     updateHoverFromClient(event.clientX, event.clientY);
   }, { capture: true });
 
@@ -138,6 +162,8 @@ export function setupCatMoonControls({
       pointerType: event.pointerType
     });
 
+    updateRotateSpeedForPointer(event.pointerType);
+
     if (event.pointerType === "touch") {
       updateHoverFromClient(event.clientX, event.clientY);
     }
@@ -156,6 +182,7 @@ export function setupCatMoonControls({
   renderer.domElement.addEventListener("pointerup", (event) => {
     activePointers.delete(event.pointerId);
     updateTouchTwistRoll();
+    updateRotateSpeedForPointer(event.pointerType);
 
     if (touchGestureWasTwoFinger && event.pointerType === "touch") {
       if (activePointers.size < 2) {
@@ -191,6 +218,7 @@ export function setupCatMoonControls({
     activePointers.delete(event.pointerId);
     twoFingerLastAngle = null;
     touchGestureWasTwoFinger = false;
+    updateRotateSpeedForPointer(event.pointerType);
     if (rollDrag && rollDrag.pointerId === event.pointerId) {
       endRollDrag(event);
       return;
@@ -203,6 +231,7 @@ export function setupCatMoonControls({
     if (rollDrag) {
       endRollDrag();
     }
+    controls.rotateSpeed = DESKTOP_ROTATE_SPEED;
   });
 
   return {

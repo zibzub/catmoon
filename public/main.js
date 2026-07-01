@@ -12,6 +12,7 @@ import {
   FILTER_BASE_OPACITY,
   FILTER_FOCUS_DURATION_MS,
   FILTER_KEYS,
+  DESKTOP_ROTATE_SPEED,
   MAX_ID,
   MOONCAT_NAMES_URL,
   RHOMBUS_CAT_COUNT,
@@ -104,7 +105,7 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
 camera.position.set(0, 0, 3.15);
 
 const controls = new TrackballControls(camera, renderer.domElement);
-controls.rotateSpeed = 0.65;
+controls.rotateSpeed = DESKTOP_ROTATE_SPEED;
 controls.zoomSpeed = 0.4;
 controls.panSpeed = 0;
 controls.noPan = true;

@@ -67,6 +67,9 @@ export const SET_ONLY_FILTER_KEYS = new Set(FILTER_DEFINITIONS.filter((filter) =
 export const PRELOAD_FILTER_KEYS = FILTER_DEFINITIONS.filter((filter) => !filter.setOnly).map((filter) => filter.key);
 export const TOUCH_TWIST_ROLL_SPEED = 1.0;
 export const DESKTOP_ROLL_DRAG_SPEED = 0.006;
+export const DESKTOP_ROTATE_SPEED = 0.65;
+export const TOUCH_ROTATE_SPEED = 0.38;
+export const TOUCH_ZOOMED_ROTATE_SPEED = 0.24;
 export const AUTO_ROTATE_ENABLED = true;
 export const AUTO_ROTATE_SPEED_X = 0.035;
 export const AUTO_ROTATE_SPEED_Y = 0.055;
