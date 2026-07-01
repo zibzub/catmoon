@@ -62,8 +62,7 @@ const {
   canvas,
   hud,
   hudLockButton,
-  catIdEl,
-  previewEl,
+  hoverPreviewToggleEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -73,10 +72,14 @@ const {
   activeFilterBadgeEl,
   activeFilterNameEl,
   tooltipEl,
+  tooltipPreviewEl,
+  tooltipLabelEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
 } = getDomRefs();
+
+const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -127,6 +130,7 @@ let tooltipHideTimer = null;
 let pointerInside = false;
 let lastClientX = 0;
 let lastClientY = 0;
+let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -188,13 +192,13 @@ const {
 } = createFilterManager({ textureLoader, applyPixelTextureSettings });
 
 const {
-  updatePreview,
-  ensurePreviewAtlasLoaded,
+  updateTooltipPreview,
+  ensureTooltipPreviewAtlasLoaded,
   loadAllCatsAtlas
 } = createPreviewManager({
-  previewEl,
+  tooltipPreviewEl,
   getHoveredId: () => hoveredId,
-  isHudUnlocked: () => hudUnlocked
+  isTooltipPreviewEnabled: () => hoverPreviewImagesEnabled
 });
 
 const {
@@ -272,6 +276,30 @@ function updateHudLockState() {
   hudLockButton.title = label;
 }
 
+function loadHoverPreviewImageSetting() {
+  try {
+    return window.localStorage.getItem(HOVER_PREVIEW_STORAGE_KEY) !== "off";
+  } catch (error) {
+    return true;
+  }
+}
+
+function saveHoverPreviewImageSetting(enabled) {
+  try {
+    window.localStorage.setItem(HOVER_PREVIEW_STORAGE_KEY, enabled ? "on" : "off");
+  } catch (error) {
+    // The setting still persists for this page session through in-memory state.
+  }
+}
+
+function updateHoverPreviewToggleUi() {
+  hoverPreviewToggleEl.checked = hoverPreviewImagesEnabled;
+  tooltipEl.classList.toggle("image-off", !hoverPreviewImagesEnabled);
+  if (!hoverPreviewImagesEnabled) {
+    updateTooltipPreview(null);
+  }
+}
+
 function clearTooltipHideTimer() {
   if (tooltipHideTimer !== null) {
     window.clearTimeout(tooltipHideTimer);
@@ -283,26 +311,43 @@ function scheduleTooltipHide() {
   clearTooltipHideTimer();
   tooltipHideTimer = window.setTimeout(() => {
     tooltipEl.style.display = "none";
+    tooltipEl.setAttribute("aria-hidden", "true");
     tooltipHideTimer = null;
   }, TOOLTIP_INACTIVITY_HIDE_MS);
 }
 
+function hideTooltip() {
+  clearTooltipHideTimer();
+  tooltipEl.style.display = "none";
+  tooltipEl.setAttribute("aria-hidden", "true");
+}
+
+function positionTooltip() {
+  const offset = 16;
+  const margin = 8;
+  tooltipEl.style.display = "block";
+
+  const rect = tooltipEl.getBoundingClientRect();
+  const left = lastClientX - rect.width - offset;
+  const top = lastClientY - rect.height - offset;
+
+  tooltipEl.style.left = `${clamp(left, margin, Math.max(margin, window.innerWidth - rect.width - margin))}px`;
+  tooltipEl.style.top = `${clamp(top, margin, Math.max(margin, window.innerHeight - rect.height - margin))}px`;
+  tooltipEl.setAttribute("aria-hidden", "false");
+}
+
 function setHoveredId(id) {
   hoveredId = id;
-  catIdEl.textContent = id === null ? "-" : String(id);
-  updatePreview(id);
-  ensurePreviewAtlasLoaded();
+  updateTooltipPreview(id);
+  ensureTooltipPreviewAtlasLoaded();
 
   if (id === null) {
-    clearTooltipHideTimer();
-    tooltipEl.style.display = "none";
+    hideTooltip();
     return;
   }
 
-  tooltipEl.textContent = `MoonCat ${id}`;
-  tooltipEl.style.left = `${lastClientX + 14}px`;
-  tooltipEl.style.top = `${lastClientY + 14}px`;
-  tooltipEl.style.display = "block";
+  tooltipLabelEl.textContent = `${id}`;
+  positionTooltip();
   scheduleTooltipHide();
 }
 
@@ -1107,6 +1152,7 @@ hudLockButton.addEventListener("click", (event) => {
   }
 });
 updateHudLockState();
+updateHoverPreviewToggleUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
 const initialWalletParam = getWalletParamFromUrl();
@@ -1117,6 +1163,13 @@ updateWalletClearButton();
 
 catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });
+});
+
+hoverPreviewToggleEl.addEventListener("change", () => {
+  hoverPreviewImagesEnabled = hoverPreviewToggleEl.checked;
+  saveHoverPreviewImageSetting(hoverPreviewImagesEnabled);
+  updateHoverPreviewToggleUi();
+  setHoveredId(hoveredId);
 });
 
 walletFilterButtonEl.addEventListener("click", (event) => {
@@ -1203,7 +1256,6 @@ controlsApi = setupCatMoonControls({
   controls,
   camera,
   getActiveObject: () => activeObject,
-  isHudUnlocked: () => hudUnlocked,
   updateHoverFromClient,
   clearHover: () => {
     pointerInside = false;

@@ -10,7 +10,6 @@ export function setupCatMoonControls({
   controls,
   camera,
   getActiveObject,
-  isHudUnlocked,
   updateHoverFromClient,
   clearHover,
   openCat,
@@ -139,7 +138,7 @@ export function setupCatMoonControls({
       pointerType: event.pointerType
     });
 
-    if (isHudUnlocked() && event.pointerType === "touch") {
+    if (event.pointerType === "touch") {
       updateHoverFromClient(event.clientX, event.clientY);
     }
 

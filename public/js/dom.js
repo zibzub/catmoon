@@ -5,8 +5,7 @@ export function getDomRefs() {
     canvas: document.getElementById("scene"),
     hud: document.getElementById("hud"),
     hudLockButton: document.getElementById("hudLockButton"),
-    catIdEl: document.getElementById("catId"),
-    previewEl: document.getElementById("preview"),
+    hoverPreviewToggleEl: document.getElementById("hoverPreviewToggle"),
     catFilterEl: document.getElementById("catFilter"),
     walletFilterInputEl: document.getElementById("walletFilterInput"),
     walletFilterClearEl: document.getElementById("walletFilterClear"),
@@ -16,6 +15,8 @@ export function getDomRefs() {
     activeFilterBadgeEl: document.getElementById("activeFilterBadge"),
     activeFilterNameEl: document.getElementById("activeFilterName"),
     tooltipEl: document.getElementById("tooltip"),
+    tooltipPreviewEl: document.getElementById("tooltipPreview"),
+    tooltipLabelEl: document.getElementById("tooltipLabel"),
     statusEl: document.getElementById("status"),
     loadingOverlay: document.getElementById("loadingOverlay"),
     loadingProgressEl: document.getElementById("loadingProgress")

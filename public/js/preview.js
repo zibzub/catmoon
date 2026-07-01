@@ -8,32 +8,43 @@ import {
   TILE_W
 } from "./config.js";
 
-export function createPreviewManager({ previewEl, getHoveredId, isHudUnlocked }) {
+function clearPreviewElement(previewEl) {
+  previewEl.style.backgroundPosition = "9999px 9999px";
+}
+
+function updatePreviewElement(previewEl, id, scale = PREVIEW_SCALE) {
+  if (id === null) {
+    clearPreviewElement(previewEl);
+    return;
+  }
+
+  const row = Math.floor(id / COLS);
+  const col = id % COLS;
+  previewEl.style.backgroundSize = `${ATLAS_W * scale}px ${ATLAS_H * scale}px`;
+  previewEl.style.backgroundPosition = `${-(col * TILE_W * scale)}px ${-(row * TILE_H * scale)}px`;
+}
+
+export function createPreviewManager({ tooltipPreviewEl, getHoveredId, isTooltipPreviewEnabled }) {
   let allCatsAtlasImage = null;
   let allCatsAtlasPromise = null;
 
-  function updatePreview(id) {
-    if (id === null) {
-      previewEl.style.backgroundPosition = "9999px 9999px";
+  function updateTooltipPreview(id) {
+    if (!tooltipPreviewEl) return;
+    if (!isTooltipPreviewEnabled() || !allCatsAtlasImage) {
+      clearPreviewElement(tooltipPreviewEl);
       return;
     }
 
-    if (!allCatsAtlasImage) {
-      previewEl.style.backgroundPosition = "9999px 9999px";
-      return;
-    }
-
-    const row = Math.floor(id / COLS);
-    const col = id % COLS;
-    previewEl.style.backgroundSize = `${ATLAS_W * PREVIEW_SCALE}px ${ATLAS_H * PREVIEW_SCALE}px`;
-    previewEl.style.backgroundPosition = `${-(col * TILE_W * PREVIEW_SCALE)}px ${-(row * TILE_H * PREVIEW_SCALE)}px`;
+    updatePreviewElement(tooltipPreviewEl, id, PREVIEW_SCALE);
   }
 
   function applyCachedPreviewAtlas() {
     if (!allCatsAtlasImage) return;
 
-    previewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
-    updatePreview(getHoveredId());
+    if (tooltipPreviewEl) {
+      tooltipPreviewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
+    }
+    updateTooltipPreview(getHoveredId());
   }
 
   function loadAllCatsAtlas() {
@@ -62,18 +73,18 @@ export function createPreviewManager({ previewEl, getHoveredId, isHudUnlocked })
     return allCatsAtlasPromise;
   }
 
-  function ensurePreviewAtlasLoaded() {
-    if (!isHudUnlocked() || getHoveredId() === null || allCatsAtlasImage) return;
+  function ensureTooltipPreviewAtlasLoaded() {
+    if (!isTooltipPreviewEnabled() || getHoveredId() === null || allCatsAtlasImage) return;
 
     loadAllCatsAtlas().catch((error) => {
-      console.warn("Could not load CatMoon preview atlas.", error);
+      console.warn("Could not load CatMoon hover preview atlas.", error);
     });
   }
 
   return {
-    updatePreview,
+    updateTooltipPreview,
     applyCachedPreviewAtlas,
-    ensurePreviewAtlasLoaded,
+    ensureTooltipPreviewAtlasLoaded,
     loadAllCatsAtlas
   };
 }
