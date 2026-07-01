@@ -219,7 +219,7 @@ body {
   pointer-events: auto;
 }
 
-#hoverPreviewControl {
+.hudToggleControl {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -231,7 +231,12 @@ body {
   user-select: none;
 }
 
-#hoverPreviewToggle {
+.hudToggleControl + .hudToggleControl {
+  margin-top: 7px;
+}
+
+#hoverPreviewToggle,
+#autoTumbleToggle {
   width: 14px;
   height: 14px;
   margin: 0;

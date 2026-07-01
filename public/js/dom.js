@@ -6,6 +6,7 @@ export function getDomRefs() {
     hud: document.getElementById("hud"),
     hudLockButton: document.getElementById("hudLockButton"),
     hoverPreviewToggleEl: document.getElementById("hoverPreviewToggle"),
+    autoTumbleToggleEl: document.getElementById("autoTumbleToggle"),
     catFilterEl: document.getElementById("catFilter"),
     walletFilterInputEl: document.getElementById("walletFilterInput"),
     walletFilterClearEl: document.getElementById("walletFilterClear"),

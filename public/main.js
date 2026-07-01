@@ -63,6 +63,7 @@ const {
   hud,
   hudLockButton,
   hoverPreviewToggleEl,
+  autoTumbleToggleEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -80,6 +81,7 @@ const {
 } = getDomRefs();
 
 const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
+const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -131,6 +133,7 @@ let pointerInside = false;
 let lastClientX = 0;
 let lastClientY = 0;
 let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
+let autoTumbleEnabled = loadAutoTumbleSetting();
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -298,6 +301,26 @@ function updateHoverPreviewToggleUi() {
   if (!hoverPreviewImagesEnabled) {
     updateTooltipPreview(null);
   }
+}
+
+function loadAutoTumbleSetting() {
+  try {
+    return window.localStorage.getItem(AUTO_TUMBLE_STORAGE_KEY) !== "off";
+  } catch (error) {
+    return true;
+  }
+}
+
+function saveAutoTumbleSetting(enabled) {
+  try {
+    window.localStorage.setItem(AUTO_TUMBLE_STORAGE_KEY, enabled ? "on" : "off");
+  } catch (error) {
+    // The setting still persists for this page session through in-memory state.
+  }
+}
+
+function updateAutoTumbleToggleUi() {
+  autoTumbleToggleEl.checked = autoTumbleEnabled;
 }
 
 function clearTooltipHideTimer() {
@@ -468,7 +491,7 @@ function updateFocusAnimation(now) {
 }
 
 function applyAutoRotate(deltaSeconds) {
-  if (!AUTO_ROTATE_ENABLED || !activeObject) return;
+  if (!AUTO_ROTATE_ENABLED || !autoTumbleEnabled || !activeObject) return;
   const now = performance.now();
   if (now < autoRotateResumeAt) return;
 
@@ -1120,7 +1143,11 @@ async function initializeScene() {
   setHoveredId(null);
   updateHoverFromPointer();
   triacontahedron.visible = true;
-  startAutoRotateNow();
+  if (autoTumbleEnabled) {
+    startAutoRotateNow();
+  } else {
+    pauseAutoRotate();
+  }
   hideLoadingOverlay();
   if (!animationStarted) {
     animationStarted = true;
@@ -1153,6 +1180,7 @@ hudLockButton.addEventListener("click", (event) => {
 });
 updateHudLockState();
 updateHoverPreviewToggleUi();
+updateAutoTumbleToggleUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
 const initialWalletParam = getWalletParamFromUrl();
@@ -1170,6 +1198,17 @@ hoverPreviewToggleEl.addEventListener("change", () => {
   saveHoverPreviewImageSetting(hoverPreviewImagesEnabled);
   updateHoverPreviewToggleUi();
   setHoveredId(hoveredId);
+});
+
+autoTumbleToggleEl.addEventListener("change", () => {
+  autoTumbleEnabled = autoTumbleToggleEl.checked;
+  saveAutoTumbleSetting(autoTumbleEnabled);
+  updateAutoTumbleToggleUi();
+  if (autoTumbleEnabled) {
+    startAutoRotateNow();
+  } else {
+    pauseAutoRotate();
+  }
 });
 
 walletFilterButtonEl.addEventListener("click", (event) => {
