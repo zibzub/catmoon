@@ -2,38 +2,56 @@
 
 ![CatMoon screenshot](screenshot.png)
 
-CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the collection, highlight special rescue groups, and look up MoonCats owned by a wallet.
+CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued MoonCats** onto a rotating geometric moon so you can explore the collection, pin cat details, filter special rescue groups, and look up MoonCats owned by a wallet.
 
 ---
 
-# User Manual
+# User Guide
 
 ## Explore the CatMoon
 
-| Action       | Desktop                           | Mobile               |
-| ------------ | --------------------------------- | -------------------- |
-| Rotate       | Click and drag                    | Drag with one finger |
-| Zoom         | Mouse wheel / trackpad            | Pinch                |
-| Roll / twist | Ctrl/Alt-drag or right-click-drag | Two-finger twist     |
+| Action | Desktop | Mobile |
+| --- | --- | --- |
+| Rotate / tumble | Click and drag | Drag with one finger |
+| Zoom | Mouse wheel / trackpad | Pinch |
+| Roll / twist | Ctrl/Alt-drag or right-click-drag | Two-finger twist |
+| Pin cat details | Click a cat | Press a cat |
 
-CatMoon rotates slowly on its own. Manual movement pauses auto-rotation briefly so you can inspect the shape.
+CatMoon can slowly auto-tumble on its own. Manual movement pauses the motion briefly so you can inspect the moon.
 
-## Lock and Details Panel
+## Details Panel and Toggles
 
-The lock button in the top-left controls whether MoonCat details and links are active.
+The lock button in the top-left expands or collapses the settings panel.
 
 **Locked**
 
-* Only the lock button is shown.
-* You can rotate, zoom, and explore.
-* MoonCat links are disabled to prevent accidental clicks.
+- Only the lock button is shown.
+- You can still rotate, zoom, filter by URL, hover, and pin cat details.
+- The settings controls are hidden.
 
 **Unlocked**
 
-* The details panel appears.
-* Hovering a MoonCat shows its ID and preview.
-* Clicking a MoonCat opens its MoonCatRescue page.
-* Filters and wallet lookup are available.
+- Filters and wallet lookup are available.
+- Toggle controls are available:
+  - **Hover preview**: show or hide preview images in hover/pinned cards.
+  - **Auto tumble**: turn automatic rotation on or off.
+  - **Cat links**: allow the pinned cat image to open the cat on [https://mooncatrescue.com](mooncatrescue.com)
+
+These toggle preferences are stored locally in your browser.
+
+## Hover and Pinned Cat Cards
+
+Hovering a MoonCat shows a small card near the cursor or finger. The card shows the rescue-order number, a preview image when enabled, and the cat name if the cat has been named.
+
+Clicking or pressing a cat pins its detail card on screen:
+
+- Click or press the same cat again to hide the pinned card.
+- Click or press a different cat to replace the pinned card.
+- While a card is pinned, hover cards for other cats are hidden to avoid overlap.
+- While a card is pinned, auto-tumble pauses.
+- If you tumble far enough away from the pinned cat, the pinned card clears automatically.
+
+When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [https://mooncatrescue.com](mooncatrescue.com)
 
 ## Filters
 
@@ -41,19 +59,21 @@ Use the filter dropdown to highlight groups of MoonCats.
 
 Available filters include:
 
-* Genesis Cats
-* Character Cats
-* Day 1 Rescues
-* Week 1 Rescues
-* 2017–2021 rescue-year groups
-* All Early Rescues
-* Wallet Cats, after a wallet lookup
+- Named Cats
+- Genesis Cats
+- Character Cats
+- Day 1 Rescues
+- Week 1 Rescues
+- 2017–2021 rescue-year groups
+- All Early Rescues
+- Wallet Cats, after a wallet lookup
 
 When a filter is active, matching cats stay bright and the rest of the CatMoon is dimmed. Use the active filter badge to reset back to all cats.
 
 ## Wallet Cats
 
 CatMoon can highlight MoonCats owned by an Ethereum wallet.
+This includes cats that are original, Acclimated or in the JumpPort.
 
 Enter an address or ENS name, then press **Lookup**.
 
@@ -77,10 +97,10 @@ cats.vitalik.eth -> cats.vitalik.eth
 
 When Wallet Cats are active:
 
-* owned cats are highlighted on the moon
-* wallet cats appear slightly larger and lifted from the surface
-* the active filter label shows the wallet or ENS name
-* the wallet view can be bookmarked or shared
+- owned cats are highlighted on the moon
+- wallet cats appear slightly larger and lifted from the surface
+- the active filter label shows the wallet or ENS name
+- the wallet view can be bookmarked or shared
 
 Example wallet URL:
 
@@ -94,11 +114,11 @@ Recent wallet lookups are stored locally in your browser.
 
 CatMoon does not require:
 
-* wallet connection
-* account login
-* signature approval
+- wallet connection
+- account login
+- signature approval
 
-Wallet history is not synced between browsers or devices. Clearing browser storage may remove it.
+Wallet history and UI toggle settings are not synced between browsers or devices. Clearing browser storage may remove them.
 
 ---
 
@@ -106,7 +126,7 @@ Wallet history is not synced between browsers or devices. Clearing browser stora
 
 ## Project Structure
 
-CatMoon is a static Cloudflare Pages site.
+CatMoon is a static Cloudflare Pages site with browser-native ES modules and a small Cloudflare Pages Function for wallet lookup.
 
 ```text
 public/
@@ -124,6 +144,7 @@ public/
     controls.js
   data/
     mooncat-filters.json
+    mooncat-names.json
   img/
     allcats.png
     tri-faces/
@@ -137,9 +158,12 @@ test/
   config.test.js
   utils.test.js
   wallet.test.js
+
+tools/
+  extract-mooncat-names.js
 ```
 
-The frontend uses browser-native ES modules. There is no frontend build step.
+There is no frontend build step. `public/index.html` loads `public/main.js` directly as an ES module.
 
 Three.js is loaded from jsDelivr through the import map in `public/index.html`.
 
@@ -161,6 +185,12 @@ Run unit tests:
 
 ```bash
 npm test
+```
+
+Generate the names-only MoonCat data file from a local `mooncat_traits.json` source file:
+
+```bash
+npm run build:names
 ```
 
 Preview locally with Cloudflare Pages:
@@ -192,16 +222,17 @@ The frontend calls:
 /api/wallet-cats?address=...
 ```
 
-The Cloudflare Pages Function:
+The Cloudflare Pages Function lives at:
 
 ```text
 functions/api/wallet-cats.js
 ```
 
-supports Ethereum addresses and ENS names. It uses `viem` for Ethereum and ENS resolution.
-Wallet ownership data comes from the MoonCatRescue API.
+It supports Ethereum addresses and ENS names. It uses `viem` for Ethereum and ENS resolution. Wallet ownership data comes from the MoonCatRescue API.
 
 Successful wallet lookup responses are cached at the Cloudflare edge for 5 minutes. Invalid inputs return `400` with `cache-control: no-store`.
+
+Input protection rejects missing, too-long, or unsafe lookup inputs before ENS/RPC/API work is attempted.
 
 ## Geometry
 
@@ -229,7 +260,7 @@ Face 2:  IDs 1696–2543
 Face 29: IDs 24592–25439
 ```
 
-This makes the CatMoon both a visual artwork and a spatial map of the full MoonCat rescue set.
+This makes CatMoon both a visual artwork and a spatial map of the full MoonCat rescue set.
 
 ## Image Assets
 
@@ -255,7 +286,7 @@ Full MoonCat atlas:
 public/img/allcats.png
 ```
 
-The full atlas is lazy-loaded only when needed for previews or wallet overlays.
+The full atlas is lazy-loaded only when needed for hover/pinned previews, named-cat overlays, or wallet overlays.
 
 Filter overlays:
 
@@ -264,15 +295,64 @@ public/img/filters/<filterKey>/tri-face-XX.png
 public/img/filters/filter-manifest.json
 ```
 
+Most built-in filters use static overlay textures. Runtime-only filters, such as Named Cats and Wallet Cats, generate overlay textures in the browser from `allcats.png` and the relevant ID set.
+
+## Filters and Names Data
+
+Static filter categories are defined in:
+
+```text
+public/data/mooncat-filters.json
+```
+
+Named cats are defined in a generated names-only file:
+
+```text
+public/data/mooncat-names.json
+```
+
+The source traits file is expected at the repo root when regenerating names:
+
+```text
+mooncat_traits.json
+```
+
+Run this to extract only non-empty names keyed by rescue-order ID:
+
+```bash
+npm run build:names
+```
+
+The generated names file is used for:
+
+- displaying cat names in hover and pinned cards
+- the Named Cats filter ID set
+- runtime Named Cats overlay generation
+
+The full traits file is not required by the browser app.
+
+## UI State
+
+The app stores lightweight preferences in browser `localStorage`, including:
+
+```text
+catmoon.walletLookupHistory
+catmoon.hoverPreviewImages
+catmoon.autoTumble
+catmoon.catLinks
+```
+
+These settings are local to the browser and are safe to clear.
+
 ## Tests
 
 The test suite uses Node’s built-in test runner.
 
 Current coverage focuses on:
 
-* config constants and URL helpers
-* utility helpers
-* wallet normalization and history helpers
+- config constants and URL helpers
+- utility helpers
+- wallet normalization and history helpers
 
 Run:
 
