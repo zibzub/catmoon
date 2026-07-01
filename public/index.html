@@ -59,6 +59,10 @@
           <input id="autoTumbleToggle" type="checkbox" checked>
           Auto tumble
         </label>
+        <label id="catLinksControl" class="hudToggleControl" for="catLinksToggle">
+          <input id="catLinksToggle" type="checkbox" checked>
+          Cat links
+        </label>
         <label id="filterControls" for="catFilter">
           Filter
           <select id="catFilter">
@@ -89,13 +93,17 @@
           </div>
           <div id="walletFilterStatus" role="status" aria-live="polite"></div>
         </div>
-        <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a hovered cat to open its rescue page.</div>
+        <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a cat to pin its details.</div>
       </div>
     </div>
 
     <div id="tooltip" aria-hidden="true">
       <div id="tooltipPreview" aria-hidden="true"></div>
       <div id="tooltipLabel"></div>
+    </div>
+    <div id="pinnedTooltip" aria-hidden="true">
+      <div id="pinnedTooltipPreview" aria-hidden="true"></div>
+      <div id="pinnedTooltipLabel"></div>
     </div>
     <div id="loadingOverlay">
       <div id="loadingCard">

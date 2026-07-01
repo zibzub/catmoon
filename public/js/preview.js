@@ -24,18 +24,32 @@ function updatePreviewElement(previewEl, id, scale = PREVIEW_SCALE) {
   previewEl.style.backgroundPosition = `${-(col * TILE_W * scale)}px ${-(row * TILE_H * scale)}px`;
 }
 
-export function createPreviewManager({ tooltipPreviewEl, getHoveredId, isTooltipPreviewEnabled }) {
+export function createPreviewManager({
+  tooltipPreviewEl,
+  pinnedTooltipPreviewEl,
+  getHoveredId,
+  getPinnedId,
+  isTooltipPreviewEnabled
+}) {
   let allCatsAtlasImage = null;
   let allCatsAtlasPromise = null;
 
-  function updateTooltipPreview(id) {
-    if (!tooltipPreviewEl) return;
+  function updateCardPreview(previewEl, id) {
+    if (!previewEl) return;
     if (!isTooltipPreviewEnabled() || !allCatsAtlasImage) {
-      clearPreviewElement(tooltipPreviewEl);
+      clearPreviewElement(previewEl);
       return;
     }
 
-    updatePreviewElement(tooltipPreviewEl, id, PREVIEW_SCALE);
+    updatePreviewElement(previewEl, id, PREVIEW_SCALE);
+  }
+
+  function updateTooltipPreview(id) {
+    updateCardPreview(tooltipPreviewEl, id);
+  }
+
+  function updatePinnedTooltipPreview(id) {
+    updateCardPreview(pinnedTooltipPreviewEl, id);
   }
 
   function applyCachedPreviewAtlas() {
@@ -44,7 +58,11 @@ export function createPreviewManager({ tooltipPreviewEl, getHoveredId, isTooltip
     if (tooltipPreviewEl) {
       tooltipPreviewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
     }
+    if (pinnedTooltipPreviewEl) {
+      pinnedTooltipPreviewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
+    }
     updateTooltipPreview(getHoveredId());
+    updatePinnedTooltipPreview(getPinnedId());
   }
 
   function loadAllCatsAtlas() {
@@ -81,10 +99,20 @@ export function createPreviewManager({ tooltipPreviewEl, getHoveredId, isTooltip
     });
   }
 
+  function ensurePinnedTooltipPreviewAtlasLoaded() {
+    if (!isTooltipPreviewEnabled() || getPinnedId() === null || allCatsAtlasImage) return;
+
+    loadAllCatsAtlas().catch((error) => {
+      console.warn("Could not load CatMoon pinned preview atlas.", error);
+    });
+  }
+
   return {
     updateTooltipPreview,
+    updatePinnedTooltipPreview,
     applyCachedPreviewAtlas,
     ensureTooltipPreviewAtlasLoaded,
+    ensurePinnedTooltipPreviewAtlasLoaded,
     loadAllCatsAtlas
   };
 }

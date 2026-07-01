@@ -414,7 +414,8 @@ body {
   pointer-events: none;
 }
 
-#tooltip {
+#tooltip,
+#pinnedTooltip {
   position: fixed;
   z-index: 3;
   display: none;
@@ -433,7 +434,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-#tooltipPreview {
+#pinnedTooltip {
+  z-index: 4;
+  border-color: hotpink;
+}
+
+#tooltipPreview,
+#pinnedTooltipPreview {
   width: 84px;
   aspect-ratio: 21 / 22;
   margin: 0 auto 5px;
@@ -445,17 +452,25 @@ body {
   image-rendering: crisp-edges;
 }
 
-#tooltip.image-off {
+#pinnedTooltip.links-enabled #pinnedTooltipPreview {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#tooltip.image-off,
+#pinnedTooltip.image-off {
   width: auto;
   min-width: 92px;
   padding: 6px 8px;
 }
 
-#tooltip.image-off #tooltipPreview {
+#tooltip.image-off #tooltipPreview,
+#pinnedTooltip.image-off #pinnedTooltipPreview {
   display: none;
 }
 
-#tooltipLabel {
+#tooltipLabel,
+#pinnedTooltipLabel {
   overflow: hidden;
 }
 

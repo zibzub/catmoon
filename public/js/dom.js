@@ -7,6 +7,7 @@ export function getDomRefs() {
     hudLockButton: document.getElementById("hudLockButton"),
     hoverPreviewToggleEl: document.getElementById("hoverPreviewToggle"),
     autoTumbleToggleEl: document.getElementById("autoTumbleToggle"),
+    catLinksToggleEl: document.getElementById("catLinksToggle"),
     catFilterEl: document.getElementById("catFilter"),
     walletFilterInputEl: document.getElementById("walletFilterInput"),
     walletFilterClearEl: document.getElementById("walletFilterClear"),
@@ -18,6 +19,9 @@ export function getDomRefs() {
     tooltipEl: document.getElementById("tooltip"),
     tooltipPreviewEl: document.getElementById("tooltipPreview"),
     tooltipLabelEl: document.getElementById("tooltipLabel"),
+    pinnedTooltipEl: document.getElementById("pinnedTooltip"),
+    pinnedTooltipPreviewEl: document.getElementById("pinnedTooltipPreview"),
+    pinnedTooltipLabelEl: document.getElementById("pinnedTooltipLabel"),
     statusEl: document.getElementById("status"),
     loadingOverlay: document.getElementById("loadingOverlay"),
     loadingProgressEl: document.getElementById("loadingProgress")

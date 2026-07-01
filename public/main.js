@@ -66,6 +66,7 @@ const {
   hudLockButton,
   hoverPreviewToggleEl,
   autoTumbleToggleEl,
+  catLinksToggleEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -77,6 +78,9 @@ const {
   tooltipEl,
   tooltipPreviewEl,
   tooltipLabelEl,
+  pinnedTooltipEl,
+  pinnedTooltipPreviewEl,
+  pinnedTooltipLabelEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
@@ -84,6 +88,8 @@ const {
 
 const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
+const CAT_LINKS_STORAGE_KEY = "catmoon.catLinks";
+const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -136,6 +142,11 @@ let lastClientX = 0;
 let lastClientY = 0;
 let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
 let autoTumbleEnabled = loadAutoTumbleSetting();
+let catLinksEnabled = loadCatLinksSetting();
+let pinnedCatId = null;
+let pinnedTooltipAnchorX = 0;
+let pinnedTooltipAnchorY = 0;
+let pinnedCatLocalPoint = null;
 let moonCatNames = null;
 let moonCatNamesPromise = null;
 let moonCatNamesLoadFailed = false;
@@ -201,11 +212,15 @@ const {
 
 const {
   updateTooltipPreview,
+  updatePinnedTooltipPreview,
   ensureTooltipPreviewAtlasLoaded,
+  ensurePinnedTooltipPreviewAtlasLoaded,
   loadAllCatsAtlas
 } = createPreviewManager({
   tooltipPreviewEl,
+  pinnedTooltipPreviewEl,
   getHoveredId: () => hoveredId,
+  getPinnedId: () => pinnedCatId,
   isTooltipPreviewEnabled: () => hoverPreviewImagesEnabled
 });
 
@@ -303,8 +318,11 @@ function saveHoverPreviewImageSetting(enabled) {
 function updateHoverPreviewToggleUi() {
   hoverPreviewToggleEl.checked = hoverPreviewImagesEnabled;
   tooltipEl.classList.toggle("image-off", !hoverPreviewImagesEnabled);
+  pinnedTooltipEl.classList.toggle("image-off", !hoverPreviewImagesEnabled);
+  updateCatLinksToggleUi();
   if (!hoverPreviewImagesEnabled) {
     updateTooltipPreview(null);
+    updatePinnedTooltipPreview(null);
   }
 }
 
@@ -326,6 +344,30 @@ function saveAutoTumbleSetting(enabled) {
 
 function updateAutoTumbleToggleUi() {
   autoTumbleToggleEl.checked = autoTumbleEnabled;
+}
+
+function loadCatLinksSetting() {
+  try {
+    return window.localStorage.getItem(CAT_LINKS_STORAGE_KEY) !== "off";
+  } catch (error) {
+    return true;
+  }
+}
+
+function saveCatLinksSetting(enabled) {
+  try {
+    window.localStorage.setItem(CAT_LINKS_STORAGE_KEY, enabled ? "on" : "off");
+  } catch (error) {
+    // The setting still persists for this page session through in-memory state.
+  }
+}
+
+function updateCatLinksToggleUi() {
+  catLinksToggleEl.checked = catLinksEnabled;
+  pinnedTooltipEl.classList.toggle(
+    "links-enabled",
+    catLinksEnabled && hoverPreviewImagesEnabled && pinnedCatId !== null
+  );
 }
 
 function clearTooltipHideTimer() {
@@ -350,18 +392,22 @@ function hideTooltip() {
   tooltipEl.setAttribute("aria-hidden", "true");
 }
 
-function positionTooltip() {
+function positionTooltipElement(tooltipElement, anchorX, anchorY) {
   const offset = 16;
   const margin = 8;
-  tooltipEl.style.display = "block";
+  tooltipElement.style.display = "block";
 
-  const rect = tooltipEl.getBoundingClientRect();
-  const left = lastClientX - rect.width - offset;
-  const top = lastClientY - rect.height - offset;
+  const rect = tooltipElement.getBoundingClientRect();
+  const left = anchorX - rect.width - offset;
+  const top = anchorY - rect.height - offset;
 
-  tooltipEl.style.left = `${clamp(left, margin, Math.max(margin, window.innerWidth - rect.width - margin))}px`;
-  tooltipEl.style.top = `${clamp(top, margin, Math.max(margin, window.innerHeight - rect.height - margin))}px`;
-  tooltipEl.setAttribute("aria-hidden", "false");
+  tooltipElement.style.left = `${clamp(left, margin, Math.max(margin, window.innerWidth - rect.width - margin))}px`;
+  tooltipElement.style.top = `${clamp(top, margin, Math.max(margin, window.innerHeight - rect.height - margin))}px`;
+  tooltipElement.setAttribute("aria-hidden", "false");
+}
+
+function positionTooltip() {
+  positionTooltipElement(tooltipEl, lastClientX, lastClientY);
 }
 
 async function loadMoonCatNames() {
@@ -393,21 +439,21 @@ async function loadMoonCatNames() {
   return moonCatNamesPromise;
 }
 
-function updateTooltipLabel(id) {
-  tooltipLabelEl.replaceChildren();
+function updateTooltipLabel(labelEl, id) {
+  labelEl.replaceChildren();
   if (id === null) return;
 
   const idEl = document.createElement("div");
   idEl.className = "tooltipCatId";
   idEl.textContent = `${id}`;
-  tooltipLabelEl.append(idEl);
+  labelEl.append(idEl);
 
   const name = moonCatNames?.[id];
   if (typeof name === "string" && name) {
     const nameEl = document.createElement("div");
     nameEl.className = "tooltipCatName";
     nameEl.textContent = name;
-    tooltipLabelEl.append(nameEl);
+    labelEl.append(nameEl);
   }
 }
 
@@ -415,14 +461,27 @@ function ensureMoonCatNamesLoaded(id) {
   if (id === null || moonCatNames || moonCatNamesLoadFailed) return;
 
   loadMoonCatNames().then((names) => {
-    if (!names || hoveredId !== id) return;
-    updateTooltipLabel(id);
-    positionTooltip();
+    if (!names) return;
+    if (hoveredId === id && pinnedCatId === null) {
+      updateTooltipLabel(tooltipLabelEl, id);
+      positionTooltip();
+    }
+    if (pinnedCatId === id) {
+      updateTooltipLabel(pinnedTooltipLabelEl, id);
+      positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
+    }
   });
 }
 
 function setHoveredId(id) {
   hoveredId = id;
+
+  if (pinnedCatId !== null) {
+    hideTooltip();
+    updateTooltipPreview(null);
+    return;
+  }
+
   updateTooltipPreview(id);
   ensureTooltipPreviewAtlasLoaded();
 
@@ -431,7 +490,7 @@ function setHoveredId(id) {
     return;
   }
 
-  updateTooltipLabel(id);
+  updateTooltipLabel(tooltipLabelEl, id);
   positionTooltip();
   ensureMoonCatNamesLoaded(id);
   scheduleTooltipHide();
@@ -443,15 +502,25 @@ function updateHoverFromPointer() {
     return;
   }
 
+  const catHit = getCatHitFromPointer();
+  setHoveredId(catHit?.id ?? null);
+}
+
+function getCatHitFromPointer() {
+  if (!activeObject) return null;
+
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObject(activeObject, true);
-  let id = null;
+  if (!hits.length) return null;
 
-  if (hits.length) {
-    id = idFromTriacontahedronHit(hits[0]);
-  }
+  const hit = hits[0];
+  const id = idFromTriacontahedronHit(hit);
+  if (id === null) return null;
 
-  setHoveredId(id);
+  return {
+    id,
+    localPoint: activeObject.worldToLocal(hit.point.clone())
+  };
 }
 
 function updateHoverFromClient(clientX, clientY) {
@@ -463,10 +532,70 @@ function updateHoverFromClient(clientX, clientY) {
   return hoveredId;
 }
 
-function openCat(id) {
-  if (!hudUnlocked) return;
-  if (id === null) return;
-  window.open(`https://mooncatrescue.com/mooncats/${id}`, "_blank", "noopener,noreferrer");
+function hidePinnedTooltip() {
+  pinnedCatId = null;
+  pinnedCatLocalPoint = null;
+  updatePinnedTooltipPreview(null);
+  pinnedTooltipEl.style.display = "none";
+  pinnedTooltipEl.setAttribute("aria-hidden", "true");
+  updateCatLinksToggleUi();
+}
+
+function showPinnedTooltip(id, clientX, clientY, localPoint) {
+  pinnedCatId = id;
+  pinnedTooltipAnchorX = clientX;
+  pinnedTooltipAnchorY = clientY;
+  pinnedCatLocalPoint = localPoint.clone();
+  updatePinnedTooltipPreview(id);
+  ensurePinnedTooltipPreviewAtlasLoaded();
+  updateTooltipLabel(pinnedTooltipLabelEl, id);
+  positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
+  ensureMoonCatNamesLoaded(id);
+  updateCatLinksToggleUi();
+}
+
+function togglePinnedCatFromClient(clientX, clientY) {
+  pointerInside = true;
+  lastClientX = clientX;
+  lastClientY = clientY;
+  updatePointerFromClient(clientX, clientY);
+  const catHit = getCatHitFromPointer();
+  if (!catHit) return;
+
+  if (pinnedCatId === catHit.id) {
+    hidePinnedTooltip();
+    return;
+  }
+
+  showPinnedTooltip(catHit.id, clientX, clientY, catHit.localPoint);
+}
+
+function updatePinnedTooltipProjection() {
+  if (pinnedCatId === null || !pinnedCatLocalPoint || !activeObject) return;
+
+  const projected = activeObject.localToWorld(pinnedCatLocalPoint.clone()).project(camera);
+  if (
+    projected.z < -1
+    || projected.z > 1
+    || !Number.isFinite(projected.x)
+    || !Number.isFinite(projected.y)
+  ) {
+    hidePinnedTooltip();
+    return;
+  }
+
+  const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+  const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+  const distance = Math.hypot(screenX - pinnedTooltipAnchorX, screenY - pinnedTooltipAnchorY);
+  if (
+    distance > PINNED_TOOLTIP_DRIFT_LIMIT_PX
+    || screenX < 0
+    || screenX > window.innerWidth
+    || screenY < 0
+    || screenY > window.innerHeight
+  ) {
+    hidePinnedTooltip();
+  }
 }
 
 function pauseAutoRotate() {
@@ -554,7 +683,7 @@ function updateFocusAnimation(now) {
 }
 
 function applyAutoRotate(deltaSeconds) {
-  if (!AUTO_ROTATE_ENABLED || !autoTumbleEnabled || !activeObject) return;
+  if (!AUTO_ROTATE_ENABLED || !autoTumbleEnabled || pinnedCatId !== null || !activeObject) return;
   const now = performance.now();
   if (now < autoRotateResumeAt) return;
 
@@ -600,6 +729,7 @@ function animate() {
   lastFrameTime = now;
   controls.update();
   updateFocusAnimation(now);
+  updatePinnedTooltipProjection();
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
   renderer.render(scene, camera);
@@ -1271,6 +1401,7 @@ hudLockButton.addEventListener("click", (event) => {
 updateHudLockState();
 updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
+updateCatLinksToggleUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
 const initialWalletParam = getWalletParamFromUrl();
@@ -1288,6 +1419,11 @@ hoverPreviewToggleEl.addEventListener("change", () => {
   saveHoverPreviewImageSetting(hoverPreviewImagesEnabled);
   updateHoverPreviewToggleUi();
   setHoveredId(hoveredId);
+  if (pinnedCatId !== null) {
+    updatePinnedTooltipPreview(pinnedCatId);
+    ensurePinnedTooltipPreviewAtlasLoaded();
+    positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
+  }
 });
 
 autoTumbleToggleEl.addEventListener("change", () => {
@@ -1299,6 +1435,25 @@ autoTumbleToggleEl.addEventListener("change", () => {
   } else {
     pauseAutoRotate();
   }
+});
+
+catLinksToggleEl.addEventListener("change", () => {
+  catLinksEnabled = catLinksToggleEl.checked;
+  saveCatLinksSetting(catLinksEnabled);
+  updateCatLinksToggleUi();
+});
+
+pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+pinnedTooltipPreviewEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!catLinksEnabled || !hoverPreviewImagesEnabled || pinnedCatId === null) return;
+
+  window.open(`https://mooncatrescue.com/mooncats/${pinnedCatId}`, "_blank", "noopener,noreferrer");
 });
 
 walletFilterButtonEl.addEventListener("click", (event) => {
@@ -1390,7 +1545,7 @@ controlsApi = setupCatMoonControls({
     pointerInside = false;
     setHoveredId(null);
   },
-  openCat,
+  activateCatAtClient: togglePinnedCatFromClient,
   pauseAutoRotate,
   scheduleAutoRotateResume,
   cancelFocusAnimation,

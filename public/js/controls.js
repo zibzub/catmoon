@@ -12,7 +12,7 @@ export function setupCatMoonControls({
   getActiveObject,
   updateHoverFromClient,
   clearHover,
-  openCat,
+  activateCatAtClient,
   pauseAutoRotate,
   scheduleAutoRotateResume,
   cancelFocusAnimation,
@@ -177,10 +177,10 @@ export function setupCatMoonControls({
     const dy = event.clientY - downPoint.y;
     const moved = Math.hypot(dx, dy);
 
-    const hoveredId = updateHoverFromClient(event.clientX, event.clientY);
+    updateHoverFromClient(event.clientX, event.clientY);
 
     if (moved <= CLICK_MOVE_LIMIT) {
-      openCat(hoveredId);
+      activateCatAtClient(event.clientX, event.clientY);
     }
 
     downPoint = null;
