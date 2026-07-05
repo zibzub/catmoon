@@ -17,6 +17,8 @@ export function setupCatMoonControls({
   getActiveObject,
   updateHoverFromClient,
   clearHover,
+  suppressTransientHover,
+  touchHoverCooldownMs = 300,
   activateCatAtClient,
   pauseAutoRotate,
   scheduleAutoRotateResume,
@@ -141,6 +143,11 @@ export function setupCatMoonControls({
 
     updateTouchTwistRoll();
     updateRotateSpeedForPointer(event.pointerType);
+    if (event.pointerType === "touch") {
+      suppressTransientHover();
+      return;
+    }
+
     updateHoverFromClient(event.clientX, event.clientY);
   }, { capture: true });
 
@@ -165,7 +172,7 @@ export function setupCatMoonControls({
     updateRotateSpeedForPointer(event.pointerType);
 
     if (event.pointerType === "touch") {
-      updateHoverFromClient(event.clientX, event.clientY);
+      suppressTransientHover();
     }
 
     const isRightMouseRoll = event.pointerType === "mouse" && event.button === 2;
@@ -189,6 +196,7 @@ export function setupCatMoonControls({
         touchGestureWasTwoFinger = false;
       }
       downPoint = null;
+      suppressTransientHover(touchHoverCooldownMs);
       scheduleAutoRotateResume();
       return;
     }
@@ -204,7 +212,11 @@ export function setupCatMoonControls({
     const dy = event.clientY - downPoint.y;
     const moved = Math.hypot(dx, dy);
 
-    updateHoverFromClient(event.clientX, event.clientY);
+    if (event.pointerType === "touch") {
+      suppressTransientHover(touchHoverCooldownMs);
+    } else {
+      updateHoverFromClient(event.clientX, event.clientY);
+    }
 
     if (moved <= CLICK_MOVE_LIMIT) {
       activateCatAtClient(event.clientX, event.clientY);
@@ -219,6 +231,9 @@ export function setupCatMoonControls({
     twoFingerLastAngle = null;
     touchGestureWasTwoFinger = false;
     updateRotateSpeedForPointer(event.pointerType);
+    if (event.pointerType === "touch") {
+      suppressTransientHover(touchHoverCooldownMs);
+    }
     if (rollDrag && rollDrag.pointerId === event.pointerId) {
       endRollDrag(event);
       return;

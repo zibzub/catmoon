@@ -93,6 +93,8 @@ const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
 const CAT_LINKS_STORAGE_KEY = "catmoon.catLinks";
 const EARLY_RESCUE_ZONE_STORAGE_KEY = "catmoon.earlyRescueZone";
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
+const HOVER_INTENT_DELAY_MS = 180;
+const TOUCH_HOVER_COOLDOWN_MS = 300;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
 const renderer = new THREE.WebGLRenderer({
@@ -141,6 +143,8 @@ let walletHistoryDropdownOpen = false;
 let walletHistorySelectionInProgress = false;
 let filterSelectionToken = 0;
 let tooltipHideTimer = null;
+let hoverIntentTimer = null;
+let transientHoverSuppressedUntil = 0;
 let pointerInside = false;
 let lastClientX = 0;
 let lastClientY = 0;
@@ -427,6 +431,42 @@ function hideTooltip() {
   tooltipEl.setAttribute("aria-hidden", "true");
 }
 
+function clearHoverIntentTimer() {
+  if (hoverIntentTimer !== null) {
+    window.clearTimeout(hoverIntentTimer);
+    hoverIntentTimer = null;
+  }
+}
+
+function clearTransientHover({ clearPointer = false } = {}) {
+  clearHoverIntentTimer();
+  if (clearPointer) {
+    pointerInside = false;
+  }
+  setHoveredId(null);
+}
+
+function suppressTransientHover(cooldownMs = 0) {
+  clearHoverIntentTimer();
+  if (cooldownMs > 0) {
+    transientHoverSuppressedUntil = Math.max(transientHoverSuppressedUntil, performance.now() + cooldownMs);
+  }
+  setHoveredId(null);
+}
+
+function isTransientHoverSuppressed() {
+  return performance.now() < transientHoverSuppressedUntil;
+}
+
+function updateHoverFromPointerAfterIntent() {
+  hoverIntentTimer = null;
+  if (isTransientHoverSuppressed()) {
+    setHoveredId(null);
+    return;
+  }
+  updateHoverFromPointer();
+}
+
 function positionTooltipElement(tooltipElement, anchorX, anchorY) {
   const offset = 16;
   const margin = 8;
@@ -536,6 +576,10 @@ function updateHoverFromPointer() {
     setHoveredId(null);
     return;
   }
+  if (isTransientHoverSuppressed()) {
+    setHoveredId(null);
+    return;
+  }
 
   const catHit = getCatHitFromPointer();
   setHoveredId(catHit?.id ?? null);
@@ -563,7 +607,13 @@ function updateHoverFromClient(clientX, clientY) {
   lastClientX = clientX;
   lastClientY = clientY;
   updatePointerFromClient(clientX, clientY);
-  updateHoverFromPointer();
+  clearHoverIntentTimer();
+  if (isTransientHoverSuppressed()) {
+    setHoveredId(null);
+    return hoveredId;
+  }
+
+  hoverIntentTimer = window.setTimeout(updateHoverFromPointerAfterIntent, HOVER_INTENT_DELAY_MS);
   return hoveredId;
 }
 
@@ -1588,10 +1638,9 @@ controlsApi = setupCatMoonControls({
   camera,
   getActiveObject: () => activeObject,
   updateHoverFromClient,
-  clearHover: () => {
-    pointerInside = false;
-    setHoveredId(null);
-  },
+  clearHover: () => clearTransientHover({ clearPointer: true }),
+  suppressTransientHover,
+  touchHoverCooldownMs: TOUCH_HOVER_COOLDOWN_MS,
   activateCatAtClient: togglePinnedCatFromClient,
   pauseAutoRotate,
   scheduleAutoRotateResume,
