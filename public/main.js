@@ -68,6 +68,7 @@ const {
   hoverPreviewToggleEl,
   autoTumbleToggleEl,
   catLinksToggleEl,
+  earlyRescueZoneToggleEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -90,7 +91,9 @@ const {
 const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
 const CAT_LINKS_STORAGE_KEY = "catmoon.catLinks";
+const EARLY_RESCUE_ZONE_STORAGE_KEY = "catmoon.earlyRescueZone";
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
+const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -144,6 +147,7 @@ let lastClientY = 0;
 let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
 let autoTumbleEnabled = loadAutoTumbleSetting();
 let catLinksEnabled = loadCatLinksSetting();
+let earlyRescueZoneEnabled = loadEarlyRescueZoneSetting();
 let pinnedCatId = null;
 let pinnedTooltipAnchorX = 0;
 let pinnedTooltipAnchorY = 0;
@@ -369,6 +373,36 @@ function updateCatLinksToggleUi() {
     "links-enabled",
     catLinksEnabled && hoverPreviewImagesEnabled && pinnedCatId !== null
   );
+}
+
+function loadEarlyRescueZoneSetting() {
+  try {
+    return window.localStorage.getItem(EARLY_RESCUE_ZONE_STORAGE_KEY) === "on";
+  } catch (error) {
+    return false;
+  }
+}
+
+function saveEarlyRescueZoneSetting(enabled) {
+  try {
+    window.localStorage.setItem(EARLY_RESCUE_ZONE_STORAGE_KEY, enabled ? "on" : "off");
+  } catch (error) {
+    // The setting still persists for this page session through in-memory state.
+  }
+}
+
+function updateEarlyRescueZoneAppearance() {
+  if (!triacontahedron?.userData) return;
+
+  const shouldShow = earlyRescueZoneEnabled && EARLY_RESCUE_ZONE_VISIBLE_FILTERS.has(activeFilter);
+  for (const mesh of triacontahedron.userData.earlyRescueZoneMeshes || []) {
+    mesh.visible = shouldShow;
+  }
+}
+
+function updateEarlyRescueZoneToggleUi() {
+  earlyRescueZoneToggleEl.checked = earlyRescueZoneEnabled;
+  updateEarlyRescueZoneAppearance();
 }
 
 function clearTooltipHideTimer() {
@@ -997,6 +1031,11 @@ function updateFilterAppearance() {
     mesh.material.needsUpdate = true;
     mesh.visible = true;
   });
+
+  const shouldShowEarlyRescueZone = earlyRescueZoneEnabled && EARLY_RESCUE_ZONE_VISIBLE_FILTERS.has(activeFilter);
+  for (const mesh of triacontahedron.userData.earlyRescueZoneMeshes || []) {
+    mesh.visible = shouldShowEarlyRescueZone;
+  }
 }
 
 async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = {}) {
@@ -1403,6 +1442,7 @@ updateHudLockState();
 updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
 updateCatLinksToggleUi();
+updateEarlyRescueZoneToggleUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
 const initialWalletParam = getWalletParamFromUrl();
@@ -1442,6 +1482,12 @@ catLinksToggleEl.addEventListener("change", () => {
   catLinksEnabled = catLinksToggleEl.checked;
   saveCatLinksSetting(catLinksEnabled);
   updateCatLinksToggleUi();
+});
+
+earlyRescueZoneToggleEl.addEventListener("change", () => {
+  earlyRescueZoneEnabled = earlyRescueZoneToggleEl.checked;
+  saveEarlyRescueZoneSetting(earlyRescueZoneEnabled);
+  updateEarlyRescueZoneAppearance();
 });
 
 pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {

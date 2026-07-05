@@ -208,6 +208,14 @@ body {
   box-sizing: border-box;
 }
 
+#hudToggleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 #filterControls {
   display: flex;
   flex-direction: column;
@@ -220,27 +228,103 @@ body {
 }
 
 .hudToggleControl {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  width: fit-content;
-  color: #bfbfbf;
-  font-size: 12px;
-  line-height: 1.2;
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: start;
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px 7px;
+  box-sizing: border-box;
+
+  border: 1px solid rgba(255, 105, 180, 0.28);
+  border-radius: 7px;
+  background: rgba(10, 10, 16, 0.88);
+  color: #e1dde4;
+
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: left;
+
+  cursor: pointer;
+  overflow: hidden;
   pointer-events: auto;
   user-select: none;
+
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease,
+    color 120ms ease;
 }
 
-.hudToggleControl + .hudToggleControl {
-  margin-top: 7px;
+.hudToggleControl:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 105, 180, 0.55);
 }
 
-#hoverPreviewToggle,
-#autoTumbleToggle, #catLinksToggle {
-  width: 14px;
-  height: 14px;
+.hudToggleControl:has(input:checked) {
+  border-color: rgba(255, 105, 180, 0.95);
+  background: linear-gradient(180deg, rgba(255, 105, 180, 0.22), rgba(12, 12, 18, 0.94));
+  color: #fff4fa;
+  box-shadow: 0 0 0 1px rgba(255, 105, 180, 0.18) inset, 0 0 18px rgba(255, 105, 180, 0.15);
+}
+
+.hudToggleControl::after {
+  justify-self: end;
+  align-self: end;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.hudToggleControl:has(input:checked)::after {
+  content: "On";
+  color: #ffd0e7;
+}
+
+.hudToggleControl:focus-within {
+  outline: 1px solid rgba(255, 105, 180, 0.8);
+  outline-offset: 2px;
+}
+
+.hudToggleControl input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   margin: 0;
-  accent-color: hotpink;
+  pointer-events: none;
+}
+
+.hudToggleLabel {
+  min-width: 0;
+  padding-right: 0;
+  font-size: 12px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+#hoverPreviewControl,
+#autoTumbleControl,
+#catLinksControl,
+#earlyRescueZoneControl {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  #hudToggleGrid {
+    gap: 5px;
+  }
+
+  .hudToggleControl {
+    min-height: 46px;
+    padding: 5px 7px;
+    font-size: 12px;
+  }
+
+  .hudToggleLabel {
+    padding-right: 20px;
+  }
 }
 
 #catFilter {

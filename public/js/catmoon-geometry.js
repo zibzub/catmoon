@@ -158,6 +158,19 @@ function makeFilterEdgeMaterial() {
   });
 }
 
+function makeEarlyRescueZoneMaterial() {
+  return new THREE.MeshBasicMaterial({
+    color: 0xff69b4,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.06,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  });
+}
+
 function validateCompactTriFaceSlotMetadata(metadata) {
   if (!metadata || metadata.v !== 1) return false;
   if (metadata.tw !== TRI_FACE_TEX_W) return false;
@@ -248,6 +261,7 @@ export function createCatMoonGeometry({ textureLoader, applyPixelTextureSettings
     group.userData.backingMeshes = [];
     group.userData.overlayMeshes = [];
     group.userData.edgeMeshes = [];
+    group.userData.earlyRescueZoneMeshes = [];
     group.userData.faceNormals = [];
     group.userData.faceUps = [];
 
@@ -307,6 +321,17 @@ export function createCatMoonGeometry({ textureLoader, applyPixelTextureSettings
       edgeMesh.raycast = () => {};
       group.add(edgeMesh);
       group.userData.edgeMeshes.push(edgeMesh);
+
+      if (faceIndex < 7) {
+        const earlyRescueZoneMesh = new THREE.Mesh(geometry, makeEarlyRescueZoneMaterial());
+        earlyRescueZoneMesh.userData.faceIndex = faceIndex;
+        earlyRescueZoneMesh.userData.isEarlyRescueZone = true;
+        earlyRescueZoneMesh.visible = false;
+        earlyRescueZoneMesh.renderOrder = 1.5;
+        earlyRescueZoneMesh.raycast = () => {};
+        group.add(earlyRescueZoneMesh);
+        group.userData.earlyRescueZoneMeshes.push(earlyRescueZoneMesh);
+      }
     });
 
     group.scale.setScalar(0.62);

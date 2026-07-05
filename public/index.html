@@ -51,18 +51,24 @@
         <span id="activeFilterReset">Reset Filter</span>
       </button>
       <div id="hudDetails">
-        <label id="autoTumbleControl" class="hudToggleControl" for="autoTumbleToggle">
-          <input id="autoTumbleToggle" type="checkbox" checked>
-          Auto tumble
-        </label>
-        <label id="hoverPreviewControl" class="hudToggleControl" for="hoverPreviewToggle">
-          <input id="hoverPreviewToggle" type="checkbox" checked>
-          Hover preview
-        </label>
-        <label id="catLinksControl" class="hudToggleControl" for="catLinksToggle">
-          <input id="catLinksToggle" type="checkbox" checked>
-          Cat links
-        </label>
+        <div id="hudToggleGrid" aria-label="HUD toggles">
+          <label id="autoTumbleControl" class="hudToggleControl" for="autoTumbleToggle">
+            <input id="autoTumbleToggle" type="checkbox" checked>
+            <span class="hudToggleLabel">Auto tumble</span>
+          </label>
+          <label id="hoverPreviewControl" class="hudToggleControl" for="hoverPreviewToggle">
+            <input id="hoverPreviewToggle" type="checkbox" checked>
+            <span class="hudToggleLabel">Hover preview</span>
+          </label>
+          <label id="catLinksControl" class="hudToggleControl" for="catLinksToggle">
+            <input id="catLinksToggle" type="checkbox" checked>
+            <span class="hudToggleLabel">Cat links</span>
+          </label>
+          <label id="earlyRescueZoneControl" class="hudToggleControl" for="earlyRescueZoneToggle">
+            <input id="earlyRescueZoneToggle" type="checkbox">
+            <span class="hudToggleLabel">Early rescue zone</span>
+          </label>
+        </div>
         <label id="filterControls" for="catFilter">
           Filter
           <select id="catFilter">

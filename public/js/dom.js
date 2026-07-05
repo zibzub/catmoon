@@ -8,6 +8,7 @@ export function getDomRefs() {
     hoverPreviewToggleEl: document.getElementById("hoverPreviewToggle"),
     autoTumbleToggleEl: document.getElementById("autoTumbleToggle"),
     catLinksToggleEl: document.getElementById("catLinksToggle"),
+    earlyRescueZoneToggleEl: document.getElementById("earlyRescueZoneToggle"),
     catFilterEl: document.getElementById("catFilter"),
     walletFilterInputEl: document.getElementById("walletFilterInput"),
     walletFilterClearEl: document.getElementById("walletFilterClear"),
