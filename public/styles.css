@@ -261,7 +261,6 @@ body {
     white-space: nowrap;
   }
 }
-}
 
 #activeFilterBadge:hover #activeFilterReset,
 #activeFilterBadge:focus-visible #activeFilterReset {

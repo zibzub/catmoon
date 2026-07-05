@@ -19,31 +19,35 @@ CatMoon is an interactive 3D MoonCat viewer. It places all **25,440 rescued Moon
 
 CatMoon can slowly auto-tumble on its own. Manual movement pauses the motion briefly so you can inspect the moon.
 
-## Details Panel and Toggles
+## Details Panel, Toggles, and Help
 
-The lock button in the top-left expands or collapses the settings panel.
+The lock button expands or collapses the settings panel.
 
 **Locked**
 
-- Only the lock button is shown.
-- You can still rotate, zoom, filter by URL, hover, and pin cat details.
 - The settings controls are hidden.
+- The lock button remains available.
+- When a filter is active, a compact active-filter badge remains available so you can reset the filter.
+- You can still rotate, zoom, filter by URL, and pin cat details.
 
 **Unlocked**
 
-- Filters and wallet lookup are available.
-- Toggle controls appear as large button-style controls in a 2x2 grid for easier touch use. Each button clearly shows whether it is On or Off.
+- Filters, wallet lookup, and help are available.
+- Toggle controls appear as compact button-style controls in a 2x2 grid for easier touch use. Each button clearly shows whether it is On or Off.
+- The `?` button in the top-right opens a compact help panel with controls and project links.
 - Available toggles:
   - **Auto tumble**: turn automatic rotation on or off.
   - **Hover preview**: show or hide preview images in hover/pinned cards.
   - **Cat links**: allow the pinned cat image to open the cat on [mooncatrescue.com](https://mooncatrescue.com)
   - **Early rescue zone**: show or hide a rough face-level guide for the earliest rescue-order area.
 
-These toggle preferences are stored locally in your browser.
+Toggle preferences are stored locally in your browser. The help panel open/closed state is temporary for the current page session.
 
 ## Hover and Pinned Cat Cards
 
-Hovering a MoonCat shows a small card near the cursor or finger. The card shows the rescue-order number, a preview image when enabled, and the cat name if the cat has been named.
+On desktop, hovering a MoonCat shows a small card near the cursor after a short intent delay. The card shows the rescue-order number, a preview image when enabled, and the cat name if the cat has been named.
+
+On touch screens, transient hover cards are suppressed during gestures so they do not interfere with tumbling. Tap or press a cat to pin its detail card instead.
 
 Clicking or pressing a cat pins its detail card on screen:
 
@@ -53,7 +57,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [mooncatrescue.com](https://mooncatrescue.com)
+When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [mooncatrescue.com](https://mooncatrescue.com).
 
 ## Filters
 
@@ -70,7 +74,7 @@ Available filters include:
 - All Early Rescues
 - Wallet Cats, after a wallet lookup
 
-When a filter is active, matching cats stay bright and the rest of the CatMoon is dimmed. Use the active filter badge to reset back to all cats.
+When a filter is active, matching cats stay bright and the rest of the CatMoon is dimmed. Use the active filter badge near the lock button to reset back to all cats. On narrow screens, long wallet labels are kept on one line and ellipsized instead of wrapping.
 
 Wallet Cats, Named Cats, and Character Cats can use runtime overlay highlights generated in the browser from the MoonCat atlas and the active ID set.
 
@@ -305,6 +309,8 @@ Most built-in filters use static overlay textures. Runtime-only filters, such as
 
 The optional early rescue zone uses a lightweight Three.js mesh layer over faces 0–6. It does not use generated PNG assets.
 
+Transient hover cards use a short intent delay and touch cooldown so preview cards do not fight with manual tumble gestures.
+
 ## Filters and Names Data
 
 Static filter categories are defined in:
@@ -351,7 +357,7 @@ catmoon.catLinks
 catmoon.earlyRescueZone
 ```
 
-These settings are local to the browser and are safe to clear.
+These settings are local to the browser and are safe to clear. The help panel state is intentionally not persisted.
 
 ## Tests
 
