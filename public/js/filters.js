@@ -44,6 +44,35 @@ function filterDefinitionIdSet(filters, definition) {
   return unionCategoryIdSet(filters, definition.categories);
 }
 
+function categoryCount(filters, key) {
+  const category = filters.categories?.[key];
+  if (!category) {
+    throw new Error(`${FILTER_DATA_URL} is missing categories.${key}`);
+  }
+  if (Number.isInteger(category.count)) {
+    return category.count;
+  }
+  if (Array.isArray(category.ids)) {
+    return category.ids.length;
+  }
+  throw new Error(`${FILTER_DATA_URL} is missing categories.${key}.ids`);
+}
+
+function filterDefinitionCount(filters, definition, idSet) {
+  if (definition.names) {
+    return filters.names && typeof filters.names === "object"
+      ? Object.keys(filters.names).length
+      : null;
+  }
+  if (definition.key === "characters" && Number.isInteger(filters.presets?.characters?.count)) {
+    return filters.presets.characters.count;
+  }
+  if (definition.category) {
+    return categoryCount(filters, definition.category);
+  }
+  return idSet instanceof Set ? idSet.size : null;
+}
+
 function validateFilterManifest(manifest) {
   return manifest
     && manifest.version === 1
@@ -53,6 +82,7 @@ function validateFilterManifest(manifest) {
 
 export function createFilterManager({ textureLoader, applyPixelTextureSettings }) {
   let filterDataPromise = null;
+  let filterCountsPromise = null;
   let filterManifestPromise = null;
   let filterOverlayPreloadStarted = false;
   const filterTexturePromises = new Map();
@@ -77,21 +107,37 @@ export function createFilterManager({ textureLoader, applyPixelTextureSettings }
     }
 
     const filterSets = {};
+    const filterCounts = {};
     for (const definition of FILTER_DEFINITIONS) {
       if (definition.names && filters.namesError) {
         filterSets[definition.key] = null;
+        filterCounts[definition.key] = null;
         continue;
       }
-      filterSets[definition.key] = filterDefinitionIdSet(filters, definition);
+      const idSet = filterDefinitionIdSet(filters, definition);
+      filterSets[definition.key] = idSet;
+      filterCounts[definition.key] = filterDefinitionCount(filters, definition, idSet);
     }
-    return filterSets;
+    if (Number.isInteger(filters.presets?.all?.count)) {
+      filterCounts.all = filters.presets.all.count;
+    } else if (Number.isInteger(filters.catCount)) {
+      filterCounts.all = filters.catCount;
+    }
+    return { filterSets, filterCounts };
   }
 
   function ensureFilterDataLoaded() {
     if (!filterDataPromise) {
       filterDataPromise = loadFilterData();
     }
-    return filterDataPromise;
+    return filterDataPromise.then(({ filterSets }) => filterSets);
+  }
+
+  function ensureFilterCountsLoaded() {
+    if (!filterCountsPromise) {
+      filterCountsPromise = ensureFilterDataLoaded().then(() => filterDataPromise.then(({ filterCounts }) => filterCounts));
+    }
+    return filterCountsPromise;
   }
 
   async function loadFilterManifest() {
@@ -193,6 +239,7 @@ export function createFilterManager({ textureLoader, applyPixelTextureSettings }
   return {
     filterTextureCache,
     ensureFilterDataLoaded,
+    ensureFilterCountsLoaded,
     ensureFilterManifestLoaded,
     ensureFilterTexturesLoaded,
     preloadFilterOverlayTextures,

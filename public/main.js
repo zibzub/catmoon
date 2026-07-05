@@ -65,6 +65,8 @@ const {
   canvas,
   hud,
   hudLockButton,
+  hudHelpButton,
+  hudHelpPanel,
   hoverPreviewToggleEl,
   autoTumbleToggleEl,
   catLinksToggleEl,
@@ -77,6 +79,7 @@ const {
   walletHistoryDropdownEl,
   activeFilterBadgeEl,
   activeFilterNameEl,
+  activeFilterStatEl,
   tooltipEl,
   tooltipPreviewEl,
   tooltipLabelEl,
@@ -129,8 +132,10 @@ let activeObject = null;
 let animationStarted = false;
 let hoveredId = null;
 let hudUnlocked = false;
+let hudHelpOpen = false;
 let activeFilter = "all";
 let activeFilterSet = null;
+let activeFilterCounts = null;
 let walletFilterInput = "";
 let walletFilterIds = [];
 let walletFilterLabel = "";
@@ -214,6 +219,7 @@ function makePlaceholderTexture() {
 const {
   filterTextureCache,
   ensureFilterDataLoaded,
+  ensureFilterCountsLoaded,
   ensureFilterManifestLoaded,
   ensureFilterTexturesLoaded,
   preloadFilterOverlayTextures
@@ -306,6 +312,14 @@ function updateHudLockState() {
   const label = hudUnlocked ? "Lock MoonCat details" : "Unlock MoonCat details";
   hudLockButton.setAttribute("aria-label", label);
   hudLockButton.title = label;
+}
+
+function updateHudHelpState() {
+  hudHelpPanel.hidden = !hudHelpOpen;
+  hudHelpButton.setAttribute("aria-expanded", hudHelpOpen ? "true" : "false");
+  const label = hudHelpOpen ? "Hide help" : "Show help";
+  hudHelpButton.setAttribute("aria-label", label);
+  hudHelpButton.title = label;
 }
 
 function loadHoverPreviewImageSetting() {
@@ -1010,6 +1024,53 @@ function filterDisplayName(filterKey) {
   return option?.textContent?.trim() || filterKey;
 }
 
+function formatFilterCount(count) {
+  return Number.isInteger(count) ? count.toLocaleString("en-US") : "";
+}
+
+function activeFilterCount() {
+  if (activeFilter === "all") {
+    return activeFilterCounts?.all ?? MAX_ID + 1;
+  }
+  if (activeFilter === WALLET_FILTER_KEY) {
+    return walletFilterIds.length || activeFilterSet?.size || lastWalletLookup?.count || null;
+  }
+  if (Number.isInteger(activeFilterCounts?.[activeFilter])) {
+    return activeFilterCounts[activeFilter];
+  }
+  if (activeFilterSet instanceof Set) {
+    return activeFilterSet.size;
+  }
+  return null;
+}
+
+function activeFilterDisplayText() {
+  const label = filterDisplayName(activeFilter);
+  const count = activeFilterCount();
+  const formattedCount = formatFilterCount(count);
+  return formattedCount ? `${label} (${formattedCount})` : label;
+}
+
+function activeFilterBadgeParts() {
+  if (activeFilter !== WALLET_FILTER_KEY) {
+    return { text: activeFilterDisplayText(), walletName: "", walletSuffix: "" };
+  }
+
+  const formattedCount = formatFilterCount(activeFilterCount());
+  const suffix = formattedCount ? `${WALLET_FILTER_LABEL} (${formattedCount})` : WALLET_FILTER_LABEL;
+  return {
+    text: walletFilterLabel ? `${walletFilterLabel} ${suffix}` : suffix,
+    walletName: walletFilterLabel,
+    walletSuffix: suffix
+  };
+}
+
+function updateActiveFilterStat() {
+  const text = activeFilterDisplayText();
+  activeFilterStatEl.textContent = text;
+  activeFilterStatEl.title = text;
+}
+
 async function ensureRuntimeFilterOverlayTextures(filterKey, ids, token) {
   if (filterTextureCache.has(filterKey)) return;
 
@@ -1021,14 +1082,28 @@ async function ensureRuntimeFilterOverlayTextures(filterKey, ids, token) {
 }
 
 function updateActiveFilterBadge() {
+  updateActiveFilterStat();
   const isFiltered = activeFilter !== "all";
   activeFilterBadgeEl.hidden = !isFiltered;
   if (isFiltered) {
-    activeFilterNameEl.textContent = filterDisplayName(activeFilter);
-    activeFilterBadgeEl.setAttribute("aria-label", `${filterDisplayName(activeFilter)} active. Reset filter.`);
-    activeFilterBadgeEl.title = `Reset ${filterDisplayName(activeFilter)}`;
+    const badgeParts = activeFilterBadgeParts();
+    activeFilterNameEl.classList.toggle("walletFilterName", activeFilter === WALLET_FILTER_KEY);
+    if (activeFilter === WALLET_FILTER_KEY && badgeParts.walletName) {
+      const walletNameEl = document.createElement("span");
+      walletNameEl.className = "activeFilterWalletName";
+      walletNameEl.textContent = badgeParts.walletName;
+      const walletSuffixEl = document.createElement("span");
+      walletSuffixEl.className = "activeFilterWalletSuffix";
+      walletSuffixEl.textContent = badgeParts.walletSuffix;
+      activeFilterNameEl.replaceChildren(walletNameEl, " ", walletSuffixEl);
+    } else {
+      activeFilterNameEl.textContent = badgeParts.text;
+    }
+    activeFilterBadgeEl.setAttribute("aria-label", `${badgeParts.text} active. Reset filter.`);
+    activeFilterBadgeEl.title = `Reset ${badgeParts.text}`;
   } else {
     activeFilterNameEl.textContent = "";
+    activeFilterNameEl.classList.remove("walletFilterName");
     activeFilterBadgeEl.removeAttribute("aria-label");
     activeFilterBadgeEl.removeAttribute("title");
   }
@@ -1116,6 +1191,7 @@ async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = 
 
   try {
     const filterSets = await ensureFilterDataLoaded();
+    activeFilterCounts = await ensureFilterCountsLoaded();
     if (token !== filterSelectionToken) return;
     if (!(filterSets[nextFilter] instanceof Set)) {
       throw new Error(`${filterDisplayName(nextFilter)} is unavailable.`);
@@ -1482,6 +1558,10 @@ hudLockButton.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   hudUnlocked = !hudUnlocked;
+  if (!hudUnlocked) {
+    hudHelpOpen = false;
+    updateHudHelpState();
+  }
   updateHudLockState();
   if (hudUnlocked) {
     preloadFilterOverlayTextures();
@@ -1489,6 +1569,7 @@ hudLockButton.addEventListener("click", (event) => {
   }
 });
 updateHudLockState();
+updateHudHelpState();
 updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
 updateCatLinksToggleUi();
@@ -1500,6 +1581,13 @@ if (initialWalletParam) {
   walletFilterInputEl.value = initialWalletParam;
 }
 updateWalletClearButton();
+
+hudHelpButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  hudHelpOpen = !hudHelpOpen;
+  updateHudHelpState();
+});
 
 catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });

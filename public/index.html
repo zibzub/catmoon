@@ -51,6 +51,7 @@
         <span id="activeFilterReset">Reset Filter</span>
       </button>
       <div id="hudDetails">
+        <button id="hudHelpButton" type="button" aria-label="Show help" aria-expanded="false" aria-controls="hudHelpPanel" title="Show help">?</button>
         <div id="hudToggleGrid" aria-label="HUD toggles">
           <label id="autoTumbleControl" class="hudToggleControl" for="autoTumbleToggle">
             <input id="autoTumbleToggle" type="checkbox" checked>
@@ -87,6 +88,7 @@
             <option value="2021">2021 Rescues</option>
           </select>
         </label>
+        <div id="activeFilterStat" aria-live="polite"></div>
         <div id="walletControls">
           <label for="walletFilterInput">Wallet</label>
           <div id="walletFilterRow">
@@ -100,6 +102,18 @@
           <div id="walletFilterStatus" role="status" aria-live="polite"></div>
         </div>
         <div id="status">Drag to rotate. Scroll or pinch to zoom. Click a cat to pin its details.</div>
+        <div id="hudHelpPanel" hidden>
+          <ul>
+            <li>Drag to tumble CatMoon</li>
+            <li>Pinch or scrollwheel to zoom</li>
+            <li>Twist or right-click+drag to rotate</li>
+            <li>Tap/click a cat to pin its details</li>
+            <li>Enable Cat links, then click a pinned cat image to open it in chain station</li>
+            <li>Wallet accepts ETH address or ENS</li>
+            <li>Early rescue zone is a rough face guide for the wallet, collection and named cats filters</li>
+            <li>Report issues & get more info: <a href="https://github.com/zibzub/catmoon" target="_blank" rel="noopener noreferrer">github</a></li>
+          </ul>
+        </div>
       </div>
     </div>
 
