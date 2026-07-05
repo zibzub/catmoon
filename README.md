@@ -32,10 +32,12 @@ The lock button in the top-left expands or collapses the settings panel.
 **Unlocked**
 
 - Filters and wallet lookup are available.
-- Toggle controls are available:
+- Toggle controls appear as large button-style controls in a 2x2 grid for easier touch use. Each button clearly shows whether it is On or Off.
+- Available toggles:
   - **Auto tumble**: turn automatic rotation on or off.
   - **Hover preview**: show or hide preview images in hover/pinned cards.
   - **Cat links**: allow the pinned cat image to open the cat on [mooncatrescue.com](https://mooncatrescue.com)
+  - **Early rescue zone**: show or hide a rough face-level guide for the earliest rescue-order area.
 
 These toggle preferences are stored locally in your browser.
 
@@ -69,6 +71,10 @@ Available filters include:
 - Wallet Cats, after a wallet lookup
 
 When a filter is active, matching cats stay bright and the rest of the CatMoon is dimmed. Use the active filter badge to reset back to all cats.
+
+Wallet Cats, Named Cats, and Character Cats can use runtime overlay highlights generated in the browser from the MoonCat atlas and the active ID set.
+
+The optional **Early rescue zone** toggle marks the first 7 rhombic faces, which roughly cover rescue-order IDs 0–5935. It is a broad face-level guide, not an exact early-rescue cat selector. It currently appears only in broad filtered modes where it adds context without crowding more specific rescue filters: Named Cats, Character Cats, and Wallet Cats.
 
 ## Wallet Cats
 
@@ -297,6 +303,8 @@ public/img/filters/filter-manifest.json
 
 Most built-in filters use static overlay textures. Runtime-only filters, such as Named Cats and Wallet Cats, generate overlay textures in the browser from `allcats.png` and the relevant ID set.
 
+The optional early rescue zone uses a lightweight Three.js mesh layer over faces 0–6. It does not use generated PNG assets.
+
 ## Filters and Names Data
 
 Static filter categories are defined in:
@@ -340,6 +348,7 @@ catmoon.walletLookupHistory
 catmoon.hoverPreviewImages
 catmoon.autoTumble
 catmoon.catLinks
+catmoon.earlyRescueZone
 ```
 
 These settings are local to the browser and are safe to clear.
