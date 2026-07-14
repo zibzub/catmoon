@@ -3,15 +3,22 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 
 import {
+  AFTERIMAGE_DEFAULTS,
+  AFTERIMAGE_PASS_ORDER,
   createTextureManager,
+  modeUsesAfterimage,
   normalizeRenderMode,
   textureSettingsForMode
 } from "../src/js/rendering.js";
 
-test("render mode normalization defaults to pixel and accepts smooth", () => {
+test("render mode normalization preserves current modes and safely migrates temporary modes", () => {
   assert.equal(normalizeRenderMode(undefined), "pixel");
   assert.equal(normalizeRenderMode("pixel"), "pixel");
   assert.equal(normalizeRenderMode("smooth"), "smooth");
+  assert.equal(normalizeRenderMode("afterimage"), "afterimage");
+  assert.equal(normalizeRenderMode("smooth-aa"), "smooth");
+  assert.equal(normalizeRenderMode("effects"), "smooth");
+  assert.equal(normalizeRenderMode("bloom"), "smooth");
   assert.equal(normalizeRenderMode("unknown"), "pixel");
 });
 
@@ -35,6 +42,25 @@ test("smooth texture settings use linear mipmapped sampling", () => {
     wrapS: THREE.ClampToEdgeWrapping,
     wrapT: THREE.ClampToEdgeWrapping
   });
+});
+
+test("afterimage keeps smooth texture settings and selects only the composer pipeline", () => {
+  assert.deepEqual(textureSettingsForMode("afterimage"), textureSettingsForMode("smooth"));
+  assert.equal(modeUsesAfterimage("pixel"), false);
+  assert.equal(modeUsesAfterimage("smooth"), false);
+  assert.equal(modeUsesAfterimage("afterimage"), true);
+  assert.equal(modeUsesAfterimage("smooth-aa"), false);
+});
+
+test("Afterimage uses a restrained damp value and its own output pipeline", () => {
+  assert.deepEqual(AFTERIMAGE_DEFAULTS, {
+    damp: 0.92
+  });
+  assert.deepEqual(AFTERIMAGE_PASS_ORDER, [
+    "RenderPass",
+    "AfterimagePass",
+    "OutputPass"
+  ]);
 });
 
 test("changing modes refreshes registered textures in place", () => {

@@ -1,13 +1,34 @@
 import * as THREE from "three";
+import { AfterimagePass } from "three/addons/postprocessing/AfterimagePass.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 export const RENDER_MODE_STORAGE_KEY = "catmoon.renderMode";
+export const AFTERIMAGE_PASS_ORDER = Object.freeze([
+  "RenderPass",
+  "AfterimagePass",
+  "OutputPass"
+]);
+export const AFTERIMAGE_DEFAULTS = Object.freeze({
+  damp: 0.05
+});
+
+function cappedDevicePixelRatio() {
+  return Math.min(window.devicePixelRatio || 1, 2);
+}
 
 export function normalizeRenderMode(value) {
-  return value === "smooth" ? "smooth" : "pixel";
+  if (value === "smooth-aa" || value === "effects" || value === "bloom") return "smooth";
+  return value === "smooth" || value === "afterimage" ? value : "pixel";
+}
+
+export function modeUsesAfterimage(mode) {
+  return normalizeRenderMode(mode) === "afterimage";
 }
 
 export function textureSettingsForMode(mode) {
-  const isSmooth = normalizeRenderMode(mode) === "smooth";
+  const isSmooth = normalizeRenderMode(mode) !== "pixel";
   return {
     colorSpace: THREE.SRGBColorSpace,
     magFilter: isSmooth ? THREE.LinearFilter : THREE.NearestFilter,
@@ -53,16 +74,42 @@ export function createCatMoonRenderer(canvas) {
     antialias: false,
     alpha: true
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(cappedDevicePixelRatio());
   renderer.setClearColor(0x050507, 0);
 
   return {
     renderer,
     resize(width, height) {
+      renderer.setPixelRatio(cappedDevicePixelRatio());
       renderer.setSize(width, height, false);
     },
     render(scene, camera) {
       renderer.render(scene, camera);
+    }
+  };
+}
+
+export function createAfterimageEffects(renderer, scene, camera) {
+  const composer = new EffectComposer(renderer);
+  const renderPass = new RenderPass(scene, camera);
+  const afterimagePass = new AfterimagePass(AFTERIMAGE_DEFAULTS.damp);
+  const outputPass = new OutputPass();
+
+  composer.addPass(renderPass);
+  composer.addPass(afterimagePass);
+  composer.addPass(outputPass);
+
+  return {
+    passOrder: AFTERIMAGE_PASS_ORDER,
+    resize(width, height) {
+      composer.setPixelRatio(renderer.getPixelRatio());
+      composer.setSize(width, height);
+    },
+    render: () => composer.render(),
+    dispose() {
+      afterimagePass.dispose();
+      outputPass.dispose();
+      composer.dispose();
     }
   };
 }

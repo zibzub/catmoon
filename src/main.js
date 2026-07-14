@@ -44,8 +44,10 @@ import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
+  createAfterimageEffects,
   createCatMoonRenderer,
   createTextureManager,
+  modeUsesAfterimage,
   normalizeRenderMode,
   RENDER_MODE_STORAGE_KEY
 } from "./js/rendering.js";
@@ -128,11 +130,11 @@ function updateRenderModeUi() {
   renderModeSelectEl.value = renderMode;
 }
 
+let renderMode = loadRenderModeSetting();
 const rendering = createCatMoonRenderer(canvas);
 const { renderer } = rendering;
-const textureManager = createTextureManager(loadRenderModeSetting());
+const textureManager = createTextureManager(renderMode);
 const applyTextureSettings = textureManager.applyTextureSettings;
-let renderMode = textureManager.getMode();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
@@ -204,6 +206,24 @@ const starParallax = {
   largeY: 0
 };
 const parallaxCameraVector = new THREE.Vector3();
+let afterimage = null;
+
+function ensureAfterimage() {
+  if (!afterimage) {
+    afterimage = createAfterimageEffects(renderer, scene, camera);
+    afterimage.resize(window.innerWidth, window.innerHeight);
+  }
+  return afterimage;
+}
+
+function updateAfterimageMode() {
+  if (modeUsesAfterimage(renderMode)) {
+    ensureAfterimage();
+  } else {
+    afterimage?.dispose();
+    afterimage = null;
+  }
+}
 
 function setLoadingProgress(text) {
   loadingProgressEl.textContent = text;
@@ -832,6 +852,7 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   rendering.resize(width, height);
+  afterimage?.resize(width, height);
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -846,7 +867,11 @@ function animate() {
   updatePinnedTooltipProjection();
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
-  rendering.render(scene, camera);
+  if (modeUsesAfterimage(renderMode)) {
+    ensureAfterimage().render();
+  } else {
+    rendering.render(scene, camera);
+  }
 }
 
 function disposeTexture(texture) {
@@ -1647,6 +1672,7 @@ earlyRescueZoneToggleEl.addEventListener("change", () => {
 
 renderModeSelectEl.addEventListener("change", () => {
   renderMode = textureManager.setMode(renderModeSelectEl.value);
+  updateAfterimageMode();
   saveRenderModeSetting(renderMode);
   updateRenderModeUi();
 });
@@ -1763,3 +1789,4 @@ controlsApi = setupCatMoonControls({
 
 window.addEventListener("resize", resize);
 resize();
+updateAfterimageMode();
