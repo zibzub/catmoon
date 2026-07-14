@@ -18,7 +18,7 @@ import {
   TRI_FACE_TEX_W,
   filterTextureUrl,
   triFaceTextureUrl
-} from "../public/js/config.js";
+} from "../src/js/config.js";
 
 test("atlas and CatMoon grid constants are internally consistent", () => {
   assert.equal(ATLAS_W, COLS * TILE_W);
@@ -40,8 +40,8 @@ test("filter registry exposes every configured filter key", () => {
 });
 
 test("texture URL helpers use zero-padded tri-face filenames", () => {
-  assert.equal(triFaceTextureUrl(0), "img/tri-faces/tri-face-00.png");
-  assert.equal(triFaceTextureUrl(9), "img/tri-faces/tri-face-09.png");
-  assert.equal(triFaceTextureUrl(12), "img/tri-faces/tri-face-12.png");
-  assert.equal(filterTextureUrl("genesis", 3), "img/filters/genesis/tri-face-03.png");
+  assert.equal(triFaceTextureUrl(0), "/img/tri-faces/tri-face-00.png");
+  assert.equal(triFaceTextureUrl(9), "/img/tri-faces/tri-face-09.png");
+  assert.equal(triFaceTextureUrl(12), "/img/tri-faces/tri-face-12.png");
+  assert.equal(filterTextureUrl("genesis", 3), "/img/filters/genesis/tri-face-03.png");
 });

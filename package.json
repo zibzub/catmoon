@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "three": "^0.165.0",
     "viem": "^2.53.1"
   },
   "name": "catmoon",
@@ -9,7 +10,10 @@
   "type": "module",
   "scripts": {
     "build:names": "node tools/extract-mooncat-names.js",
-    "check": "node --check public/main.js && for file in public/js/*.js; do node --check \"$file\"; done",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node --check src/main.js && for file in src/js/*.js; do node --check \"$file\"; done",
     "test": "node --test test/*.test.js"
   },
   "repository": {
@@ -22,5 +26,8 @@
   "bugs": {
     "url": "https://github.com/zibzub/catmoon/issues"
   },
-  "homepage": "https://github.com/zibzub/catmoon#readme"
+  "homepage": "https://github.com/zibzub/catmoon#readme",
+  "devDependencies": {
+    "vite": "^8.1.4"
+  }
 }

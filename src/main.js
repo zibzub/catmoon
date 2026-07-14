@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { TrackballControls } from "three/addons/controls/TrackballControls.js";
+import "./styles.css";
 import {
   AUTO_ROTATE_EASE_IN_MS,
   AUTO_ROTATE_ENABLED,

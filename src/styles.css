@@ -73,11 +73,11 @@ body {
 }
 
 #small-stars {
-  background-image: url("img/bgstarssmall.png");
+  background-image: url("/img/bgstarssmall.png");
 }
 
 #large-stars {
-  background-image: url("img/bgstarslarge.png");
+  background-image: url("/img/bgstarslarge.png");
 }
 
 #scene {

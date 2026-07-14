@@ -13,7 +13,7 @@ import {
   walletHistoryLookupValue,
   walletHistoryMatchesQuery,
   walletLookupStorageKey
-} from "../public/js/wallet.js";
+} from "../src/js/wallet.js";
 
 const ADDRESS = "0x1234567890abcdef1234567890abcdef12345678";
 

@@ -136,11 +136,11 @@ Wallet history and UI toggle settings are not synced between browsers or devices
 
 ## Project Structure
 
-CatMoon is a static Cloudflare Pages site with browser-native ES modules and a small Cloudflare Pages Function for wallet lookup.
+CatMoon is a Vite application deployed to Cloudflare Pages with a small Cloudflare Pages Function for wallet lookup.
 
 ```text
-public/
-  index.html
+index.html
+src/
   main.js
   styles.css
   js/
@@ -152,6 +152,13 @@ public/
     preview.js
     catmoon-geometry.js
     controls.js
+public/
+  _headers
+  favicon.ico
+  favicon-16x16.png
+  favicon-32x32.png
+  apple-touch-icon.png
+  android-chrome-192x192.png
   data/
     mooncat-filters.json
     mooncat-names.json
@@ -173,9 +180,7 @@ tools/
   extract-mooncat-names.js
 ```
 
-There is no frontend build step. `public/index.html` loads `public/main.js` directly as an ES module.
-
-Three.js is loaded from jsDelivr through the import map in `public/index.html`.
+Vite bundles `src/main.js` and copies the static contents of `public/` unchanged into `dist/`. Three.js is installed as an npm dependency; the app uses normal `three` and `three/addons/...` imports.
 
 ## Local Development
 
@@ -183,6 +188,31 @@ Install dependencies:
 
 ```bash
 npm ci
+```
+
+Start the Vite development server:
+
+```bash
+npm run dev
+```
+
+For testing the production build with the Pages Function:
+
+```bash
+npm run dev
+npx wrangler pages dev dist
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Optionally serve the production build locally:
+
+```bash
+npm run preview
 ```
 
 Run syntax checks:
@@ -203,22 +233,16 @@ Generate the names-only MoonCat data file from a local `mooncat_traits.json` sou
 npm run build:names
 ```
 
-Preview locally with Cloudflare Pages:
-
-```bash
-npx wrangler pages dev public
-```
-
 ## Cloudflare Pages
 
 Recommended Cloudflare Pages settings:
 
 ```text
-Build command: npm ci
-Output directory: public
+Build command: npm run build
+Output directory: dist
 ```
 
-The wallet lookup function requires an Ethereum RPC endpoint:
+The wallet lookup function is deployed from `functions/api/wallet-cats.js` and requires an Ethereum RPC endpoint:
 
 ```text
 ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
@@ -230,12 +254,6 @@ The frontend calls:
 
 ```text
 /api/wallet-cats?address=...
-```
-
-The Cloudflare Pages Function lives at:
-
-```text
-functions/api/wallet-cats.js
 ```
 
 It supports Ethereum addresses and ENS names. It uses `viem` for Ethereum and ENS resolution. Wallet ownership data comes from the MoonCatRescue API.

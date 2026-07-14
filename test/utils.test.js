@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clamp, pad2 } from "../public/js/utils.js";
+import { clamp, pad2 } from "../src/js/utils.js";
 
 test("clamp keeps values inside inclusive bounds", () => {
   assert.equal(clamp(5, 0, 10), 5);
