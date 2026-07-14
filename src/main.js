@@ -43,7 +43,12 @@ import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
 import { setupCatMoonControls } from "./js/controls.js";
-import { createCatMoonRenderer } from "./js/rendering.js";
+import {
+  createCatMoonRenderer,
+  createTextureManager,
+  normalizeRenderMode,
+  RENDER_MODE_STORAGE_KEY
+} from "./js/rendering.js";
 import {
   clearWalletUrl,
   findWalletHistoryEntryByInput,
@@ -73,6 +78,7 @@ const {
   autoTumbleToggleEl,
   catLinksToggleEl,
   earlyRescueZoneToggleEl,
+  renderModeSelectEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -102,8 +108,31 @@ const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
+function loadRenderModeSetting() {
+  try {
+    return normalizeRenderMode(window.localStorage.getItem(RENDER_MODE_STORAGE_KEY));
+  } catch {
+    return "pixel";
+  }
+}
+
+function saveRenderModeSetting(mode) {
+  try {
+    window.localStorage.setItem(RENDER_MODE_STORAGE_KEY, mode);
+  } catch {
+    // Storage may be unavailable in private or restricted browsing contexts.
+  }
+}
+
+function updateRenderModeUi() {
+  renderModeSelectEl.value = renderMode;
+}
+
 const rendering = createCatMoonRenderer(canvas);
 const { renderer } = rendering;
+const textureManager = createTextureManager(loadRenderModeSetting());
+const applyTextureSettings = textureManager.applyTextureSettings;
+let renderMode = textureManager.getMode();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
@@ -176,17 +205,6 @@ const starParallax = {
 };
 const parallaxCameraVector = new THREE.Vector3();
 
-function applyPixelTextureSettings(texture) {
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.generateMipmaps = false;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function setLoadingProgress(text) {
   loadingProgressEl.textContent = text;
 }
@@ -210,7 +228,7 @@ function makePlaceholderTexture() {
   context.fillStyle = "#1f1420";
   context.fillRect(0, 0, 1, 1);
   context.fillRect(1, 1, 1, 1);
-  return applyPixelTextureSettings(new THREE.CanvasTexture(placeholderCanvas));
+  return applyTextureSettings(new THREE.CanvasTexture(placeholderCanvas));
 }
 
 const {
@@ -220,7 +238,7 @@ const {
   ensureFilterManifestLoaded,
   ensureFilterTexturesLoaded,
   preloadFilterOverlayTextures
-} = createFilterManager({ textureLoader, applyPixelTextureSettings });
+} = createFilterManager({ textureLoader, applyTextureSettings });
 
 const {
   updateTooltipPreview,
@@ -244,7 +262,7 @@ const {
   loadTriFaceSlotMetadata
 } = createCatMoonGeometry({
   textureLoader,
-  applyPixelTextureSettings,
+  applyTextureSettings,
   makePlaceholderTexture
 });
 
@@ -841,6 +859,7 @@ function clearCachedOverlayTextures(filterKey) {
   if (!textures) return;
 
   for (const texture of textures) {
+    textureManager.unregisterTexture(texture);
     disposeTexture(texture);
   }
   filterTextureCache.delete(filterKey);
@@ -998,7 +1017,7 @@ function makeIdOverlayTexture(atlasImage, faceIndex, slotIds, { scale = 1 } = {}
     drawCatFromAtlas(context, atlasImage, faceIndex * RHOMBUS_CAT_COUNT + slot.id, slot.hitRect, scale);
   }
 
-  return applyPixelTextureSettings(new THREE.CanvasTexture(faceCanvas));
+  return applyTextureSettings(new THREE.CanvasTexture(faceCanvas));
 }
 
 function makeIdOverlayTextures(atlasImage, ids, options = {}) {
@@ -1571,6 +1590,7 @@ updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
 updateCatLinksToggleUi();
 updateEarlyRescueZoneToggleUi();
+updateRenderModeUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
 const initialWalletParam = getWalletParamFromUrl();
@@ -1623,6 +1643,12 @@ earlyRescueZoneToggleEl.addEventListener("change", () => {
   earlyRescueZoneEnabled = earlyRescueZoneToggleEl.checked;
   saveEarlyRescueZoneSetting(earlyRescueZoneEnabled);
   updateEarlyRescueZoneAppearance();
+});
+
+renderModeSelectEl.addEventListener("change", () => {
+  renderMode = textureManager.setMode(renderModeSelectEl.value);
+  saveRenderModeSetting(renderMode);
+  updateRenderModeUi();
 });
 
 pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {

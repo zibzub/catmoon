@@ -288,7 +288,8 @@ body {
   box-sizing: border-box;
 }
 
-#filterControls {
+#filterControls,
+#renderModeControl {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -405,7 +406,8 @@ body {
   }
 }
 
-#catFilter {
+#catFilter,
+#renderModeSelect {
   width: 100%;
   min-height: 30px;
   border: 1px solid rgba(255, 105, 180, 0.45);
@@ -415,7 +417,8 @@ body {
   pointer-events: auto;
 }
 
-#catFilter:focus-visible {
+#catFilter:focus-visible,
+#renderModeSelect:focus-visible {
   border-color: hotpink;
   outline: none;
 }

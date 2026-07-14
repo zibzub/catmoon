@@ -207,7 +207,7 @@ function normalizeCompactTriFaceSlots(faceSlots) {
   }));
 }
 
-export function createCatMoonGeometry({ textureLoader, applyPixelTextureSettings, makePlaceholderTexture }) {
+export function createCatMoonGeometry({ textureLoader, applyTextureSettings, makePlaceholderTexture }) {
   const triFaceSlots = [];
   const triFaceTexturePromises = [];
   const triTextureStats = {
@@ -231,7 +231,7 @@ export function createCatMoonGeometry({ textureLoader, applyPixelTextureSettings
           if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
             console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate production tri-face PNGs from the dev tool.`);
           }
-          applyPixelTextureSettings(texture);
+          applyTextureSettings(texture);
           material.map = texture;
           material.needsUpdate = true;
           triTextureStats.prerenderedLoaded += 1;

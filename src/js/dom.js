@@ -11,6 +11,7 @@ export function getDomRefs() {
     autoTumbleToggleEl: document.getElementById("autoTumbleToggle"),
     catLinksToggleEl: document.getElementById("catLinksToggle"),
     earlyRescueZoneToggleEl: document.getElementById("earlyRescueZoneToggle"),
+    renderModeSelectEl: document.getElementById("renderModeSelect"),
     catFilterEl: document.getElementById("catFilter"),
     walletFilterInputEl: document.getElementById("walletFilterInput"),
     walletFilterClearEl: document.getElementById("walletFilterClear"),

@@ -80,7 +80,7 @@ function validateFilterManifest(manifest) {
     && typeof manifest.filters === "object";
 }
 
-export function createFilterManager({ textureLoader, applyPixelTextureSettings }) {
+export function createFilterManager({ textureLoader, applyTextureSettings }) {
   let filterDataPromise = null;
   let filterCountsPromise = null;
   let filterManifestPromise = null;
@@ -191,7 +191,7 @@ export function createFilterManager({ textureLoader, applyPixelTextureSettings }
           if (texture.image.width !== TRI_FACE_TEX_W || texture.image.height !== TRI_FACE_TEX_H) {
             console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate filter overlay PNGs from the tools script.`);
           }
-          resolve(applyPixelTextureSettings(texture));
+          resolve(applyTextureSettings(texture));
         },
         undefined,
         () => reject(new Error(`Could not load filter overlay texture: ${url}`))
