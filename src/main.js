@@ -43,6 +43,7 @@ import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
 import { setupCatMoonControls } from "./js/controls.js";
+import { createCatMoonRenderer } from "./js/rendering.js";
 import {
   clearWalletUrl,
   findWalletHistoryEntryByInput,
@@ -101,13 +102,8 @@ const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: false,
-  alpha: true
-});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-renderer.setClearColor(0x050507, 0);
+const rendering = createCatMoonRenderer(canvas);
+const { renderer } = rendering;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
@@ -817,7 +813,7 @@ function resize() {
   const height = window.innerHeight;
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height, false);
+  rendering.resize(width, height);
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -832,7 +828,7 @@ function animate() {
   updatePinnedTooltipProjection();
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
-  renderer.render(scene, camera);
+  rendering.render(scene, camera);
 }
 
 function disposeTexture(texture) {
