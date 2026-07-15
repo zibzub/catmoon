@@ -1,3 +1,23 @@
+export function loadBooleanSetting(storage, key, fallback = true) {
+  try {
+    const stored = (storage ?? globalThis.localStorage)?.getItem(key);
+    if (stored === "on") return true;
+    if (stored === "off") return false;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveBooleanSetting(storage, key, enabled) {
+  try {
+    (storage ?? globalThis.localStorage)?.setItem(key, enabled ? "on" : "off");
+  } catch {
+    // Storage may be unavailable in private or restricted browsing contexts.
+  }
+  return Boolean(enabled);
+}
+
 export function getDomRefs() {
   return {
     smallStarsEl: document.getElementById("small-stars"),
@@ -11,6 +31,7 @@ export function getDomRefs() {
     autoTumbleToggleEl: document.getElementById("autoTumbleToggle"),
     catLinksToggleEl: document.getElementById("catLinksToggle"),
     earlyRescueZoneToggleEl: document.getElementById("earlyRescueZoneToggle"),
+    hybridStarfieldToggleEl: document.getElementById("hybridStarfieldToggle"),
     renderModeSelectEl: document.getElementById("renderModeSelect"),
     depthOfFieldControlsEl: document.getElementById("depthOfFieldControls"),
     depthOfFieldFocusInputEl: document.getElementById("depthOfFieldFocus"),

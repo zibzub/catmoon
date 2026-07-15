@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 
+import { loadBooleanSetting, saveBooleanSetting } from "../src/js/dom.js";
 import {
   BACKGROUND_MODES,
   DEFAULT_BACKGROUND_MODE,
@@ -12,6 +13,22 @@ import {
   normalizeBackgroundMode,
   selectStarfieldDensity
 } from "../src/js/backgrounds.js";
+
+test("3D starfield visibility persistence defaults on and rejects malformed values", () => {
+  const values = new Map();
+  const storage = {
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, value); }
+  };
+
+  assert.equal(loadBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", true), true);
+  values.set("catmoon.hybridStarfieldEnabled.v1", "unexpected");
+  assert.equal(loadBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", true), true);
+  assert.equal(saveBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", false), false);
+  assert.equal(loadBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", true), false);
+  assert.equal(saveBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", true), true);
+  assert.equal(loadBooleanSetting(storage, "catmoon.hybridStarfieldEnabled.v1", true), true);
+});
 
 test("hybrid starfield generation is seeded and layered", () => {
   const first = createSeededRandom(1234);
@@ -81,13 +98,16 @@ test("background controller updates in place and disposes its scene objects", ()
     ),
     HYBRID_STARFIELD_DEFAULTS.mobileCount
   );
+  const firstLayerGeometry = controller.object.children[0].children[0].children[0].geometry;
   controller.update({ cameraQuaternion, moonQuaternion, deltaSeconds: 1 });
   assert.notDeepEqual(controller.object.quaternion.toArray(), new THREE.Quaternion().toArray());
   assert.equal(controller.resize(), "mobile");
   assert.equal(controller.setMode("unknown"), DEFAULT_BACKGROUND_MODE);
   assert.equal(controller.setEnabled(false), false);
   assert.equal(controller.object.visible, false);
-  controller.setEnabled(true);
+  assert.equal(controller.object.children[0].children[0].children[0].geometry, firstLayerGeometry);
+  assert.equal(controller.setEnabled(true), true);
+  assert.equal(controller.object.visible, true);
   controller.dispose();
   assert.equal(scene.children.length, 0);
 });

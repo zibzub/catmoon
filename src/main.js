@@ -39,7 +39,7 @@ import {
 } from "./js/config.js";
 import { clamp } from "./js/utils.js";
 import { createBackgroundController } from "./js/backgrounds.js";
-import { getDomRefs } from "./js/dom.js";
+import { getDomRefs, loadBooleanSetting, saveBooleanSetting } from "./js/dom.js";
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
@@ -91,6 +91,7 @@ const {
   autoTumbleToggleEl,
   catLinksToggleEl,
   earlyRescueZoneToggleEl,
+  hybridStarfieldToggleEl,
   renderModeSelectEl,
   depthOfFieldControlsEl,
   depthOfFieldFocusInputEl,
@@ -124,6 +125,7 @@ const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
 const CAT_LINKS_STORAGE_KEY = "catmoon.catLinks";
 const EARLY_RESCUE_ZONE_STORAGE_KEY = "catmoon.earlyRescueZone";
+const HYBRID_STARFIELD_ENABLED_STORAGE_KEY = "catmoon.hybridStarfieldEnabled.v1";
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
 const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
@@ -145,6 +147,18 @@ function saveRenderModeSetting(mode) {
   }
 }
 
+function loadHybridStarfieldEnabledSetting() {
+  return loadBooleanSetting(undefined, HYBRID_STARFIELD_ENABLED_STORAGE_KEY, true);
+}
+
+function saveHybridStarfieldEnabledSetting(enabled) {
+  saveBooleanSetting(undefined, HYBRID_STARFIELD_ENABLED_STORAGE_KEY, enabled);
+}
+
+function updateHybridStarfieldToggleUi() {
+  hybridStarfieldToggleEl.checked = hybridStarfieldEnabled;
+}
+
 function updateRenderModeUi() {
   renderModeSelectEl.value = renderMode;
   updateDepthOfFieldControlsUi();
@@ -152,6 +166,7 @@ function updateRenderModeUi() {
 
 let renderMode = loadRenderModeSetting();
 let depthOfFieldSettings = loadDepthOfFieldSettings();
+let hybridStarfieldEnabled = loadHybridStarfieldEnabledSetting();
 const depthOfFieldControls = Object.freeze({
   focus: Object.freeze({ input: depthOfFieldFocusInputEl, value: depthOfFieldFocusValueEl }),
   aperture: Object.freeze({ input: depthOfFieldApertureInputEl, value: depthOfFieldApertureValueEl }),
@@ -194,6 +209,7 @@ const backgroundController = createBackgroundController({
   viewportWidth: window.innerWidth,
   coarsePointer: window.matchMedia?.("(pointer: coarse)")?.matches ?? false
 });
+backgroundController.setEnabled(hybridStarfieldEnabled);
 const litMoonLighting = createLitMoonLighting(scene);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
 camera.position.set(0, 0, 3.15);
@@ -1708,6 +1724,7 @@ updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
 updateCatLinksToggleUi();
 updateEarlyRescueZoneToggleUi();
+updateHybridStarfieldToggleUi();
 updateRenderModeUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
@@ -1761,6 +1778,13 @@ earlyRescueZoneToggleEl.addEventListener("change", () => {
   earlyRescueZoneEnabled = earlyRescueZoneToggleEl.checked;
   saveEarlyRescueZoneSetting(earlyRescueZoneEnabled);
   updateEarlyRescueZoneAppearance();
+});
+
+hybridStarfieldToggleEl.addEventListener("change", () => {
+  hybridStarfieldEnabled = hybridStarfieldToggleEl.checked;
+  saveHybridStarfieldEnabledSetting(hybridStarfieldEnabled);
+  backgroundController.setEnabled(hybridStarfieldEnabled);
+  updateHybridStarfieldToggleUi();
 });
 
 renderModeSelectEl.addEventListener("change", () => {

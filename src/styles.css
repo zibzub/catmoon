@@ -380,7 +380,8 @@ body {
 #hoverPreviewControl,
 #autoTumbleControl,
 #catLinksControl,
-#earlyRescueZoneControl {
+#earlyRescueZoneControl,
+#hybridStarfieldControl {
   width: 100%;
 }
 
