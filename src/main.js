@@ -38,6 +38,7 @@ import {
   WALLET_OVERLAY_SURFACE_OFFSET
 } from "./js/config.js";
 import { clamp } from "./js/utils.js";
+import { createBackgroundController } from "./js/backgrounds.js";
 import { getDomRefs } from "./js/dom.js";
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
@@ -188,6 +189,11 @@ const textureManager = createTextureManager(renderMode);
 const applyTextureSettings = textureManager.applyTextureSettings;
 
 const scene = new THREE.Scene();
+const backgroundController = createBackgroundController({
+  scene,
+  viewportWidth: window.innerWidth,
+  coarsePointer: window.matchMedia?.("(pointer: coarse)")?.matches ?? false
+});
 const litMoonLighting = createLitMoonLighting(scene);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
 camera.position.set(0, 0, 3.15);
@@ -929,6 +935,10 @@ function resize() {
   rendering.resize(width, height);
   afterimage?.resize(width, height);
   depthOfField?.resize(width, height);
+  backgroundController.resize({
+    viewportWidth: width,
+    coarsePointer: window.matchMedia?.("(pointer: coarse)")?.matches ?? false
+  });
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -943,6 +953,11 @@ function animate() {
   updatePinnedTooltipProjection();
   applyAutoRotate(deltaSeconds);
   updateStarParallax();
+  backgroundController.update({
+    cameraQuaternion: camera.quaternion,
+    moonQuaternion: activeObject?.quaternion,
+    deltaSeconds
+  });
   if (modeUsesAfterimage(renderMode)) {
     ensureAfterimage().render();
   } else if (modeUsesDepthOfField(renderMode)) {
