@@ -46,8 +46,10 @@ import { setupCatMoonControls } from "./js/controls.js";
 import {
   createAfterimageEffects,
   createCatMoonRenderer,
+  createMixedAfterimageEffects,
   createTextureManager,
   modeUsesAfterimage,
+  modeUsesAfterimageMix,
   normalizeRenderMode,
   RENDER_MODE_STORAGE_KEY
 } from "./js/rendering.js";
@@ -207,6 +209,7 @@ const starParallax = {
 };
 const parallaxCameraVector = new THREE.Vector3();
 let afterimage = null;
+let afterimageMix = null;
 
 function ensureAfterimage() {
   if (!afterimage) {
@@ -216,12 +219,27 @@ function ensureAfterimage() {
   return afterimage;
 }
 
-function updateAfterimageMode() {
+function ensureAfterimageMix() {
+  if (!afterimageMix) {
+    afterimageMix = createMixedAfterimageEffects(renderer, scene, camera);
+    afterimageMix.resize(window.innerWidth, window.innerHeight);
+  }
+  return afterimageMix;
+}
+
+function updateAfterimageModes() {
   if (modeUsesAfterimage(renderMode)) {
     ensureAfterimage();
   } else {
     afterimage?.dispose();
     afterimage = null;
+  }
+
+  if (modeUsesAfterimageMix(renderMode)) {
+    ensureAfterimageMix();
+  } else {
+    afterimageMix?.dispose();
+    afterimageMix = null;
   }
 }
 
@@ -853,6 +871,7 @@ function resize() {
   camera.updateProjectionMatrix();
   rendering.resize(width, height);
   afterimage?.resize(width, height);
+  afterimageMix?.resize(width, height);
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -869,6 +888,8 @@ function animate() {
   updateStarParallax();
   if (modeUsesAfterimage(renderMode)) {
     ensureAfterimage().render();
+  } else if (modeUsesAfterimageMix(renderMode)) {
+    ensureAfterimageMix().render();
   } else {
     rendering.render(scene, camera);
   }
@@ -1672,7 +1693,7 @@ earlyRescueZoneToggleEl.addEventListener("change", () => {
 
 renderModeSelectEl.addEventListener("change", () => {
   renderMode = textureManager.setMode(renderModeSelectEl.value);
-  updateAfterimageMode();
+  updateAfterimageModes();
   saveRenderModeSetting(renderMode);
   updateRenderModeUi();
 });
@@ -1789,4 +1810,4 @@ controlsApi = setupCatMoonControls({
 
 window.addEventListener("resize", resize);
 resize();
-updateAfterimageMode();
+updateAfterimageModes();
