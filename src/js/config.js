@@ -81,7 +81,7 @@ export const STAR_PARALLAX_ENABLED = true;
 export const STAR_PARALLAX_SMALL_STRENGTH = 36;
 export const STAR_PARALLAX_LARGE_STRENGTH = 18;
 export const STAR_PARALLAX_EASE = 0.06;
-export const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 1.6;
+export const DRAG_RELEASE_MOMENTUM_MULTIPLIER = 2.1;
 
 export function triFaceTextureUrl(faceIndex) {
   return `${TRI_FACE_TEXTURE_DIR}/${TRI_FACE_TEXTURE_PREFIX}${pad2(faceIndex)}.png`;

@@ -6,16 +6,46 @@ export const BACKGROUND_MODES = Object.freeze({
 export const DEFAULT_BACKGROUND_MODE = BACKGROUND_MODES.HYBRID_STARFIELD;
 export const HYBRID_STARFIELD_DEFAULTS = Object.freeze({
   seed: 0x4d6f6f6e,
-  desktopCount: 450,
-  mobileCount: 180,
+  desktopCount: 675,
+  mobileCount: 270,
   controlRotationCoupling: 0.16,
   moonRotationCoupling: 0.12,
   driftX: 0.004,
   driftY: 0.007,
   layers: Object.freeze([
-    Object.freeze({ name: "far", desktopCount: 280, mobileCount: 110, radialNear: 24, radialFar: 32, size: 0.07, opacity: 0.3, brightnessMin: 0.42, brightnessMax: 0.76 }),
-    Object.freeze({ name: "mid", desktopCount: 125, mobileCount: 50, radialNear: 18, radialFar: 24, size: 0.1, opacity: 0.42, brightnessMin: 0.56, brightnessMax: 0.9 }),
-    Object.freeze({ name: "near", desktopCount: 45, mobileCount: 20, radialNear: 14, radialFar: 18, size: 0.14, opacity: 0.58, brightnessMin: 0.72, brightnessMax: 1 })
+    Object.freeze({
+      name: "far",
+      desktopCount: 420,
+      mobileCount: 165,
+      radialNear: 24,
+      radialFar: 32,
+      size: 0.07,
+      opacity: 0.3,
+      brightnessMin: 0.42,
+      brightnessMax: 0.76
+    }),
+    Object.freeze({
+      name: "mid",
+      desktopCount: 188,
+      mobileCount: 75,
+      radialNear: 18,
+      radialFar: 24,
+      size: 0.1,
+      opacity: 0.42,
+      brightnessMin: 0.56,
+      brightnessMax: 0.9
+    }),
+    Object.freeze({
+      name: "near",
+      desktopCount: 67,
+      mobileCount: 30,
+      radialNear: 14,
+      radialFar: 18,
+      size: 0.14,
+      opacity: 0.58,
+      brightnessMin: 0.72,
+      brightnessMax: 1
+    })
   ])
 });
 
