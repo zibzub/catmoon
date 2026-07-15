@@ -41,8 +41,8 @@ test("hybrid starfield generation is seeded and layered", () => {
   assert.deepEqual(dataA.positions, dataB.positions);
   assert.equal(dataA.positions.length, 12);
   assert.equal(HYBRID_STARFIELD_DEFAULTS.layers.length, 3);
-  assert.equal(HYBRID_STARFIELD_DEFAULTS.desktopCount, 450);
-  assert.equal(HYBRID_STARFIELD_DEFAULTS.mobileCount, 180);
+  assert.equal(HYBRID_STARFIELD_DEFAULTS.desktopCount, 675);
+  assert.equal(HYBRID_STARFIELD_DEFAULTS.mobileCount, 270);
 });
 
 test("starfield layers use radial shells with full-sphere hemisphere coverage", () => {
