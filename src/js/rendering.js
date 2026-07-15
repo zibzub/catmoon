@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FullScreenQuad, Pass } from "three/addons/postprocessing/Pass.js";
@@ -7,30 +8,46 @@ import { SavePass } from "three/addons/postprocessing/SavePass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
 export const RENDER_MODE_STORAGE_KEY = "catmoon.renderMode";
+export const LIT_MOON_LIGHTING_DEFAULTS = Object.freeze({
+  keyColor: 0xfff3df,
+  keyIntensity: 1.2,
+  keyPosition: Object.freeze([2.8, 3.6, 4.2]),
+  fillSkyColor: 0xb7caff,
+  fillGroundColor: 0x241529,
+  fillIntensity: 0.5
+});
 export const AFTERIMAGE_PASS_ORDER = Object.freeze([
   "RenderPass",
   "AfterimagePass",
   "OutputPass"
 ]);
-export const AFTERIMAGE_MIX_PASS_ORDER = Object.freeze([
+export const DEPTH_OF_FIELD_PASS_ORDER = Object.freeze([
   "RenderPass",
-  "SavePass(clean frame)",
-  "AfterimagePass",
-  "ShaderPass(AfterimageMix)",
+  "SavePass(clean alpha)",
+  "BokehPass",
+  "ShaderPass(RestoreAlpha)",
   "OutputPass"
 ]);
 export const AFTERIMAGE_DEFAULTS = Object.freeze({
   persistence: 0.9,
-  intensity: 0.2,
-  mix: 0.1
+  intensity: 0.2
 });
-export const AFTERIMAGE_MIX_TRAIL_INTENSITY = 1;
-export const AFTERIMAGE_MIX_SHADER = {
-  name: "AfterimageMixShader",
+export const DEPTH_OF_FIELD_DEFAULTS = Object.freeze({
+  focus: 2.45,
+  aperture: 0.0025,
+  maxBlur: 0.004
+});
+export const DEPTH_OF_FIELD_STORAGE_KEY = "catmoon.depthOfFieldSettings.v1";
+export const DEPTH_OF_FIELD_CONTROL_META = Object.freeze({
+  focus: Object.freeze({ min: 1.5, max: 3.5, step: 0.01, decimals: 2 }),
+  aperture: Object.freeze({ min: 0.0005, max: 0.02, step: 0.0005, decimals: 4 }),
+  maxBlur: Object.freeze({ min: 0.001, max: 0.03, step: 0.001, decimals: 3 })
+});
+export const DEPTH_OF_FIELD_ALPHA_RESTORE_SHADER = {
+  name: "DepthOfFieldAlphaRestoreShader",
   uniforms: {
     tDiffuse: { value: null },
-    tClean: { value: null },
-    mixAmount: { value: AFTERIMAGE_DEFAULTS.mix }
+    tClean: { value: null }
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -43,14 +60,13 @@ export const AFTERIMAGE_MIX_SHADER = {
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse;
     uniform sampler2D tClean;
-    uniform float mixAmount;
 
     varying vec2 vUv;
 
     void main() {
-      vec4 clean = texture2D(tClean, vUv);
-      vec4 afterimage = texture2D(tDiffuse, vUv);
-      gl_FragColor = clean * (1.0 - mixAmount) + afterimage * mixAmount;
+      vec4 dof = texture2D(tDiffuse, vUv);
+      float cleanAlpha = texture2D(tClean, vUv).a;
+      gl_FragColor = vec4(dof.rgb, cleanAlpha);
     }
   `
 };
@@ -191,16 +207,75 @@ function cappedDevicePixelRatio() {
 }
 
 export function normalizeRenderMode(value) {
-  if (value === "smooth-aa" || value === "effects" || value === "bloom") return "smooth";
-  return value === "smooth" || value === "afterimage" || value === "afterimage-mix" ? value : "pixel";
+  if (value === "smooth-aa" || value === "effects" || value === "bloom" || value === "afterimage-mix") return "smooth";
+  return value === "smooth" || value === "afterimage" || value === "depth-of-field" || value === "lit" ? value : "pixel";
 }
 
 export function modeUsesAfterimage(mode) {
   return normalizeRenderMode(mode) === "afterimage";
 }
 
-export function modeUsesAfterimageMix(mode) {
-  return normalizeRenderMode(mode) === "afterimage-mix";
+export function modeUsesDepthOfField(mode) {
+  return normalizeRenderMode(mode) === "depth-of-field";
+}
+
+export function modeUsesLitMoon(mode) {
+  return normalizeRenderMode(mode) === "lit";
+}
+
+const DEPTH_OF_FIELD_SETTING_KEYS = Object.freeze(["focus", "aperture", "maxBlur"]);
+
+export function normalizeDepthOfFieldSettings(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const settings = {};
+
+  for (const key of DEPTH_OF_FIELD_SETTING_KEYS) {
+    const raw = source[key];
+    const range = DEPTH_OF_FIELD_CONTROL_META[key];
+    settings[key] = Number.isFinite(raw) && raw >= range.min && raw <= range.max
+      ? raw
+      : DEPTH_OF_FIELD_DEFAULTS[key];
+  }
+
+  return settings;
+}
+
+export function clampDepthOfFieldValue(key, value) {
+  const range = DEPTH_OF_FIELD_CONTROL_META[key];
+  if (!range) return undefined;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return DEPTH_OF_FIELD_DEFAULTS[key];
+  return Math.min(range.max, Math.max(range.min, numericValue));
+}
+
+export function loadDepthOfFieldSettings(storage) {
+  try {
+    const raw = (storage ?? globalThis.localStorage)?.getItem(DEPTH_OF_FIELD_STORAGE_KEY);
+    return normalizeDepthOfFieldSettings(JSON.parse(raw));
+  } catch {
+    return normalizeDepthOfFieldSettings();
+  }
+}
+
+export function saveDepthOfFieldSettings(storage, settings) {
+  const normalized = normalizeDepthOfFieldSettings(settings);
+  try {
+    (storage ?? globalThis.localStorage)?.setItem(DEPTH_OF_FIELD_STORAGE_KEY, JSON.stringify(normalized));
+  } catch {
+    // Storage may be unavailable in private or restricted browsing contexts.
+  }
+  return normalized;
+}
+
+export function applyDepthOfFieldSettings(bokehPass, settings) {
+  const normalized = normalizeDepthOfFieldSettings(settings);
+  const uniforms = bokehPass?.materialBokeh?.uniforms;
+  if (uniforms) {
+    uniforms.focus.value = normalized.focus;
+    uniforms.aperture.value = normalized.aperture;
+    uniforms.maxblur.value = normalized.maxBlur;
+  }
+  return normalized;
 }
 
 export function textureSettingsForMode(mode) {
@@ -265,6 +340,34 @@ export function createCatMoonRenderer(canvas) {
   };
 }
 
+export function createLitMoonLighting(scene) {
+  const keyLight = new THREE.DirectionalLight(
+    LIT_MOON_LIGHTING_DEFAULTS.keyColor,
+    LIT_MOON_LIGHTING_DEFAULTS.keyIntensity
+  );
+  const fillLight = new THREE.HemisphereLight(
+    LIT_MOON_LIGHTING_DEFAULTS.fillSkyColor,
+    LIT_MOON_LIGHTING_DEFAULTS.fillGroundColor,
+    LIT_MOON_LIGHTING_DEFAULTS.fillIntensity
+  );
+
+  keyLight.position.fromArray(LIT_MOON_LIGHTING_DEFAULTS.keyPosition);
+  keyLight.visible = false;
+  fillLight.visible = false;
+  scene.add(keyLight, fillLight);
+
+  return {
+    setEnabled(enabled) {
+      const visible = Boolean(enabled);
+      keyLight.visible = visible;
+      fillLight.visible = visible;
+    },
+    dispose() {
+      scene.remove(keyLight, fillLight);
+    }
+  };
+}
+
 export function createAfterimageEffects(renderer, scene, camera) {
   const composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
@@ -293,36 +396,45 @@ export function createAfterimageEffects(renderer, scene, camera) {
   };
 }
 
-export function createMixedAfterimageEffects(renderer, scene, camera) {
+export function createDepthOfFieldEffects(renderer, scene, camera, initialSettings = DEPTH_OF_FIELD_DEFAULTS) {
   const composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
-  const cleanFramePass = new SavePass();
-  const afterimagePass = new AlphaPreservingAfterimagePass(
-    AFTERIMAGE_DEFAULTS.persistence,
-    AFTERIMAGE_MIX_TRAIL_INTENSITY
-  );
-  const mixPass = new ShaderPass(AFTERIMAGE_MIX_SHADER);
+  const cleanAlphaPass = new SavePass();
+  let settings = normalizeDepthOfFieldSettings(initialSettings);
+  const bokehPass = new BokehPass(scene, camera, {
+    focus: settings.focus,
+    aperture: settings.aperture,
+    maxblur: settings.maxBlur
+  });
+  const restoreAlphaPass = new ShaderPass(DEPTH_OF_FIELD_ALPHA_RESTORE_SHADER);
   const outputPass = new OutputPass();
 
-  mixPass.uniforms.tClean.value = cleanFramePass.renderTarget.texture;
+  restoreAlphaPass.uniforms.tClean.value = cleanAlphaPass.renderTarget.texture;
 
   composer.addPass(renderPass);
-  composer.addPass(cleanFramePass);
-  composer.addPass(afterimagePass);
-  composer.addPass(mixPass);
+  composer.addPass(cleanAlphaPass);
+  composer.addPass(bokehPass);
+  composer.addPass(restoreAlphaPass);
   composer.addPass(outputPass);
+  applyDepthOfFieldSettings(bokehPass, settings);
 
   return {
-    passOrder: AFTERIMAGE_MIX_PASS_ORDER,
+    passOrder: DEPTH_OF_FIELD_PASS_ORDER,
+    getSettings: () => ({ ...settings }),
+    setSettings(nextSettings) {
+      settings = normalizeDepthOfFieldSettings({ ...settings, ...nextSettings });
+      applyDepthOfFieldSettings(bokehPass, settings);
+      return { ...settings };
+    },
     resize(width, height) {
       composer.setPixelRatio(renderer.getPixelRatio());
       composer.setSize(width, height);
     },
     render: () => composer.render(),
     dispose() {
-      cleanFramePass.dispose();
-      afterimagePass.dispose();
-      mixPass.dispose();
+      cleanAlphaPass.dispose();
+      bokehPass.dispose();
+      restoreAlphaPass.dispose();
       outputPass.dispose();
       composer.dispose();
     }

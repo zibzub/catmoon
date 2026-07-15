@@ -6,14 +6,23 @@ import {
   ALPHA_PRESERVING_AFTERIMAGE_SHADER,
   AFTERIMAGE_INTENSITY_SHADER,
   AFTERIMAGE_DEFAULTS,
-  AFTERIMAGE_MIX_PASS_ORDER,
-  AFTERIMAGE_MIX_TRAIL_INTENSITY,
-  AFTERIMAGE_MIX_SHADER,
   AFTERIMAGE_PASS_ORDER,
+  DEPTH_OF_FIELD_ALPHA_RESTORE_SHADER,
+  DEPTH_OF_FIELD_CONTROL_META,
+  DEPTH_OF_FIELD_DEFAULTS,
+  DEPTH_OF_FIELD_PASS_ORDER,
+  LIT_MOON_LIGHTING_DEFAULTS,
+  applyDepthOfFieldSettings,
+  clampDepthOfFieldValue,
+  createLitMoonLighting,
   createTextureManager,
+  loadDepthOfFieldSettings,
   modeUsesAfterimage,
-  modeUsesAfterimageMix,
+  modeUsesDepthOfField,
+  modeUsesLitMoon,
+  normalizeDepthOfFieldSettings,
   normalizeRenderMode,
+  saveDepthOfFieldSettings,
   textureSettingsForMode
 } from "../src/js/rendering.js";
 
@@ -22,10 +31,12 @@ test("render mode normalization preserves current modes and safely migrates temp
   assert.equal(normalizeRenderMode("pixel"), "pixel");
   assert.equal(normalizeRenderMode("smooth"), "smooth");
   assert.equal(normalizeRenderMode("afterimage"), "afterimage");
-  assert.equal(normalizeRenderMode("afterimage-mix"), "afterimage-mix");
+  assert.equal(normalizeRenderMode("depth-of-field"), "depth-of-field");
+  assert.equal(normalizeRenderMode("lit"), "lit");
   assert.equal(normalizeRenderMode("smooth-aa"), "smooth");
   assert.equal(normalizeRenderMode("effects"), "smooth");
   assert.equal(normalizeRenderMode("bloom"), "smooth");
+  assert.equal(normalizeRenderMode("afterimage-mix"), "smooth");
   assert.equal(normalizeRenderMode("unknown"), "pixel");
 });
 
@@ -56,23 +67,56 @@ test("afterimage keeps smooth texture settings and selects only the composer pip
   assert.equal(modeUsesAfterimage("pixel"), false);
   assert.equal(modeUsesAfterimage("smooth"), false);
   assert.equal(modeUsesAfterimage("afterimage"), true);
-  assert.equal(modeUsesAfterimage("afterimage-mix"), false);
+  assert.equal(modeUsesAfterimage("depth-of-field"), false);
   assert.equal(modeUsesAfterimage("smooth-aa"), false);
 });
 
-test("mixed afterimage keeps smooth texture settings and selects only its composer pipeline", () => {
-  assert.deepEqual(textureSettingsForMode("afterimage-mix"), textureSettingsForMode("smooth"));
-  assert.equal(modeUsesAfterimageMix("pixel"), false);
-  assert.equal(modeUsesAfterimageMix("smooth"), false);
-  assert.equal(modeUsesAfterimageMix("afterimage"), false);
-  assert.equal(modeUsesAfterimageMix("afterimage-mix"), true);
+test("depth of field keeps smooth texture settings and selects only its composer pipeline", () => {
+  assert.deepEqual(textureSettingsForMode("depth-of-field"), textureSettingsForMode("smooth"));
+  assert.equal(modeUsesDepthOfField("pixel"), false);
+  assert.equal(modeUsesDepthOfField("smooth"), false);
+  assert.equal(modeUsesDepthOfField("afterimage"), false);
+  assert.equal(modeUsesDepthOfField("depth-of-field"), true);
 });
 
-test("Afterimage defaults separate persistence, intensity, and final mix", () => {
+test("Lit Moon keeps smooth texture settings and selects only its lighting mode", () => {
+  assert.deepEqual(textureSettingsForMode("lit"), textureSettingsForMode("smooth"));
+  assert.equal(modeUsesLitMoon("pixel"), false);
+  assert.equal(modeUsesLitMoon("smooth"), false);
+  assert.equal(modeUsesLitMoon("afterimage"), false);
+  assert.equal(modeUsesLitMoon("depth-of-field"), false);
+  assert.equal(modeUsesLitMoon("lit"), true);
+});
+
+test("Lit Moon lighting is centralized, disabled by default, and removable", () => {
+  assert.deepEqual(LIT_MOON_LIGHTING_DEFAULTS, {
+    keyColor: 0xfff3df,
+    keyIntensity: 1.2,
+    keyPosition: [2.8, 3.6, 4.2],
+    fillSkyColor: 0xb7caff,
+    fillGroundColor: 0x241529,
+    fillIntensity: 0.5
+  });
+
+  const scene = new THREE.Scene();
+  const lighting = createLitMoonLighting(scene);
+  assert.equal(scene.children.length, 2);
+  assert.ok(scene.children.every((light) => light.visible === false));
+
+  lighting.setEnabled(true);
+  assert.ok(scene.children.every((light) => light.visible === true));
+
+  lighting.setEnabled(false);
+  assert.ok(scene.children.every((light) => light.visible === false));
+
+  lighting.dispose();
+  assert.equal(scene.children.length, 0);
+});
+
+test("Tracer Moon defaults remain unchanged", () => {
   assert.deepEqual(AFTERIMAGE_DEFAULTS, {
     persistence: 0.9,
-    intensity: 0.2,
-    mix: 0.75
+    intensity: 0.2
   });
   assert.deepEqual(AFTERIMAGE_PASS_ORDER, [
     "RenderPass",
@@ -81,10 +125,8 @@ test("Afterimage defaults separate persistence, intensity, and final mix", () =>
   ]);
 });
 
-test("full Afterimage keeps configured intensity while Mixed Afterimage uses full trail strength", () => {
+test("Tracer Moon keeps its configured intensity", () => {
   assert.equal(AFTERIMAGE_INTENSITY_SHADER.uniforms.intensity.value, AFTERIMAGE_DEFAULTS.intensity);
-  assert.equal(AFTERIMAGE_MIX_TRAIL_INTENSITY, 1);
-  assert.notEqual(AFTERIMAGE_MIX_TRAIL_INTENSITY, AFTERIMAGE_DEFAULTS.intensity);
 });
 
 test("Afterimage separates RGB persistence and intensity while preserving current-frame alpha", () => {
@@ -121,19 +163,96 @@ test("Afterimage separates RGB persistence and intensity while preserving curren
   assert.doesNotMatch(ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader, /oldFrame\.a/);
 });
 
-test("mixed Afterimage saves the clean frame and blends it with the processed frame", () => {
-  assert.deepEqual(AFTERIMAGE_MIX_PASS_ORDER, [
+test("depth of field uses restrained defaults and restores clean-frame alpha", () => {
+  assert.deepEqual(DEPTH_OF_FIELD_DEFAULTS, {
+    focus: 2.45,
+    aperture: 0.0025,
+    maxBlur: 0.004
+  });
+  assert.deepEqual(DEPTH_OF_FIELD_PASS_ORDER, [
     "RenderPass",
-    "SavePass(clean frame)",
-    "AfterimagePass",
-    "ShaderPass(AfterimageMix)",
+    "SavePass(clean alpha)",
+    "BokehPass",
+    "ShaderPass(RestoreAlpha)",
     "OutputPass"
   ]);
-  assert.equal(AFTERIMAGE_MIX_SHADER.uniforms.mixAmount.value, AFTERIMAGE_DEFAULTS.mix);
   assert.match(
-    AFTERIMAGE_MIX_SHADER.fragmentShader,
-    /clean \* \(1\.0 - mixAmount\) \+ afterimage \* mixAmount/
+    DEPTH_OF_FIELD_ALPHA_RESTORE_SHADER.fragmentShader,
+    /float cleanAlpha = texture2D\(tClean, vUv\)\.a/
   );
+  assert.match(
+    DEPTH_OF_FIELD_ALPHA_RESTORE_SHADER.fragmentShader,
+    /gl_FragColor = vec4\(dof\.rgb, cleanAlpha\)/
+  );
+});
+
+test("Depth of Field controls normalize defaults, ranges, and persistence defensively", () => {
+  assert.deepEqual(DEPTH_OF_FIELD_CONTROL_META.focus, {
+    min: 1.5,
+    max: 3.5,
+    step: 0.01,
+    decimals: 2
+  });
+  assert.deepEqual(normalizeDepthOfFieldSettings({
+    focus: 2.75,
+    aperture: 0.01,
+    maxBlur: 0.02
+  }), {
+    focus: 2.75,
+    aperture: 0.01,
+    maxBlur: 0.02
+  });
+  assert.deepEqual(normalizeDepthOfFieldSettings({
+    focus: Number.NaN,
+    aperture: 99,
+    maxBlur: -1
+  }), DEPTH_OF_FIELD_DEFAULTS);
+  assert.equal(clampDepthOfFieldValue("focus", 99), DEPTH_OF_FIELD_CONTROL_META.focus.max);
+  assert.equal(clampDepthOfFieldValue("aperture", 0), DEPTH_OF_FIELD_CONTROL_META.aperture.min);
+  assert.equal(clampDepthOfFieldValue("maxBlur", "bad"), DEPTH_OF_FIELD_DEFAULTS.maxBlur);
+
+  const values = new Map([["catmoon.depthOfFieldSettings.v1", JSON.stringify({
+    focus: 1.75,
+    aperture: "bad",
+    maxBlur: 0.03
+  })]]);
+  const storage = {
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, value); }
+  };
+  assert.deepEqual(loadDepthOfFieldSettings(storage), {
+    focus: 1.75,
+    aperture: DEPTH_OF_FIELD_DEFAULTS.aperture,
+    maxBlur: 0.03
+  });
+  const saved = saveDepthOfFieldSettings(storage, { focus: 2.2, aperture: 0.005, maxBlur: 0.01 });
+  assert.deepEqual(saved, { focus: 2.2, aperture: 0.005, maxBlur: 0.01 });
+  assert.deepEqual(loadDepthOfFieldSettings(storage), saved);
+});
+
+test("Depth of Field runtime updates Bokeh uniforms without replacing the pass", () => {
+  const bokehPass = {
+    materialBokeh: {
+      uniforms: {
+        focus: { value: 0 },
+        aperture: { value: 0 },
+        maxblur: { value: 0 }
+      }
+    }
+  };
+  const first = applyDepthOfFieldSettings(bokehPass, DEPTH_OF_FIELD_DEFAULTS);
+  assert.deepEqual(first, DEPTH_OF_FIELD_DEFAULTS);
+  assert.equal(bokehPass.materialBokeh.uniforms.focus.value, DEPTH_OF_FIELD_DEFAULTS.focus);
+  assert.equal(bokehPass.materialBokeh.uniforms.aperture.value, DEPTH_OF_FIELD_DEFAULTS.aperture);
+  assert.equal(bokehPass.materialBokeh.uniforms.maxblur.value, DEPTH_OF_FIELD_DEFAULTS.maxBlur);
+
+  const samePass = bokehPass;
+  const updated = applyDepthOfFieldSettings(samePass, { focus: 1.9, aperture: 0.01, maxBlur: 0.02 });
+  assert.equal(samePass, bokehPass);
+  assert.deepEqual(updated, { focus: 1.9, aperture: 0.01, maxBlur: 0.02 });
+  assert.equal(bokehPass.materialBokeh.uniforms.focus.value, 1.9);
+  assert.equal(bokehPass.materialBokeh.uniforms.aperture.value, 0.01);
+  assert.equal(bokehPass.materialBokeh.uniforms.maxblur.value, 0.02);
 });
 
 test("changing modes refreshes registered textures in place", () => {

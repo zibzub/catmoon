@@ -67,9 +67,26 @@
             <option value="pixel">Pixel Moon</option>
             <option value="smooth">Smooth Moon</option>
             <option value="afterimage">Tracer Moon</option>
-            <option value="afterimage-mix">Mixed Afterimage</option>
+            <option value="depth-of-field">Depth of Field</option>
+            <option value="lit">Lit Moon</option>
           </select>
         </label>
+        <section id="depthOfFieldControls" aria-labelledby="depthOfFieldControlsTitle" hidden>
+          <div id="depthOfFieldControlsTitle">Depth of Field</div>
+          <label class="depthOfFieldControl" for="depthOfFieldFocus">
+            <span><span>Focus</span><output id="depthOfFieldFocusValue" for="depthOfFieldFocus"></output></span>
+            <input id="depthOfFieldFocus" type="range">
+          </label>
+          <label class="depthOfFieldControl" for="depthOfFieldAperture">
+            <span><span>Aperture</span><output id="depthOfFieldApertureValue" for="depthOfFieldAperture"></output></span>
+            <input id="depthOfFieldAperture" type="range">
+          </label>
+          <label class="depthOfFieldControl" for="depthOfFieldMaxBlur">
+            <span><span>Blur</span><output id="depthOfFieldMaxBlurValue" for="depthOfFieldMaxBlur"></output></span>
+            <input id="depthOfFieldMaxBlur" type="range">
+          </label>
+          <button id="depthOfFieldReset" type="button">Reset DOF</button>
+        </section>
         <label id="filterControls" for="catFilter">
           Filter
           <select id="catFilter">

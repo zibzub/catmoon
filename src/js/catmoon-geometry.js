@@ -10,6 +10,11 @@ import {
   triFaceTextureUrl
 } from "./config.js";
 
+export const LIT_MOON_MATERIAL_DEFAULTS = Object.freeze({
+  roughness: 0.88,
+  metalness: 0
+});
+
 function makeIcosahedronData() {
   const p = PHI;
   const vertices = [
@@ -210,17 +215,36 @@ function normalizeCompactTriFaceSlots(faceSlots) {
 export function createCatMoonGeometry({ textureLoader, applyTextureSettings, makePlaceholderTexture }) {
   const triFaceSlots = [];
   const triFaceTexturePromises = [];
+  const baseMeshes = [];
   const triTextureStats = {
     prerenderedLoaded: 0,
     metadataLoaded: false,
     textureErrors: 0
   };
 
-  function makeTriFaceMaterial(faceIndex) {
-    const material = new THREE.MeshBasicMaterial({
-      map: makePlaceholderTexture(),
+  let baseMaterialMode = "unlit";
+
+  function applyBaseMaterialMode() {
+    for (const mesh of baseMeshes) {
+      mesh.material = baseMaterialMode === "lit"
+        ? mesh.userData.litMaterial
+        : mesh.userData.unlitMaterial;
+    }
+  }
+
+  function makeTriFaceMaterials(faceIndex) {
+    const map = makePlaceholderTexture();
+    const unlitMaterial = new THREE.MeshBasicMaterial({
+      map,
       side: THREE.DoubleSide,
       opacity: 1
+    });
+    const litMaterial = new THREE.MeshStandardMaterial({
+      map,
+      side: THREE.DoubleSide,
+      opacity: 1,
+      roughness: LIT_MOON_MATERIAL_DEFAULTS.roughness,
+      metalness: LIT_MOON_MATERIAL_DEFAULTS.metalness
     });
 
     const ready = new Promise((resolve, reject) => {
@@ -232,8 +256,10 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
             console.warn(`${url} is ${texture.image.width}x${texture.image.height}; expected ${TRI_FACE_TEX_W}x${TRI_FACE_TEX_H}. Regenerate production tri-face PNGs from the dev tool.`);
           }
           applyTextureSettings(texture);
-          material.map = texture;
-          material.needsUpdate = true;
+          unlitMaterial.map = texture;
+          litMaterial.map = texture;
+          unlitMaterial.needsUpdate = true;
+          litMaterial.needsUpdate = true;
           triTextureStats.prerenderedLoaded += 1;
           resolve();
         },
@@ -245,7 +271,7 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
       );
     });
 
-    return { material, ready };
+    return { unlitMaterial, litMaterial, ready };
   }
 
   function makeTriacontahedron() {
@@ -257,7 +283,8 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
       0.5, 0,
       0, 0.5
     ];
-    group.userData.baseMeshes = [];
+    baseMeshes.length = 0;
+    group.userData.baseMeshes = baseMeshes;
     group.userData.backingMeshes = [];
     group.userData.overlayMeshes = [];
     group.userData.edgeMeshes = [];
@@ -295,14 +322,16 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
       group.add(backingMesh);
       group.userData.backingMeshes.push(backingMesh);
 
-      const { material, ready } = makeTriFaceMaterial(faceIndex);
+      const { unlitMaterial, litMaterial, ready } = makeTriFaceMaterials(faceIndex);
       triFaceTexturePromises.push(ready);
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geometry, unlitMaterial);
       mesh.userData.faceIndex = faceIndex;
       mesh.userData.isBaseFace = true;
+      mesh.userData.unlitMaterial = unlitMaterial;
+      mesh.userData.litMaterial = litMaterial;
       mesh.renderOrder = 1;
       group.add(mesh);
-      group.userData.baseMeshes.push(mesh);
+      baseMeshes.push(mesh);
 
       const overlayMesh = new THREE.Mesh(geometry, makeFilterOverlayMaterial());
       overlayMesh.userData.faceIndex = faceIndex;
@@ -335,6 +364,7 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
     });
 
     group.scale.setScalar(0.62);
+    applyBaseMaterialMode();
     group.visible = false;
     console.info(`Triacontahedron: ${TRI_FACE_COUNT} faces x ${RHOMBUS_CAT_COUNT} cats = ${TRI_FACE_COUNT * RHOMBUS_CAT_COUNT}`);
     return group;
@@ -362,7 +392,13 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
     triFaceSlots,
     triFaceTexturePromises,
     triTextureStats,
+    getBaseMaterialMode: () => baseMaterialMode,
     makeTriacontahedron,
-    loadTriFaceSlotMetadata
+    loadTriFaceSlotMetadata,
+    setBaseMaterialMode(mode) {
+      baseMaterialMode = mode === "lit" ? "lit" : "unlit";
+      applyBaseMaterialMode();
+      return baseMaterialMode;
+    }
   };
 }

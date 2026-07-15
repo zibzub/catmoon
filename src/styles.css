@@ -418,9 +418,73 @@ body {
 }
 
 #catFilter:focus-visible,
-#renderModeSelect:focus-visible {
+#renderModeSelect:focus-visible,
+#depthOfFieldReset:focus-visible {
   border-color: hotpink;
   outline: none;
+}
+
+#depthOfFieldControls {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+  color: #bfbfbf;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: auto;
+}
+
+#depthOfFieldControls[hidden] {
+  display: none;
+}
+
+#depthOfFieldControlsTitle {
+  color: #f2f2f2;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.depthOfFieldControl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.depthOfFieldControl > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.depthOfFieldControl output {
+  color: #fff4fa;
+  font-variant-numeric: tabular-nums;
+}
+
+.depthOfFieldControl input[type="range"] {
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  accent-color: hotpink;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#depthOfFieldReset {
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 105, 180, 0.45);
+  background: rgba(8, 8, 12, 0.95);
+  color: #f2f2f2;
+  font: inherit;
+  cursor: pointer;
+}
+
+#depthOfFieldReset:hover {
+  border-color: hotpink;
 }
 
 #activeFilterStat {

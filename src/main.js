@@ -46,10 +46,18 @@ import { setupCatMoonControls } from "./js/controls.js";
 import {
   createAfterimageEffects,
   createCatMoonRenderer,
-  createMixedAfterimageEffects,
+  createDepthOfFieldEffects,
+  createLitMoonLighting,
   createTextureManager,
+  DEPTH_OF_FIELD_CONTROL_META,
+  DEPTH_OF_FIELD_DEFAULTS,
+  clampDepthOfFieldValue,
+  loadDepthOfFieldSettings,
+  normalizeDepthOfFieldSettings,
+  saveDepthOfFieldSettings,
   modeUsesAfterimage,
-  modeUsesAfterimageMix,
+  modeUsesDepthOfField,
+  modeUsesLitMoon,
   normalizeRenderMode,
   RENDER_MODE_STORAGE_KEY
 } from "./js/rendering.js";
@@ -83,6 +91,14 @@ const {
   catLinksToggleEl,
   earlyRescueZoneToggleEl,
   renderModeSelectEl,
+  depthOfFieldControlsEl,
+  depthOfFieldFocusInputEl,
+  depthOfFieldFocusValueEl,
+  depthOfFieldApertureInputEl,
+  depthOfFieldApertureValueEl,
+  depthOfFieldMaxBlurInputEl,
+  depthOfFieldMaxBlurValueEl,
+  depthOfFieldResetEl,
   catFilterEl,
   walletFilterInputEl,
   walletFilterClearEl,
@@ -130,15 +146,49 @@ function saveRenderModeSetting(mode) {
 
 function updateRenderModeUi() {
   renderModeSelectEl.value = renderMode;
+  updateDepthOfFieldControlsUi();
 }
 
 let renderMode = loadRenderModeSetting();
+let depthOfFieldSettings = loadDepthOfFieldSettings();
+const depthOfFieldControls = Object.freeze({
+  focus: Object.freeze({ input: depthOfFieldFocusInputEl, value: depthOfFieldFocusValueEl }),
+  aperture: Object.freeze({ input: depthOfFieldApertureInputEl, value: depthOfFieldApertureValueEl }),
+  maxBlur: Object.freeze({ input: depthOfFieldMaxBlurInputEl, value: depthOfFieldMaxBlurValueEl })
+});
+
+function formatDepthOfFieldValue(key, value) {
+  return Number(value).toFixed(DEPTH_OF_FIELD_CONTROL_META[key].decimals);
+}
+
+function updateDepthOfFieldControlsUi() {
+  const visible = modeUsesDepthOfField(renderMode);
+  depthOfFieldControlsEl.hidden = !visible;
+  for (const [key, control] of Object.entries(depthOfFieldControls)) {
+    const meta = DEPTH_OF_FIELD_CONTROL_META[key];
+    const value = depthOfFieldSettings[key];
+    control.input.min = String(meta.min);
+    control.input.max = String(meta.max);
+    control.input.step = String(meta.step);
+    control.input.value = String(value);
+    control.value.value = formatDepthOfFieldValue(key, value);
+  }
+}
+
+function updateDepthOfFieldSettings(nextSettings, { persist = true, apply = true } = {}) {
+  depthOfFieldSettings = normalizeDepthOfFieldSettings({ ...depthOfFieldSettings, ...nextSettings });
+  if (persist) saveDepthOfFieldSettings(undefined, depthOfFieldSettings);
+  updateDepthOfFieldControlsUi();
+  if (apply) depthOfField?.setSettings(depthOfFieldSettings);
+}
+
 const rendering = createCatMoonRenderer(canvas);
 const { renderer } = rendering;
 const textureManager = createTextureManager(renderMode);
 const applyTextureSettings = textureManager.applyTextureSettings;
 
 const scene = new THREE.Scene();
+const litMoonLighting = createLitMoonLighting(scene);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
 camera.position.set(0, 0, 3.15);
 
@@ -209,7 +259,7 @@ const starParallax = {
 };
 const parallaxCameraVector = new THREE.Vector3();
 let afterimage = null;
-let afterimageMix = null;
+let depthOfField = null;
 
 function ensureAfterimage() {
   if (!afterimage) {
@@ -219,15 +269,15 @@ function ensureAfterimage() {
   return afterimage;
 }
 
-function ensureAfterimageMix() {
-  if (!afterimageMix) {
-    afterimageMix = createMixedAfterimageEffects(renderer, scene, camera);
-    afterimageMix.resize(window.innerWidth, window.innerHeight);
+function ensureDepthOfField() {
+  if (!depthOfField) {
+    depthOfField = createDepthOfFieldEffects(renderer, scene, camera, depthOfFieldSettings);
+    depthOfField.resize(window.innerWidth, window.innerHeight);
   }
-  return afterimageMix;
+  return depthOfField;
 }
 
-function updateAfterimageModes() {
+function updatePostProcessingModes() {
   if (modeUsesAfterimage(renderMode)) {
     ensureAfterimage();
   } else {
@@ -235,12 +285,18 @@ function updateAfterimageModes() {
     afterimage = null;
   }
 
-  if (modeUsesAfterimageMix(renderMode)) {
-    ensureAfterimageMix();
+  if (modeUsesDepthOfField(renderMode)) {
+    ensureDepthOfField();
   } else {
-    afterimageMix?.dispose();
-    afterimageMix = null;
+    depthOfField?.dispose();
+    depthOfField = null;
   }
+}
+
+function updateLitMoonMode() {
+  const isLitMoon = modeUsesLitMoon(renderMode);
+  setBaseMaterialMode(isLitMoon ? "lit" : "unlit");
+  litMoonLighting.setEnabled(isLitMoon);
 }
 
 function setLoadingProgress(text) {
@@ -296,6 +352,7 @@ const {
   triFaceSlots,
   triFaceTexturePromises,
   triTextureStats,
+  setBaseMaterialMode,
   makeTriacontahedron,
   loadTriFaceSlotMetadata
 } = createCatMoonGeometry({
@@ -871,7 +928,7 @@ function resize() {
   camera.updateProjectionMatrix();
   rendering.resize(width, height);
   afterimage?.resize(width, height);
-  afterimageMix?.resize(width, height);
+  depthOfField?.resize(width, height);
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -888,8 +945,8 @@ function animate() {
   updateStarParallax();
   if (modeUsesAfterimage(renderMode)) {
     ensureAfterimage().render();
-  } else if (modeUsesAfterimageMix(renderMode)) {
-    ensureAfterimageMix().render();
+  } else if (modeUsesDepthOfField(renderMode)) {
+    ensureDepthOfField().render();
   } else {
     rendering.render(scene, camera);
   }
@@ -1693,9 +1750,22 @@ earlyRescueZoneToggleEl.addEventListener("change", () => {
 
 renderModeSelectEl.addEventListener("change", () => {
   renderMode = textureManager.setMode(renderModeSelectEl.value);
-  updateAfterimageModes();
+  updatePostProcessingModes();
+  updateLitMoonMode();
   saveRenderModeSetting(renderMode);
   updateRenderModeUi();
+});
+
+for (const [key, control] of Object.entries(depthOfFieldControls)) {
+  control.input.addEventListener("input", () => {
+    updateDepthOfFieldSettings({
+      [key]: clampDepthOfFieldValue(key, control.input.value)
+    });
+  });
+}
+
+depthOfFieldResetEl.addEventListener("click", () => {
+  updateDepthOfFieldSettings({ ...DEPTH_OF_FIELD_DEFAULTS });
 });
 
 pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {
@@ -1810,4 +1880,5 @@ controlsApi = setupCatMoonControls({
 
 window.addEventListener("resize", resize);
 resize();
-updateAfterimageModes();
+updatePostProcessingModes();
+updateLitMoonMode();
