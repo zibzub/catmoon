@@ -64,6 +64,10 @@
             <input id="hybridStarfieldToggle" type="checkbox" checked>
             <span class="hudToggleLabel">3D starfield</span>
           </label>
+          <label id="performanceMonitorControl" class="hudToggleControl" for="performanceMonitorToggle">
+            <input id="performanceMonitorToggle" type="checkbox">
+            <span class="hudToggleLabel">Performance</span>
+          </label>
         </div>
         <label id="renderModeControl" for="renderModeSelect">
           Render
@@ -72,7 +76,7 @@
             <option value="smooth">Smooth Moon</option>
             <option value="afterimage">Tracer Moon</option>
             <option value="depth-of-field">Bokeh Moon</option>
-            <option value="lit">Lit Moon</option>
+            <option value="lit">Shadow Moon</option>
           </select>
         </label>
         <section id="depthOfFieldControls" aria-labelledby="depthOfFieldControlsTitle" hidden>
@@ -137,6 +141,17 @@
         </div>
       </div>
     </div>
+
+    <aside id="performanceMonitor" hidden aria-hidden="true" aria-label="Performance monitor">
+      <div class="performanceMonitorTitle">Performance</div>
+      <div class="performanceMonitorRow"><span>FPS</span><span id="performanceMonitorCurrentFps">—</span></div>
+      <div class="performanceMonitorRow"><span>Smoothed FPS</span><span id="performanceMonitorSmoothedFps">—</span></div>
+      <div class="performanceMonitorRow"><span>Frame / avg ms</span><span><span id="performanceMonitorFrameTime">—</span> / <span id="performanceMonitorAverageFrameTime">—</span></span></div>
+      <div class="performanceMonitorRow"><span>Draw calls</span><span id="performanceMonitorDrawCalls">—</span></div>
+      <div class="performanceMonitorRow"><span>Triangles</span><span id="performanceMonitorTriangles">—</span></div>
+      <div class="performanceMonitorRow"><span>Points</span><span id="performanceMonitorPoints">—</span></div>
+      <canvas id="performanceMonitorGraph" width="180" height="38" aria-label="Rolling frame-time graph"></canvas>
+    </aside>
 
     <div id="tooltip" aria-hidden="true">
       <div id="tooltipPreview" aria-hidden="true"></div>

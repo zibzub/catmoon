@@ -40,6 +40,10 @@ import {
 import { clamp } from "./js/utils.js";
 import { createBackgroundController } from "./js/backgrounds.js";
 import { getDomRefs, loadBooleanSetting, saveBooleanSetting } from "./js/dom.js";
+import {
+  createPerformanceMonitor,
+  PERFORMANCE_MONITOR_STORAGE_KEY
+} from "./js/performance-monitor.js";
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
@@ -92,6 +96,16 @@ const {
   catLinksToggleEl,
   earlyRescueZoneToggleEl,
   hybridStarfieldToggleEl,
+  performanceMonitorToggleEl,
+  performanceMonitorEl,
+  performanceMonitorGraphEl,
+  performanceMonitorCurrentFpsEl,
+  performanceMonitorSmoothedFpsEl,
+  performanceMonitorFrameTimeEl,
+  performanceMonitorAverageFrameTimeEl,
+  performanceMonitorDrawCallsEl,
+  performanceMonitorTrianglesEl,
+  performanceMonitorPointsEl,
   renderModeSelectEl,
   depthOfFieldControlsEl,
   depthOfFieldFocusInputEl,
@@ -159,6 +173,18 @@ function updateHybridStarfieldToggleUi() {
   hybridStarfieldToggleEl.checked = hybridStarfieldEnabled;
 }
 
+function loadPerformanceMonitorEnabledSetting() {
+  return loadBooleanSetting(undefined, PERFORMANCE_MONITOR_STORAGE_KEY, false);
+}
+
+function savePerformanceMonitorEnabledSetting(enabled) {
+  saveBooleanSetting(undefined, PERFORMANCE_MONITOR_STORAGE_KEY, enabled);
+}
+
+function updatePerformanceMonitorToggleUi() {
+  performanceMonitorToggleEl.checked = performanceMonitorEnabled;
+}
+
 function updateRenderModeUi() {
   renderModeSelectEl.value = renderMode;
   updateDepthOfFieldControlsUi();
@@ -167,6 +193,7 @@ function updateRenderModeUi() {
 let renderMode = loadRenderModeSetting();
 let depthOfFieldSettings = loadDepthOfFieldSettings();
 let hybridStarfieldEnabled = loadHybridStarfieldEnabledSetting();
+let performanceMonitorEnabled = loadPerformanceMonitorEnabledSetting();
 const depthOfFieldControls = Object.freeze({
   focus: Object.freeze({ input: depthOfFieldFocusInputEl, value: depthOfFieldFocusValueEl }),
   aperture: Object.freeze({ input: depthOfFieldApertureInputEl, value: depthOfFieldApertureValueEl }),
@@ -210,6 +237,18 @@ const backgroundController = createBackgroundController({
   coarsePointer: window.matchMedia?.("(pointer: coarse)")?.matches ?? false
 });
 backgroundController.setEnabled(hybridStarfieldEnabled);
+const performanceMonitor = createPerformanceMonitor({
+  container: performanceMonitorEl,
+  graphCanvas: performanceMonitorGraphEl,
+  currentFpsEl: performanceMonitorCurrentFpsEl,
+  smoothedFpsEl: performanceMonitorSmoothedFpsEl,
+  frameTimeEl: performanceMonitorFrameTimeEl,
+  averageFrameTimeEl: performanceMonitorAverageFrameTimeEl,
+  drawCallsEl: performanceMonitorDrawCallsEl,
+  trianglesEl: performanceMonitorTrianglesEl,
+  pointsEl: performanceMonitorPointsEl
+});
+performanceMonitor.setEnabled(performanceMonitorEnabled);
 const litMoonLighting = createLitMoonLighting(scene);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
 camera.position.set(0, 0, 3.15);
@@ -955,6 +994,7 @@ function resize() {
     viewportWidth: width,
     coarsePointer: window.matchMedia?.("(pointer: coarse)")?.matches ?? false
   });
+  performanceMonitor.resize();
   controls.handleResize?.();
   updateHoverFromPointer();
 }
@@ -981,6 +1021,7 @@ function animate() {
   } else {
     rendering.render(scene, camera);
   }
+  performanceMonitor.update(now, renderer);
 }
 
 function disposeTexture(texture) {
@@ -1725,6 +1766,7 @@ updateAutoTumbleToggleUi();
 updateCatLinksToggleUi();
 updateEarlyRescueZoneToggleUi();
 updateHybridStarfieldToggleUi();
+updatePerformanceMonitorToggleUi();
 updateRenderModeUi();
 walletLookupHistory = loadWalletLookupHistory();
 updateWalletLookupHistoryUi();
@@ -1785,6 +1827,14 @@ hybridStarfieldToggleEl.addEventListener("change", () => {
   saveHybridStarfieldEnabledSetting(hybridStarfieldEnabled);
   backgroundController.setEnabled(hybridStarfieldEnabled);
   updateHybridStarfieldToggleUi();
+});
+
+performanceMonitorToggleEl.addEventListener("change", () => {
+  performanceMonitorEnabled = performanceMonitorToggleEl.checked;
+  savePerformanceMonitorEnabledSetting(performanceMonitorEnabled);
+  performanceMonitor.setEnabled(performanceMonitorEnabled);
+  performanceMonitor.resize();
+  updatePerformanceMonitorToggleUi();
 });
 
 renderModeSelectEl.addEventListener("change", () => {
