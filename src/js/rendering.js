@@ -22,8 +22,9 @@ export const AFTERIMAGE_MIX_PASS_ORDER = Object.freeze([
 export const AFTERIMAGE_DEFAULTS = Object.freeze({
   persistence: 0.9,
   intensity: 0.2,
-  mix: 0.75
+  mix: 0.1
 });
+export const AFTERIMAGE_MIX_TRAIL_INTENSITY = 1;
 export const AFTERIMAGE_MIX_SHADER = {
   name: "AfterimageMixShader",
   uniforms: {
@@ -298,7 +299,7 @@ export function createMixedAfterimageEffects(renderer, scene, camera) {
   const cleanFramePass = new SavePass();
   const afterimagePass = new AlphaPreservingAfterimagePass(
     AFTERIMAGE_DEFAULTS.persistence,
-    AFTERIMAGE_DEFAULTS.intensity
+    AFTERIMAGE_MIX_TRAIL_INTENSITY
   );
   const mixPass = new ShaderPass(AFTERIMAGE_MIX_SHADER);
   const outputPass = new OutputPass();

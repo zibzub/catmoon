@@ -7,6 +7,7 @@ import {
   AFTERIMAGE_INTENSITY_SHADER,
   AFTERIMAGE_DEFAULTS,
   AFTERIMAGE_MIX_PASS_ORDER,
+  AFTERIMAGE_MIX_TRAIL_INTENSITY,
   AFTERIMAGE_MIX_SHADER,
   AFTERIMAGE_PASS_ORDER,
   createTextureManager,
@@ -71,13 +72,19 @@ test("Afterimage defaults separate persistence, intensity, and final mix", () =>
   assert.deepEqual(AFTERIMAGE_DEFAULTS, {
     persistence: 0.9,
     intensity: 0.2,
-    mix: 0.05
+    mix: 0.75
   });
   assert.deepEqual(AFTERIMAGE_PASS_ORDER, [
     "RenderPass",
     "AfterimagePass",
     "OutputPass"
   ]);
+});
+
+test("full Afterimage keeps configured intensity while Mixed Afterimage uses full trail strength", () => {
+  assert.equal(AFTERIMAGE_INTENSITY_SHADER.uniforms.intensity.value, AFTERIMAGE_DEFAULTS.intensity);
+  assert.equal(AFTERIMAGE_MIX_TRAIL_INTENSITY, 1);
+  assert.notEqual(AFTERIMAGE_MIX_TRAIL_INTENSITY, AFTERIMAGE_DEFAULTS.intensity);
 });
 
 test("Afterimage separates RGB persistence and intensity while preserving current-frame alpha", () => {
