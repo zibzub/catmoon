@@ -92,9 +92,7 @@ const {
   hudLockButton,
   hudHelpButton,
   hudHelpPanel,
-  hoverPreviewToggleEl,
   autoTumbleToggleEl,
-  catLinksToggleEl,
   earlyRescueZoneToggleEl,
   hybridStarfieldToggleEl,
   performanceMonitorToggleEl,
@@ -148,9 +146,7 @@ const {
   loadingProgressEl
 } = getDomRefs();
 
-const HOVER_PREVIEW_STORAGE_KEY = "catmoon.hoverPreviewImages";
 const AUTO_TUMBLE_STORAGE_KEY = "catmoon.autoTumble";
-const CAT_LINKS_STORAGE_KEY = "catmoon.catLinks";
 const EARLY_RESCUE_ZONE_STORAGE_KEY = "catmoon.earlyRescueZone";
 const HYBRID_STARFIELD_ENABLED_STORAGE_KEY = "catmoon.hybridStarfieldEnabled.v1";
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
@@ -309,9 +305,7 @@ let transientHoverSuppressedUntil = 0;
 let pointerInside = false;
 let lastClientX = 0;
 let lastClientY = 0;
-let hoverPreviewImagesEnabled = loadHoverPreviewImageSetting();
 let autoTumbleEnabled = loadAutoTumbleSetting();
-let catLinksEnabled = loadCatLinksSetting();
 let earlyRescueZoneEnabled = loadEarlyRescueZoneSetting();
 let pinnedCatId = null;
 let pinnedTooltipAnchorX = 0;
@@ -425,8 +419,7 @@ const {
   detailPreviewEl: catDetailsPreviewEl,
   getHoveredId: () => hoveredId,
   getPinnedId: () => pinnedCatId,
-  getDetailId: () => catDetailsDialogId,
-  isTooltipPreviewEnabled: () => hoverPreviewImagesEnabled
+  getDetailId: () => catDetailsDialogId
 });
 const moonCatDetailsLoader = createMoonCatDetailsLoader();
 
@@ -524,33 +517,6 @@ function collapseHudAfterMobileRescueLookup() {
   updateHudLockState();
 }
 
-function loadHoverPreviewImageSetting() {
-  try {
-    return window.localStorage.getItem(HOVER_PREVIEW_STORAGE_KEY) !== "off";
-  } catch (error) {
-    return true;
-  }
-}
-
-function saveHoverPreviewImageSetting(enabled) {
-  try {
-    window.localStorage.setItem(HOVER_PREVIEW_STORAGE_KEY, enabled ? "on" : "off");
-  } catch (error) {
-    // The setting still persists for this page session through in-memory state.
-  }
-}
-
-function updateHoverPreviewToggleUi() {
-  hoverPreviewToggleEl.checked = hoverPreviewImagesEnabled;
-  tooltipEl.classList.toggle("image-off", !hoverPreviewImagesEnabled);
-  pinnedTooltipEl.classList.toggle("image-off", !hoverPreviewImagesEnabled);
-  updateCatLinksToggleUi();
-  if (!hoverPreviewImagesEnabled) {
-    updateTooltipPreview(null);
-    updatePinnedTooltipPreview(null);
-  }
-}
-
 function loadAutoTumbleSetting() {
   try {
     return window.localStorage.getItem(AUTO_TUMBLE_STORAGE_KEY) !== "off";
@@ -571,25 +537,8 @@ function updateAutoTumbleToggleUi() {
   autoTumbleToggleEl.checked = autoTumbleEnabled;
 }
 
-function loadCatLinksSetting() {
-  try {
-    return window.localStorage.getItem(CAT_LINKS_STORAGE_KEY) !== "off";
-  } catch (error) {
-    return true;
-  }
-}
-
-function saveCatLinksSetting(enabled) {
-  try {
-    window.localStorage.setItem(CAT_LINKS_STORAGE_KEY, enabled ? "on" : "off");
-  } catch (error) {
-    // The setting still persists for this page session through in-memory state.
-  }
-}
-
-function updateCatLinksToggleUi() {
-  catLinksToggleEl.checked = catLinksEnabled;
-  const detailsEnabled = catLinksEnabled && hoverPreviewImagesEnabled && pinnedCatId !== null;
+function updateCatDetailsUi() {
+  const detailsEnabled = pinnedCatId !== null;
   pinnedTooltipEl.classList.toggle("details-enabled", detailsEnabled);
   pinnedTooltipPreviewEl.tabIndex = detailsEnabled ? 0 : -1;
   pinnedTooltipPreviewEl.setAttribute("aria-disabled", detailsEnabled ? "false" : "true");
@@ -844,7 +793,7 @@ function hidePinnedTooltip() {
   updatePinnedTooltipPreview(null);
   pinnedTooltipEl.style.display = "none";
   pinnedTooltipEl.setAttribute("aria-hidden", "true");
-  updateCatLinksToggleUi();
+  updateCatDetailsUi();
 }
 
 function showPinnedTooltip(id, clientX, clientY, localPoint) {
@@ -858,7 +807,7 @@ function showPinnedTooltip(id, clientX, clientY, localPoint) {
   updateTooltipLabel(pinnedTooltipLabelEl, id);
   positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
   ensureMoonCatNamesLoaded(id);
-  updateCatLinksToggleUi();
+  updateCatDetailsUi();
 }
 
 const CAT_DETAIL_LABELS = Object.freeze({
@@ -929,7 +878,7 @@ function loadCatDetailsForDialog(id) {
 }
 
 function openCatDetailsDialog() {
-  if (!catLinksEnabled || !hoverPreviewImagesEnabled || pinnedCatId === null) return;
+  if (pinnedCatId === null) return;
 
   const id = pinnedCatId;
   catDetailsDialogId = id;
@@ -1961,9 +1910,7 @@ hudLockButton.addEventListener("click", (event) => {
 });
 updateHudLockState();
 updateHudHelpState();
-updateHoverPreviewToggleUi();
 updateAutoTumbleToggleUi();
-updateCatLinksToggleUi();
 updateEarlyRescueZoneToggleUi();
 updateHybridStarfieldToggleUi();
 updatePerformanceMonitorToggleUi();
@@ -1987,18 +1934,6 @@ catFilterEl.addEventListener("change", () => {
   setActiveFilter(catFilterEl.value, { focus: catFilterEl.value !== "all" });
 });
 
-hoverPreviewToggleEl.addEventListener("change", () => {
-  hoverPreviewImagesEnabled = hoverPreviewToggleEl.checked;
-  saveHoverPreviewImageSetting(hoverPreviewImagesEnabled);
-  updateHoverPreviewToggleUi();
-  setHoveredId(hoveredId);
-  if (pinnedCatId !== null) {
-    updatePinnedTooltipPreview(pinnedCatId);
-    ensurePinnedTooltipPreviewAtlasLoaded();
-    positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
-  }
-});
-
 autoTumbleToggleEl.addEventListener("change", () => {
   autoTumbleEnabled = autoTumbleToggleEl.checked;
   saveAutoTumbleSetting(autoTumbleEnabled);
@@ -2008,12 +1943,6 @@ autoTumbleToggleEl.addEventListener("change", () => {
   } else {
     pauseAutoRotate();
   }
-});
-
-catLinksToggleEl.addEventListener("change", () => {
-  catLinksEnabled = catLinksToggleEl.checked;
-  saveCatLinksSetting(catLinksEnabled);
-  updateCatLinksToggleUi();
 });
 
 earlyRescueZoneToggleEl.addEventListener("change", () => {
@@ -2105,7 +2034,7 @@ catDetailsDialogEl.addEventListener("click", (event) => {
 catDetailsDialogEl.addEventListener("close", () => {
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
-  if (pinnedCatId !== null && !pinnedTooltipEl.classList.contains("image-off")) {
+  if (pinnedCatId !== null) {
     pinnedTooltipPreviewEl.focus();
   }
 });

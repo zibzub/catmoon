@@ -37,8 +37,6 @@ The lock button expands or collapses the settings panel.
 - The `?` button in the top-right opens a compact help panel with controls and project links.
 - Available toggles:
   - **Auto tumble**: turn automatic rotation on or off.
-  - **Hover preview**: show or hide preview images in hover/pinned cards.
-  - **Cat details**: allow the pinned cat image to open its expanded details panel.
   - **Early rescue zone**: show or hide a rough face-level guide for the earliest rescue-order area.
 
 Toggle preferences are stored locally in your browser. The help panel open/closed state is temporary for the current page session.
@@ -57,7 +55,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-When **Cat details** is enabled, clicking the image in a pinned card opens an expanded panel with a larger atlas preview, rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
+Clicking the image in a pinned card opens an expanded panel with a larger atlas preview, rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
 
 ## Filters
 
@@ -388,9 +386,7 @@ The app stores lightweight preferences in browser `localStorage`, including:
 
 ```text
 catmoon.walletLookupHistory
-catmoon.hoverPreviewImages
 catmoon.autoTumble
-catmoon.catLinks
 catmoon.earlyRescueZone
 ```
 

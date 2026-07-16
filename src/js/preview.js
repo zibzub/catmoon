@@ -30,15 +30,14 @@ export function createPreviewManager({
   detailPreviewEl,
   getHoveredId,
   getPinnedId,
-  getDetailId,
-  isTooltipPreviewEnabled
+  getDetailId
 }) {
   let allCatsAtlasImage = null;
   let allCatsAtlasPromise = null;
 
   function updateCardPreview(previewEl, id) {
     if (!previewEl) return;
-    if (!isTooltipPreviewEnabled() || !allCatsAtlasImage) {
+    if (!allCatsAtlasImage) {
       clearPreviewElement(previewEl);
       return;
     }
@@ -107,7 +106,7 @@ export function createPreviewManager({
   }
 
   function ensureTooltipPreviewAtlasLoaded() {
-    if (!isTooltipPreviewEnabled() || getHoveredId() === null || allCatsAtlasImage) return;
+    if (getHoveredId() === null || allCatsAtlasImage) return;
 
     loadAllCatsAtlas().catch((error) => {
       console.warn("Could not load CatMoon hover preview atlas.", error);
@@ -115,7 +114,7 @@ export function createPreviewManager({
   }
 
   function ensurePinnedTooltipPreviewAtlasLoaded() {
-    if (!isTooltipPreviewEnabled() || getPinnedId() === null || allCatsAtlasImage) return;
+    if (getPinnedId() === null || allCatsAtlasImage) return;
 
     loadAllCatsAtlas().catch((error) => {
       console.warn("Could not load CatMoon pinned preview atlas.", error);
