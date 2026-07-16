@@ -5,11 +5,13 @@ import { readdir, readFile } from "node:fs/promises";
 import {
   MOONCAT_DETAIL_FIELDS,
   createMoonCatDetailsLoader,
+  getCatClickAction,
   moonCatDetailLinks,
   moonCatDetailLocation,
   validateMoonCatDetail,
   validateMoonCatDetailShard
 } from "../src/js/cat-details.js";
+import { createPointerActivationTracker } from "../src/js/controls.js";
 import { MAX_ID, RHOMBUS_CAT_COUNT, TRI_FACE_COUNT } from "../src/js/config.js";
 
 function makeDetail(rescueOrder) {
@@ -54,6 +56,27 @@ test("detail links use the selected rescue order", () => {
     chainStation: "https://mooncatrescue.com/mooncats/42",
     openSea: "https://opensea.io/item/ethereum/0xc3f733ca98e0dad0386979eb96fb1722a1a05e69/42"
   });
+});
+
+test("scene-cat click decisions pin, open, repin, and clear without HUD state", () => {
+  assert.equal(getCatClickAction(null, 42), "pin");
+  assert.equal(getCatClickAction(42, 42), "open");
+  assert.equal(getCatClickAction(42, 43), "pin");
+  assert.equal(getCatClickAction(42, null), "clear");
+  assert.equal(getCatClickAction(null, null), "none");
+});
+
+test("pointer activation preserves ordinary repeated mouse and touch clicks through capture", () => {
+  const tracker = createPointerActivationTracker();
+  tracker.start({ pointerId: 1, pointerType: "mouse", clientX: 100, clientY: 200 });
+  assert.deepEqual(tracker.consume({ pointerId: 1, pointerType: "mouse", clientX: 103, clientY: 204 }), { clientX: 103, clientY: 204 });
+
+  tracker.start({ pointerId: 2, pointerType: "touch", clientX: 80, clientY: 90 });
+  assert.deepEqual(tracker.consume({ pointerId: 2, pointerType: "touch", clientX: 80, clientY: 90 }), { clientX: 80, clientY: 90 });
+
+  tracker.start({ pointerId: 3, pointerType: "mouse", clientX: 0, clientY: 0 });
+  assert.equal(tracker.consume({ pointerId: 3, pointerType: "mouse", clientX: 7, clientY: 0 }), null);
+  assert.equal(tracker.consume({ pointerId: 3, pointerType: "mouse", clientX: 0, clientY: 0 }), null);
 });
 
 test("detail response validation rejects incomplete and mismatched records", () => {

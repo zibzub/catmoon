@@ -15,6 +15,12 @@ export const MOONCAT_DETAIL_FIELDS = Object.freeze([
 
 export const OPENSEA_ACCLIMATED_CONTRACT = "0xc3f733ca98e0dad0386979eb96fb1722a1a05e69";
 
+export function getCatClickAction(pinnedCatId, clickedCatId) {
+  if (clickedCatId === null) return pinnedCatId === null ? "none" : "clear";
+  if (pinnedCatId === clickedCatId) return "open";
+  return "pin";
+}
+
 function isValidRescueOrder(rescueOrder) {
   return Number.isInteger(rescueOrder) && rescueOrder >= 0 && rescueOrder <= MAX_ID;
 }

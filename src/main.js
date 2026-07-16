@@ -47,7 +47,8 @@ import {
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
-import { createMoonCatDetailsLoader, moonCatDetailLinks } from "./js/cat-details.js";
+import { createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks } from "./js/cat-details.js";
+import { downloadDetailCardPng } from "./js/cat-details-export.js";
 import {
   applyCatDetailsTheme,
   loadCatDetailsTheme
@@ -140,6 +141,7 @@ const {
   catDetailsCardEl,
   catDetailsCloseEl,
   catDetailsTitleEl,
+  catDetailsImageWindowEl,
   catDetailsPreviewEl,
   catDetailsAttributeStripEl,
   catDetailsStatusEl,
@@ -147,6 +149,12 @@ const {
   catDetailsRetryEl,
   catDetailsChainStationEl,
   catDetailsOpenSeaEl,
+  catDetailsActionsEl,
+  catDetailsActionsPanelEl,
+  catDetailsActionsChainStationEl,
+  catDetailsActionsOpenSeaEl,
+  catDetailsActionsSaveEl,
+  catDetailsActionsStatusEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
@@ -329,6 +337,8 @@ let moonCatNamesPromise = null;
 let moonCatNamesLoadFailed = false;
 let catDetailsDialogId = null;
 let catDetailsRequestToken = 0;
+let catDetailsDialogDetail = null;
+let catDetailsActionsOpen = false;
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -852,6 +862,29 @@ function setCatDetailsStatus(message, isError = false) {
   catDetailsStatusEl.classList.toggle("error", isError);
 }
 
+function setCatDetailsActionsStatus(message, isError = false) {
+  catDetailsActionsStatusEl.textContent = message;
+  catDetailsActionsStatusEl.classList.toggle("error", isError);
+}
+
+function closeCatDetailsActions({ restoreFocus = true } = {}) {
+  if (!catDetailsActionsOpen) return;
+  catDetailsActionsOpen = false;
+  catDetailsActionsEl.hidden = true;
+  catDetailsImageWindowEl.setAttribute("aria-expanded", "false");
+  setCatDetailsActionsStatus("");
+  if (restoreFocus && catDetailsDialogEl.open) catDetailsImageWindowEl.focus();
+}
+
+function openCatDetailsActions() {
+  if (!catDetailsDialogEl.open) return;
+  catDetailsActionsOpen = true;
+  catDetailsActionsEl.hidden = false;
+  catDetailsImageWindowEl.setAttribute("aria-expanded", "true");
+  setCatDetailsActionsStatus("");
+  window.requestAnimationFrame(() => catDetailsActionsChainStationEl.focus());
+}
+
 function clearCatDetailsCardPresentation() {
   catDetailsAttributeStripEl.replaceChildren();
   catDetailsAttributeStripEl.hidden = true;
@@ -901,7 +934,7 @@ function renderCatDetails(detail) {
     const term = document.createElement("dt");
     term.textContent = CAT_DETAIL_LABELS[field];
     const definition = document.createElement("dd");
-    definition.textContent = field === "pale" ? (detail.pale ? "Pale" : "Normal") : `${detail[field]}`;
+    definition.textContent = field === "pale" ? (detail.pale ? "pale" : "normal") : `${detail[field]}`;
     if (field === "catId") definition.className = "catDetailsCatId";
     catDetailsTraitsEl.append(term, definition);
   }
@@ -910,6 +943,7 @@ function renderCatDetails(detail) {
 function loadCatDetailsForDialog(id) {
   const requestToken = catDetailsRequestToken + 1;
   catDetailsRequestToken = requestToken;
+  catDetailsDialogDetail = null;
   catDetailsTraitsEl.replaceChildren();
   clearCatDetailsCardPresentation();
   catDetailsRetryEl.hidden = true;
@@ -917,6 +951,7 @@ function loadCatDetailsForDialog(id) {
 
   moonCatDetailsLoader.load(id).then((detail) => {
     if (!catDetailsDialogEl.open || catDetailsDialogId !== id || pinnedCatId !== id || requestToken !== catDetailsRequestToken) return;
+    catDetailsDialogDetail = detail;
     renderCatDetails(detail);
     setCatDetailsStatus("");
   }).catch((error) => {
@@ -936,6 +971,8 @@ function openCatDetailsDialog() {
   const links = moonCatDetailLinks(id);
   catDetailsChainStationEl.href = links.chainStation;
   catDetailsOpenSeaEl.href = links.openSea;
+  catDetailsActionsChainStationEl.href = links.chainStation;
+  catDetailsActionsOpenSeaEl.href = links.openSea;
   updateDetailPreview(id);
   loadAllCatsAtlas().then(() => {
     if (catDetailsDialogEl.open && catDetailsDialogId === id) updateDetailPreview(id);
@@ -949,8 +986,10 @@ function openCatDetailsDialog() {
 }
 
 function closeCatDetailsDialog() {
+  closeCatDetailsActions({ restoreFocus: false });
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
+  catDetailsDialogDetail = null;
   if (catDetailsDialogEl.open) catDetailsDialogEl.close();
 }
 
@@ -961,12 +1000,16 @@ function togglePinnedCatFromClient(clientX, clientY) {
   lastClientY = clientY;
   updatePointerFromClient(clientX, clientY);
   const catHit = getCatHitFromPointer();
-  if (!catHit) return;
-
-  if (pinnedCatId === catHit.id) {
+  const action = getCatClickAction(pinnedCatId, catHit?.id ?? null);
+  if (action === "open") {
+    openCatDetailsDialog();
+    return;
+  }
+  if (action === "clear") {
     hidePinnedTooltip();
     return;
   }
+  if (action === "none" || !catHit) return;
 
   showPinnedTooltip(catHit.id, clientX, clientY, catHit.localPoint);
 }
@@ -2077,13 +2120,70 @@ catDetailsRetryEl.addEventListener("click", () => {
   if (catDetailsDialogId !== null) loadCatDetailsForDialog(catDetailsDialogId);
 });
 
+catDetailsImageWindowEl.addEventListener("click", () => {
+  openCatDetailsActions();
+});
+
+catDetailsImageWindowEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  openCatDetailsActions();
+});
+
+catDetailsActionsEl.addEventListener("click", (event) => {
+  if (event.target === catDetailsActionsEl) closeCatDetailsActions();
+});
+
+catDetailsActionsPanelEl.addEventListener("click", (event) => {
+  event.stopPropagation();
+});
+
+for (const actionLinkEl of [catDetailsActionsChainStationEl, catDetailsActionsOpenSeaEl]) {
+  actionLinkEl.addEventListener("click", () => {
+    closeCatDetailsActions();
+  });
+}
+
+catDetailsActionsSaveEl.addEventListener("click", async () => {
+  if (!catDetailsDialogDetail || catDetailsDialogId === null) {
+    setCatDetailsActionsStatus("Details are still loading.", true);
+    return;
+  }
+
+  catDetailsActionsSaveEl.disabled = true;
+  setCatDetailsActionsStatus("Rendering PNG…");
+  try {
+    await downloadDetailCardPng({
+      detail: catDetailsDialogDetail,
+      title: catDetailsTitleEl.textContent,
+      coatColor: getComputedStyle(catDetailsCardEl).getPropertyValue("--cat-details-coat").trim()
+    });
+    setCatDetailsActionsStatus("Card saved.");
+  } catch (error) {
+    console.warn("Could not save the MoonCat detail card.", error);
+    setCatDetailsActionsStatus("Could not save the card.", true);
+  } finally {
+    catDetailsActionsSaveEl.disabled = false;
+  }
+});
+
 catDetailsDialogEl.addEventListener("click", (event) => {
   if (event.target === catDetailsDialogEl) closeCatDetailsDialog();
 });
 
+catDetailsDialogEl.addEventListener("cancel", (event) => {
+  if (!catDetailsActionsOpen) return;
+  event.preventDefault();
+  closeCatDetailsActions();
+});
+
 catDetailsDialogEl.addEventListener("close", () => {
+  catDetailsActionsOpen = false;
+  catDetailsActionsEl.hidden = true;
+  catDetailsImageWindowEl.setAttribute("aria-expanded", "false");
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
+  catDetailsDialogDetail = null;
   if (pinnedCatId !== null) {
     pinnedTooltipPreviewEl.focus();
   }

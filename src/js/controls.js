@@ -10,6 +10,39 @@ import {
   TRI_MIN_DISTANCE
 } from "./config.js";
 
+export function createPointerActivationTracker(moveLimit = CLICK_MOVE_LIMIT) {
+  const downPoints = new Map();
+
+  return {
+    start(event) {
+      downPoints.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        pointerType: event.pointerType
+      });
+    },
+
+    consume(event) {
+      const downPoint = downPoints.get(event.pointerId);
+      downPoints.delete(event.pointerId);
+      if (!downPoint || downPoint.pointerType !== event.pointerType) return null;
+
+      const moved = Math.hypot(event.clientX - downPoint.x, event.clientY - downPoint.y);
+      return moved <= moveLimit
+        ? { clientX: event.clientX, clientY: event.clientY }
+        : null;
+    },
+
+    cancel(pointerId) {
+      downPoints.delete(pointerId);
+    },
+
+    clear() {
+      downPoints.clear();
+    }
+  };
+}
+
 export function setupCatMoonControls({
   renderer,
   controls,
@@ -29,7 +62,7 @@ export function setupCatMoonControls({
   let twoFingerLastAngle = null;
   let touchGestureWasTwoFinger = false;
   let rollDrag = null;
-  let downPoint = null;
+  const activationTracker = createPointerActivationTracker();
 
   function canRollActiveObject() {
     return Boolean(getActiveObject());
@@ -81,6 +114,14 @@ export function setupCatMoonControls({
     }
   }
 
+  function captureRendererPointer(pointerId) {
+    try {
+      renderer.domElement.setPointerCapture?.(pointerId);
+    } catch (error) {
+      // Pointer capture is unavailable for some synthetic or interrupted input.
+    }
+  }
+
   function endRollDrag(event) {
     if (!rollDrag) return;
 
@@ -94,7 +135,7 @@ export function setupCatMoonControls({
     } else {
       releaseRendererPointerCapture(pointerId);
     }
-    downPoint = null;
+    activationTracker.cancel(pointerId);
     scheduleAutoRotateResume();
   }
 
@@ -168,6 +209,8 @@ export function setupCatMoonControls({
       y: event.clientY,
       pointerType: event.pointerType
     });
+    activationTracker.start(event);
+    captureRendererPointer(event.pointerId);
 
     updateRotateSpeedForPointer(event.pointerType);
 
@@ -180,10 +223,6 @@ export function setupCatMoonControls({
       beginRollDrag(event);
     }
 
-    downPoint = {
-      x: event.clientX,
-      y: event.clientY
-    };
   }, { capture: true });
 
   renderer.domElement.addEventListener("pointerup", (event) => {
@@ -192,25 +231,23 @@ export function setupCatMoonControls({
     updateRotateSpeedForPointer(event.pointerType);
 
     if (touchGestureWasTwoFinger && event.pointerType === "touch") {
+      activationTracker.cancel(event.pointerId);
+      releaseRendererPointerCapture(event.pointerId);
       if (activePointers.size < 2) {
         touchGestureWasTwoFinger = false;
       }
-      downPoint = null;
       suppressTransientHover(touchHoverCooldownMs);
       scheduleAutoRotateResume();
       return;
     }
 
     if (rollDrag && rollDrag.pointerId === event.pointerId) {
+      activationTracker.cancel(event.pointerId);
       endRollDrag(event);
       return;
     }
 
-    if (!downPoint) return;
-
-    const dx = event.clientX - downPoint.x;
-    const dy = event.clientY - downPoint.y;
-    const moved = Math.hypot(dx, dy);
+    const activation = activationTracker.consume(event);
 
     if (event.pointerType === "touch") {
       suppressTransientHover(touchHoverCooldownMs);
@@ -218,11 +255,11 @@ export function setupCatMoonControls({
       updateHoverFromClient(event.clientX, event.clientY);
     }
 
-    if (moved <= CLICK_MOVE_LIMIT) {
-      activateCatAtClient(event.clientX, event.clientY);
+    if (activation) {
+      activateCatAtClient(activation.clientX, activation.clientY);
     }
 
-    downPoint = null;
+    releaseRendererPointerCapture(event.pointerId);
     scheduleAutoRotateResume();
   }, { capture: true });
 
@@ -235,10 +272,12 @@ export function setupCatMoonControls({
       suppressTransientHover(touchHoverCooldownMs);
     }
     if (rollDrag && rollDrag.pointerId === event.pointerId) {
+      activationTracker.cancel(event.pointerId);
       endRollDrag(event);
       return;
     }
-    downPoint = null;
+    activationTracker.cancel(event.pointerId);
+    releaseRendererPointerCapture(event.pointerId);
     scheduleAutoRotateResume();
   }, { capture: true });
 
@@ -246,6 +285,7 @@ export function setupCatMoonControls({
     if (rollDrag) {
       endRollDrag();
     }
+    activationTracker.clear();
     controls.rotateSpeed = DESKTOP_ROTATE_SPEED;
   });
 

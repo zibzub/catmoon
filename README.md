@@ -49,13 +49,13 @@ On touch screens, transient hover cards are suppressed during gestures so they d
 
 Clicking or pressing a cat pins its detail card on screen:
 
-- Click or press the same cat again to hide the pinned card.
-- Click or press a different cat to replace the pinned card.
+- A second ordinary click or press on the same pinned cat opens its expanded detail card, regardless of HUD lock state; the renderer retains each pointer through release so mouse and touch use the same path.
+- Click or press a different cat to replace the pinned card, or click/tap empty space to clear it.
 - While a card is pinned, hover cards for other cats are hidden to avoid overlap.
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-Clicking the image in a pinned card opens an expanded, theme-ready collectible card. **Template Frame** is currently the default, using the local transparent frame with the MoonCat image and detail regions mapped into its windows; its in-card footer is intentionally blank for now. **Modern** (`rare-card`) and **Classic Pepe** remain valid stored themes internally, but theme selection is temporarily not exposed in the card UI. All themes include the larger atlas preview, a compact rescue/year-hue-pattern strip, and remaining rescue traits; the stored Modern and Classic Pepe themes retain their explicit [ChainStation](https://mooncatrescue.com) and OpenSea links. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
+Clicking the image in a pinned card opens an expanded, theme-ready collectible card over an opaque dark-gray modal backdrop. **Template Frame** is currently the default, using the local transparent frame with the MoonCat image and detail regions mapped into its windows; its in-card footer is intentionally blank for now. Clicking or keyboard-activating the MoonCat image in the expanded card opens actions for ChainStation, OpenSea, and a PNG **Save Card** export. The export is a geometry-matched 600×840 desktop-card PNG, preserving the frame's transparent outer corners. **Modern** (`rare-card`) and **Classic Pepe** remain valid stored themes internally, but theme selection is temporarily not exposed in the card UI. All themes include the larger atlas preview, a compact rescue/year-hue-pattern strip, and remaining rescue traits; the stored Modern and Classic Pepe themes retain their explicit [ChainStation](https://mooncatrescue.com) and OpenSea links. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
 
 ## Filters
 

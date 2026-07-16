@@ -815,11 +815,11 @@ body {
 }
 
 #catDetailsDialog::backdrop {
-  background: rgba(2, 2, 5, 0.76);
+  background: rgba(40, 40, 45, 0.9);
 }
 
 #catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]) {
-  width: min(624px, calc(100vw - 24px));
+  width: min(654px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   overflow: auto;
 }
@@ -1267,11 +1267,18 @@ body {
   right: 8.5%;
   left: 8.5%;
   display: grid;
-  height: 45%;
+  height: 43.5%;
   padding: 0;
   border: 0;
   box-shadow: none;
   background: #000;
+  cursor: pointer;
+}
+
+#catDetailsCard[data-theme="template-card"] #catDetailsImageWindow:focus-visible {
+  z-index: 4;
+  outline: 3px solid hotpink;
+  outline-offset: -3px;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsPreviewFrame {
@@ -1372,6 +1379,82 @@ body {
   display: none;
 }
 
+#catDetailsActions[hidden] {
+  display: none;
+}
+
+#catDetailsActions {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 12% 43.5% 1fr;
+  padding: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+#catDetailsActionsPanel {
+  display: grid;
+  grid-row: 2;
+  width: min(272px, calc(100% - 36px));
+  align-self: center;
+  justify-self: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+#catDetailsActionsPanel a,
+#catDetailsActionsPanel button {
+  display: grid;
+  min-height: 40px;
+  place-items: center;
+  padding: 7px 18px;
+  border: 3px solid hotpink;
+  border-radius: 999px;
+  background: rgba(9, 9, 14, 0.90);
+  color: rgba(255, 247, 252, 0.94);
+  font-family: "Pixel Operator Bold", "Pixel Operator", monospace;
+  font-size: 23px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+#catDetailsActionsPanel a:hover,
+#catDetailsActionsPanel a:focus-visible,
+#catDetailsActionsPanel button:hover,
+#catDetailsActionsPanel button:focus-visible {
+  border-color: hotpink;
+  background: rgba(34, 17, 31, 0.9);
+  box-shadow: 0 0 12px rgba(255, 105, 180, 0.9);
+  outline: 2px solid hotpink;
+  outline-offset: 2px;
+}
+
+#catDetailsActionsPanel button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+#catDetailsActionsStatus {
+  min-height: 1.2em;
+  color: rgba(255, 225, 243, 0.9);
+  font-family: "Pixel Operator", monospace;
+  font-size: 15px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+#catDetailsActionsStatus.error {
+  color: hotpink;
+}
+
 #catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus,
 #catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus-visible,
 #catDetailsCard[data-theme="template-card"]:focus,
@@ -1415,7 +1498,7 @@ body {
   }
 
   #catDetailsCard[data-theme="template-card"] {
-    width: 100%;
+    width: calc(100% - 16px);
   }
 
   #catDetailsCard[data-theme="template-card"] #catDetailsPreviewFrame {
@@ -1436,6 +1519,22 @@ body {
     font-size: clamp(14px, 4vw, 16px);
     line-height: 1;
     transform: translateY(-10px);
+  }
+
+  #catDetailsActions {
+    grid-template-rows: 12% 43.5% 1fr;
+  }
+
+  #catDetailsActionsPanel {
+    width: min(236px, calc(100% - 28px));
+    gap: 8px;
+  }
+
+  #catDetailsActionsPanel a,
+  #catDetailsActionsPanel button {
+    min-height: 34px;
+    padding: 6px 14px;
+    font-size: 13px;
   }
 }
 

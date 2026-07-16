@@ -164,7 +164,7 @@
           <h2 id="catDetailsTitle">MoonCat</h2>
           <button id="catDetailsClose" type="button" aria-label="Close MoonCat details">×</button>
         </header>
-        <div id="catDetailsImageWindow">
+        <div id="catDetailsImageWindow" role="button" tabindex="0" aria-label="Open MoonCat card actions" aria-haspopup="dialog" aria-expanded="false">
           <div id="catDetailsPreviewFrame">
             <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
           </div>
@@ -188,6 +188,14 @@
           </div>
           <p id="catDetailsOpenSeaNote">OpenSea applies to acclimated MoonCats and may not resolve every cat.</p>
         </footer>
+        <div id="catDetailsActions" hidden>
+          <div id="catDetailsActionsPanel" role="dialog" aria-modal="true" aria-label="MoonCat card actions">
+            <a id="catDetailsActionsChainStation" target="_blank" rel="noopener noreferrer">ChainStation</a>
+            <a id="catDetailsActionsOpenSea" target="_blank" rel="noopener noreferrer">OpenSea</a>
+            <button id="catDetailsActionsSave" type="button">Save Card</button>
+            <div id="catDetailsActionsStatus" role="status" aria-live="polite"></div>
+          </div>
+        </div>
       </article>
     </dialog>
     <div id="loadingOverlay">
