@@ -48,6 +48,11 @@ import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
 import { createMoonCatDetailsLoader, moonCatDetailLinks } from "./js/cat-details.js";
+import {
+  applyCatDetailsTheme,
+  loadCatDetailsTheme,
+  saveCatDetailsTheme
+} from "./js/cat-details-theme.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
   createAfterimageEffects,
@@ -143,6 +148,7 @@ const {
   catDetailsRetryEl,
   catDetailsChainStationEl,
   catDetailsOpenSeaEl,
+  catDetailsThemeSelectEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
@@ -157,6 +163,14 @@ const TOUCH_HOVER_COOLDOWN_MS = 300;
 const MOBILE_HUD_MEDIA_QUERY = "(max-width: 520px)";
 const RESCUE_LOOKUP_TARGET_DISTANCE = 1.5;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
+let catDetailsTheme = loadCatDetailsTheme();
+
+function updateCatDetailsThemeUi() {
+  catDetailsTheme = applyCatDetailsTheme(catDetailsCardEl, catDetailsTheme);
+  catDetailsThemeSelectEl.value = catDetailsTheme;
+}
+
+updateCatDetailsThemeUi();
 
 function loadRenderModeSetting() {
   try {
@@ -2052,6 +2066,11 @@ catDetailsCloseEl.addEventListener("click", () => {
 
 catDetailsRetryEl.addEventListener("click", () => {
   if (catDetailsDialogId !== null) loadCatDetailsForDialog(catDetailsDialogId);
+});
+
+catDetailsThemeSelectEl.addEventListener("change", () => {
+  catDetailsTheme = saveCatDetailsTheme(undefined, catDetailsThemeSelectEl.value);
+  updateCatDetailsThemeUi();
 });
 
 catDetailsDialogEl.addEventListener("click", (event) => {
