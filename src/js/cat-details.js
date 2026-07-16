@@ -15,6 +15,15 @@ export const MOONCAT_DETAIL_FIELDS = Object.freeze([
 
 export const OPENSEA_ACCLIMATED_CONTRACT = "0xc3f733ca98e0dad0386979eb96fb1722a1a05e69";
 
+export function classifyGenesisDetail(detail) {
+  const hueName = typeof detail?.hueName === "string"
+    ? detail.hueName.trim().toLowerCase()
+    : "";
+  if (detail?.hueInt === 1000 && hueName === "black") return "black";
+  if (detail?.hueInt === 2000 && hueName === "white") return "white";
+  return null;
+}
+
 export function getCatClickAction(pinnedCatId, clickedCatId) {
   if (clickedCatId === null) return pinnedCatId === null ? "none" : "clear";
   if (pinnedCatId === clickedCatId) return "open";

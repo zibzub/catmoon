@@ -1216,6 +1216,64 @@ body {
   background: var(--cat-details-coat);
 }
 
+#catDetailsCard[data-theme="template-card"][data-genesis="black"]::before {
+  background: linear-gradient(
+    115deg,
+    #111319 0%,
+    #242833 24%,
+    #0d0f14 43%,
+    #687080 50%,
+    #171a22 57%,
+    #0c0e12 82%
+  );
+  background-position: 0% 50%;
+  background-size: 220% 100%;
+  animation: catDetailsBlackGenesisFoil 14s ease-in-out infinite;
+}
+
+#catDetailsCard[data-theme="template-card"][data-genesis="white"]::before {
+  background: linear-gradient(
+    115deg,
+    #e6e1d8 0%,
+    #fffaf0 24%,
+    #dce9ed 45%,
+    #f1dce7 53%,
+    #f2e8ca 62%,
+    #f8f1e6 84%
+  );
+  background-position: 0% 50%;
+  background-size: 220% 100%;
+  animation: catDetailsWhiteGenesisFoil 16s ease-in-out infinite;
+}
+
+@keyframes catDetailsBlackGenesisFoil {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes catDetailsWhiteGenesisFoil {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #catDetailsCard[data-theme="template-card"][data-genesis="black"]::before,
+  #catDetailsCard[data-theme="template-card"][data-genesis="white"]::before {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
 #catDetailsCard[data-theme="template-card"]::after {
   position: absolute;
   z-index: 3;

@@ -47,7 +47,7 @@ import {
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
-import { createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks } from "./js/cat-details.js";
+import { classifyGenesisDetail, createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks } from "./js/cat-details.js";
 import { downloadDetailCardPng } from "./js/cat-details-export.js";
 import { fitSingleLineText } from "./js/cat-details-text-fit.js";
 import {
@@ -914,6 +914,7 @@ function openCatDetailsActions() {
 function clearCatDetailsCardPresentation() {
   catDetailsAttributeStripEl.replaceChildren();
   catDetailsAttributeStripEl.hidden = true;
+  catDetailsCardEl.removeAttribute("data-genesis");
   catDetailsCardEl.style.removeProperty("--cat-details-coat");
   catDetailsCardEl.style.removeProperty("--cat-details-outline");
 }
@@ -934,6 +935,23 @@ function renderCatDetailsAttributeStrip(detail) {
 }
 
 function updateCatDetailsCardCoat(detail) {
+  const genesis = classifyGenesisDetail(detail);
+  catDetailsCardEl.removeAttribute("data-genesis");
+
+  if (genesis === "black") {
+    catDetailsCardEl.dataset.genesis = "black";
+    catDetailsCardEl.style.setProperty("--cat-details-coat", "#17191f");
+    catDetailsCardEl.style.setProperty("--cat-details-outline", "#b9c0cb");
+    return;
+  }
+
+  if (genesis === "white") {
+    catDetailsCardEl.dataset.genesis = "white";
+    catDetailsCardEl.style.setProperty("--cat-details-coat", "#f3eee4");
+    catDetailsCardEl.style.setProperty("--cat-details-outline", "#4a505b");
+    return;
+  }
+
   const sourceHue = ((detail.hueInt % 360) + 360) % 360;
   const coatHue = detail.pale
     ? (sourceHue + 320) % 360 // equivalent to hue - 40°

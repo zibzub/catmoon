@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 
 import {
+  classifyGenesisDetail,
   MOONCAT_DETAIL_FIELDS,
   createMoonCatDetailsLoader,
   getCatClickAction,
@@ -56,6 +57,16 @@ test("detail links use the selected rescue order", () => {
     chainStation: "https://mooncatrescue.com/mooncats/42",
     openSea: "https://opensea.io/item/ethereum/0xc3f733ca98e0dad0386979eb96fb1722a1a05e69/42"
   });
+});
+
+test("Genesis detail classification requires the source-backed sentinel pair", () => {
+  assert.equal(classifyGenesisDetail({ hueInt: 1000, hueName: "black" }), "black");
+  assert.equal(classifyGenesisDetail({ hueInt: 1000, hueName: "BLACK" }), "black");
+  assert.equal(classifyGenesisDetail({ hueInt: 2000, hueName: "white" }), "white");
+  assert.equal(classifyGenesisDetail({ hueInt: 2000, hueName: "White" }), "white");
+  assert.equal(classifyGenesisDetail({ hueInt: 1000, hueName: "white" }), null);
+  assert.equal(classifyGenesisDetail({ hueInt: 2000, hueName: "black" }), null);
+  assert.equal(classifyGenesisDetail({ hueInt: 120, hueName: "green" }), null);
 });
 
 test("scene-cat click decisions pin, open, repin, and clear without HUD state", () => {
