@@ -843,8 +843,8 @@ const CAT_DETAIL_FIELD_ORDER = Object.freeze([
 function updateCatDetailsTitle(id) {
   const name = moonCatNames?.[id];
   catDetailsTitleEl.textContent = typeof name === "string" && name
-    ? `MoonCat #${id} — ${name}`
-    : `MoonCat #${id}`;
+    ? `MoonCat ${id} : ${name}`
+    : `MoonCat ${id}`;
 }
 
 function setCatDetailsStatus(message, isError = false) {
@@ -874,11 +874,23 @@ function renderCatDetailsAttributeStrip(detail) {
 }
 
 function updateCatDetailsCardCoat(detail) {
-  const hue = ((detail.hueInt % 360) + 360) % 360;
-  const coatLightness = detail.pale ? 76 : 60;
+  const sourceHue = ((detail.hueInt % 360) + 360) % 360;
+  const coatHue = detail.pale
+    ? (sourceHue + 320) % 360 // equivalent to hue - 40°
+    : sourceHue;
+
+  const coatLightness = detail.pale ? 80 : 45;
   const outlineLightness = detail.pale ? 42 : 38;
-  catDetailsCardEl.style.setProperty("--cat-details-coat", `hsl(${hue} 72% ${coatLightness}%)`);
-  catDetailsCardEl.style.setProperty("--cat-details-outline", `hsl(${hue} 68% ${outlineLightness}%)`);
+
+  catDetailsCardEl.style.setProperty(
+    "--cat-details-coat",
+    `hsl(${coatHue} 100% ${coatLightness}%)`
+  );
+
+  catDetailsCardEl.style.setProperty(
+    "--cat-details-outline",
+    `hsl(${sourceHue} 68% ${outlineLightness}%)`
+  );
 }
 
 function renderCatDetails(detail) {
