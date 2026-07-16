@@ -1234,16 +1234,17 @@ body {
 #catDetailsCard[data-theme="template-card"][data-genesis="white"]::before {
   background: linear-gradient(
     115deg,
-    #e6e1d8 0%,
-    #fffaf0 24%,
-    #dce9ed 45%,
-    #f1dce7 53%,
-    #f2e8ca 62%,
-    #f8f1e6 84%
+    #ddd6ca 0%,
+    #fffdf7 26%,
+    #bfefff 44%,
+    #ffd0e8 50%,
+    #fff0a8 56%,
+    #fffdf7 66%,
+    #e8e1d6 100%
   );
   background-position: 0% 50%;
-  background-size: 220% 100%;
-  animation: catDetailsWhiteGenesisFoil 16s ease-in-out infinite;
+  background-size: 260% 100%;
+  animation: catDetailsWhiteGenesisFoil 12s ease-in-out infinite;
 }
 
 @keyframes catDetailsBlackGenesisFoil {

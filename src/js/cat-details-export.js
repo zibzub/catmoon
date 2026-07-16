@@ -135,13 +135,13 @@ function createGenesisFoilGradient(context, coatRail, genesis) {
       [1, "#171921"]
     ]
     : [
-      [0, "#e7e0d5"],
-      [0.25, "#fff9ed"],
-      [0.44, "#dcebed"],
-      [0.51, "#f1dce7"],
-      [0.58, "#e9d6ae"],
-      [0.76, "#f8f1e6"],
-      [1, "#e9e2d8"]
+      [0, "#ddd6ca"],
+      [0.26, "#fffdf7"],
+      [0.44, "#bfefff"],
+      [0.5, "#ffd0e8"],
+      [0.56, "#fff0a8"],
+      [0.66, "#fffdf7"],
+      [1, "#e8e1d6"]
     ];
   stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
   return gradient;

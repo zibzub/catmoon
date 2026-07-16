@@ -165,6 +165,15 @@ test("Genesis exports use distinct deterministic foil gradients while pale expor
   assert.equal(pale.gradientCalls.length, 0);
   assert.equal(mismatch.gradientCalls.length, 0);
   assert.notDeepEqual(black.gradientCalls[0].gradient.stops, white.gradientCalls[0].gradient.stops);
+  assert.deepEqual(white.gradientCalls[0].gradient.stops, [
+    [0, "#ddd6ca"],
+    [0.26, "#fffdf7"],
+    [0.44, "#bfefff"],
+    [0.5, "#ffd0e8"],
+    [0.56, "#fff0a8"],
+    [0.66, "#fffdf7"],
+    [1, "#e8e1d6"]
+  ]);
   const expectedGradientArgs = [
     DETAIL_CARD_EXPORT_SIZE.width * DETAIL_CARD_EXPORT_LAYOUT.coatRail.x,
     DETAIL_CARD_EXPORT_SIZE.height * (DETAIL_CARD_EXPORT_LAYOUT.coatRail.y + DETAIL_CARD_EXPORT_LAYOUT.coatRail.height),
