@@ -1,4 +1,4 @@
-import { classifyGenesisDetail } from "./cat-details.js";
+import { classifyGenesisDetail, formatMoonCatHue } from "./cat-details.js";
 
 // This matches the validated desktop Template Frame card exactly. Keeping the
 // export at the card's rendered size avoids a second, subtly different scale.
@@ -84,7 +84,7 @@ function drawTraitGrid(context, detail, detailsRect) {
   const layout = DETAIL_CARD_EXPORT_LAYOUT;
   const traits = [
     ["Cat ID", detail.catId],
-    ["Hue", detail.hueInt],
+    ["Hue", formatMoonCatHue(detail)],
     ["Coat", detail.pale ? "pale" : "normal"],
     ["Facing", detail.facing],
     ["Expression", detail.expression],

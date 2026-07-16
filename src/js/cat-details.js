@@ -15,6 +15,12 @@ export const MOONCAT_DETAIL_FIELDS = Object.freeze([
 
 export const OPENSEA_ACCLIMATED_CONTRACT = "0xc3f733ca98e0dad0386979eb96fb1722a1a05e69";
 
+export function formatMoonCatHue(detail) {
+  return classifyGenesisDetail(detail)
+    ? "genesis"
+    : String(detail?.hueInt ?? "");
+}
+
 export function classifyGenesisDetail(detail) {
   const hueName = typeof detail?.hueName === "string"
     ? detail.hueName.trim().toLowerCase()

@@ -47,7 +47,7 @@ import {
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
-import { classifyGenesisDetail, createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks } from "./js/cat-details.js";
+import { classifyGenesisDetail, createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks, formatMoonCatHue } from "./js/cat-details.js";
 import { downloadDetailCardPng } from "./js/cat-details-export.js";
 import { fitSingleLineText } from "./js/cat-details-text-fit.js";
 import {
@@ -979,7 +979,12 @@ function renderCatDetails(detail) {
     const term = document.createElement("dt");
     term.textContent = CAT_DETAIL_LABELS[field];
     const definition = document.createElement("dd");
-    definition.textContent = field === "pale" ? (detail.pale ? "pale" : "normal") : `${detail[field]}`;
+    definition.textContent =
+      field === "pale"
+        ? (detail.pale ? "pale" : "normal")
+        : field === "hueInt"
+          ? formatMoonCatHue(detail)
+          : `${detail[field]}`;
     if (field === "catId") definition.className = "catDetailsCatId";
     catDetailsTraitsEl.append(term, definition);
   }
