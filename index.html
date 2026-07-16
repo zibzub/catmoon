@@ -114,6 +114,14 @@
           </select>
         </label>
         <div id="activeFilterStat" aria-live="polite"></div>
+        <div id="rescueLookupControls">
+          <label for="rescueLookupInput">Rescue ID</label>
+          <div id="rescueLookupRow">
+            <input id="rescueLookupInput" type="text" inputmode="numeric" placeholder="0–25439" autocomplete="off" spellcheck="false" aria-describedby="rescueLookupStatus">
+            <button id="rescueLookupButton" type="button">Find</button>
+          </div>
+          <div id="rescueLookupStatus" role="status" aria-live="polite"></div>
+        </div>
         <div id="walletControls">
           <label for="walletFilterInput">Wallet</label>
           <div id="walletFilterRow">

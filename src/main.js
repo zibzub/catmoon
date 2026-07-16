@@ -46,7 +46,7 @@ import {
 } from "./js/performance-monitor.js";
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
-import { createCatMoonGeometry } from "./js/catmoon-geometry.js";
+import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
   createAfterimageEffects,
@@ -116,6 +116,9 @@ const {
   depthOfFieldMaxBlurValueEl,
   depthOfFieldResetEl,
   catFilterEl,
+  rescueLookupInputEl,
+  rescueLookupButtonEl,
+  rescueLookupStatusEl,
   walletFilterInputEl,
   walletFilterClearEl,
   walletFilterButtonEl,
@@ -143,6 +146,7 @@ const HYBRID_STARFIELD_ENABLED_STORAGE_KEY = "catmoon.hybridStarfieldEnabled.v1"
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
 const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
+const RESCUE_LOOKUP_TARGET_DISTANCE = 1.5;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
 function loadRenderModeSetting() {
@@ -415,7 +419,8 @@ const {
   triTextureStats,
   setBaseMaterialMode,
   makeTriacontahedron,
-  loadTriFaceSlotMetadata
+  loadTriFaceSlotMetadata,
+  getRescueTargetData
 } = createCatMoonGeometry({
   textureLoader,
   applyTextureSettings,
@@ -825,6 +830,7 @@ function showPinnedTooltip(id, clientX, clientY, localPoint) {
 }
 
 function togglePinnedCatFromClient(clientX, clientY) {
+  cancelFocusAnimation();
   pointerInside = true;
   lastClientX = clientX;
   lastClientY = clientY;
@@ -886,13 +892,12 @@ function cancelFocusAnimation() {
   focusAnimation = null;
 }
 
-function focusFace(faceIndex) {
-  if (!triacontahedron || controlsApi?.hasActiveInput()) return;
+function setRescueLookupStatus(message = "", isError = false) {
+  rescueLookupStatusEl.textContent = message;
+  rescueLookupStatusEl.classList.toggle("error", isError);
+}
 
-  const faceNormal = triacontahedron.userData.faceNormals?.[faceIndex];
-  const faceUp = triacontahedron.userData.faceUps?.[faceIndex];
-  if (!faceNormal || !faceUp) return;
-
+function getFocusTargetQuaternion(normal, up) {
   const desiredNormal = camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1).normalize();
   const targetUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).projectOnPlane(desiredNormal);
   if (targetUp.lengthSq() < 0.000001) {
@@ -903,17 +908,73 @@ function focusFace(faceIndex) {
   }
   targetUp.normalize();
 
-  const faceRight = faceUp.clone().cross(faceNormal).normalize();
-  if (!Number.isFinite(faceRight.lengthSq()) || faceRight.lengthSq() < 0.000001) return;
-
+  const targetUpForCat = up.clone().projectOnPlane(normal).normalize();
+  const targetRightForCat = targetUpForCat.clone().cross(normal).normalize();
   const desiredRight = targetUp.clone().cross(desiredNormal).normalize();
-  if (!Number.isFinite(desiredRight.lengthSq()) || desiredRight.lengthSq() < 0.000001) return;
+  if (targetUpForCat.lengthSq() < 0.000001 || targetRightForCat.lengthSq() < 0.000001 || desiredRight.lengthSq() < 0.000001) {
+    return null;
+  }
 
-  const canonicalBasis = new THREE.Matrix4().makeBasis(faceRight, faceUp, faceNormal);
+  const canonicalBasis = new THREE.Matrix4().makeBasis(targetRightForCat, targetUpForCat, normal);
   const targetBasis = new THREE.Matrix4().makeBasis(desiredRight, targetUp, desiredNormal);
   const canonicalQuaternion = new THREE.Quaternion().setFromRotationMatrix(canonicalBasis);
   const targetBasisQuaternion = new THREE.Quaternion().setFromRotationMatrix(targetBasis);
-  const targetQuaternion = targetBasisQuaternion.multiply(canonicalQuaternion.invert()).normalize();
+  return targetBasisQuaternion.multiply(canonicalQuaternion.invert()).normalize();
+}
+
+function focusRescueId() {
+  const id = parseRescueId(rescueLookupInputEl.value);
+  if (id === null) {
+    setRescueLookupStatus(`Enter a whole Rescue ID from 0 to ${MAX_ID}.`, true);
+    return;
+  }
+  if (!triacontahedron || !activeObject || controlsApi?.hasActiveInput()) {
+    setRescueLookupStatus("CatMoon is still loading.", true);
+    return;
+  }
+
+  const target = getRescueTargetData(id, triacontahedron);
+  if (!target) {
+    setRescueLookupStatus("That Rescue ID is unavailable right now.", true);
+    return;
+  }
+
+  const targetQuaternion = getFocusTargetQuaternion(target.normal, target.up);
+  if (!targetQuaternion) {
+    setRescueLookupStatus("That Rescue ID could not be focused.", true);
+    return;
+  }
+
+  focusInteractionVersion += 1;
+  cancelFocusAnimation();
+  const targetDistance = clamp(RESCUE_LOOKUP_TARGET_DISTANCE, TRI_MIN_DISTANCE, TRI_MAX_DISTANCE);
+  const startCameraPosition = camera.position.clone();
+  const targetCameraPosition = camera.position.clone().setLength(targetDistance);
+  focusAnimation = {
+    startTime: performance.now(),
+    duration: FILTER_FOCUS_DURATION_MS,
+    startQuaternion: triacontahedron.quaternion.clone(),
+    targetQuaternion,
+    startCameraPosition,
+    targetCameraPosition,
+    onComplete() {
+      pauseAutoRotate();
+      showPinnedTooltip(id, window.innerWidth / 2, window.innerHeight / 2, target.localPoint);
+    }
+  };
+  setRescueLookupStatus("");
+  pauseAutoRotate();
+}
+
+function focusFace(faceIndex) {
+  if (!triacontahedron || controlsApi?.hasActiveInput()) return;
+
+  const faceNormal = triacontahedron.userData.faceNormals?.[faceIndex];
+  const faceUp = triacontahedron.userData.faceUps?.[faceIndex];
+  if (!faceNormal || !faceUp) return;
+
+  const targetQuaternion = getFocusTargetQuaternion(faceNormal, faceUp);
+  if (!targetQuaternion) return;
 
   focusAnimation = {
     startTime: performance.now(),
@@ -945,10 +1006,19 @@ function updateFocusAnimation(now) {
   const t = clamp((now - focusAnimation.startTime) / focusAnimation.duration, 0, 1);
   const eased = 1 - Math.pow(1 - t, 3);
   triacontahedron.quaternion.copy(focusAnimation.startQuaternion).slerp(focusAnimation.targetQuaternion, eased);
+  if (focusAnimation.startCameraPosition) {
+    camera.position.copy(focusAnimation.startCameraPosition).lerp(focusAnimation.targetCameraPosition, eased);
+    camera.lookAt(0, 0, 0);
+  }
 
   if (t >= 1) {
+    const completedAnimation = focusAnimation;
     focusAnimation = null;
-    scheduleAutoRotateResume();
+    if (completedAnimation.onComplete) {
+      completedAnimation.onComplete();
+    } else {
+      scheduleAutoRotateResume();
+    }
   }
 }
 
@@ -1355,6 +1425,9 @@ function updateFilterAppearance() {
 }
 
 async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = {}) {
+  focusInteractionVersion += 1;
+  cancelFocusAnimation();
+  scheduleAutoRotateResume();
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
   clearWalletFilterState();
@@ -1857,6 +1930,22 @@ depthOfFieldResetEl.addEventListener("click", () => {
   updateDepthOfFieldSettings({ ...DEPTH_OF_FIELD_DEFAULTS });
 });
 
+rescueLookupButtonEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  focusRescueId();
+});
+
+rescueLookupInputEl.addEventListener("input", () => {
+  setRescueLookupStatus("");
+});
+
+rescueLookupInputEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  focusRescueId();
+});
+
 pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -1942,6 +2031,14 @@ document.addEventListener("pointerdown", (event) => {
   }
   hideWalletHistoryDropdown();
 });
+
+renderer.domElement.addEventListener("wheel", () => {
+  if (!focusAnimation) return;
+  focusInteractionVersion += 1;
+  cancelFocusAnimation();
+  pauseAutoRotate();
+  scheduleAutoRotateResume();
+}, { capture: true, passive: true });
 
 window.addEventListener("popstate", () => {
   sceneReadyPromise

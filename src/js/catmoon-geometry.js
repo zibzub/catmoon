@@ -15,6 +15,72 @@ export const LIT_MOON_MATERIAL_DEFAULTS = Object.freeze({
   metalness: 0
 });
 
+export function parseRescueId(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!/^\d+$/.test(text)) return null;
+
+  const id = Number(text);
+  return Number.isSafeInteger(id) && id >= 0 && id <= MAX_ID ? id : null;
+}
+
+export function rescueIdToFaceSlot(id) {
+  if (!Number.isInteger(id) || id < 0 || id > MAX_ID) return null;
+
+  return {
+    id,
+    faceIndex: Math.floor(id / RHOMBUS_CAT_COUNT),
+    slotId: id % RHOMBUS_CAT_COUNT
+  };
+}
+
+function pointOnDiamondFace(vertices, u, v) {
+  if (!Array.isArray(vertices) || vertices.length !== 4 || !Number.isFinite(u) || !Number.isFinite(v)) {
+    return null;
+  }
+
+  const [top, right, bottom, left] = vertices;
+  if (![top, right, bottom, left].every((vertex) => vertex?.isVector3)) return null;
+
+  if (u >= 0.5) {
+    return top.clone().multiplyScalar(v - u + 0.5)
+      .addScaledVector(right, 2 * u - 1)
+      .addScaledVector(bottom, 1.5 - u - v);
+  }
+
+  return top.clone().multiplyScalar(v + u - 0.5)
+    .addScaledVector(bottom, u - v + 0.5)
+    .addScaledVector(left, 1 - 2 * u);
+}
+
+export function resolveRescueTargetData(id, triFaceSlots, faceVertices, faceUps) {
+  const address = rescueIdToFaceSlot(id);
+  if (!address) return null;
+
+  const slot = triFaceSlots?.[address.faceIndex]?.find((candidate) => candidate.id === address.slotId);
+  const vertices = faceVertices?.[address.faceIndex];
+  const faceUp = faceUps?.[address.faceIndex];
+  if (!slot || !vertices || !faceUp?.isVector3) return null;
+
+  const localPoint = pointOnDiamondFace(
+    vertices,
+    slot.x / TRI_FACE_TEX_W,
+    1 - (slot.y / TRI_FACE_TEX_H)
+  );
+  if (!localPoint || localPoint.lengthSq() < 0.000001) return null;
+
+  const normal = localPoint.clone().normalize();
+  const up = faceUp.clone().projectOnPlane(normal);
+  if (up.lengthSq() < 0.000001) return null;
+
+  return {
+    ...address,
+    slot,
+    localPoint,
+    normal,
+    up: up.normalize()
+  };
+}
+
 function makeIcosahedronData() {
   const p = PHI;
   const vertices = [
@@ -291,6 +357,7 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
     group.userData.earlyRescueZoneMeshes = [];
     group.userData.faceNormals = [];
     group.userData.faceUps = [];
+    group.userData.faceVertices = [];
 
     console.assert(faces.length === TRI_FACE_COUNT, `Expected ${TRI_FACE_COUNT} triacontahedron faces, got ${faces.length}`);
     console.assert(TRI_FACE_COUNT * RHOMBUS_CAT_COUNT === MAX_ID + 1, "Triacontahedron face count does not cover the full atlas exactly once");
@@ -307,6 +374,7 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
       if (faceNormal.dot(faceCenter) < 0) faceNormal.multiplyScalar(-1);
       group.userData.faceNormals[faceIndex] = faceNormal;
       group.userData.faceUps[faceIndex] = sorted[0].clone().sub(sorted[2]).normalize();
+      group.userData.faceVertices[faceIndex] = sorted.map((point) => point.clone());
 
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -395,6 +463,14 @@ export function createCatMoonGeometry({ textureLoader, applyTextureSettings, mak
     getBaseMaterialMode: () => baseMaterialMode,
     makeTriacontahedron,
     loadTriFaceSlotMetadata,
+    getRescueTargetData(id, group) {
+      return resolveRescueTargetData(
+        id,
+        triFaceSlots,
+        group?.userData?.faceVertices,
+        group?.userData?.faceUps
+      );
+    },
     setBaseMaterialMode(mode) {
       baseMaterialMode = mode === "lit" ? "lit" : "unlit";
       applyBaseMaterialMode();
