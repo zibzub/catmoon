@@ -133,9 +133,11 @@ const {
   pinnedTooltipPreviewEl,
   pinnedTooltipLabelEl,
   catDetailsDialogEl,
+  catDetailsCardEl,
   catDetailsCloseEl,
   catDetailsTitleEl,
   catDetailsPreviewEl,
+  catDetailsAttributeStripEl,
   catDetailsStatusEl,
   catDetailsTraitsEl,
   catDetailsRetryEl,
@@ -811,26 +813,19 @@ function showPinnedTooltip(id, clientX, clientY, localPoint) {
 }
 
 const CAT_DETAIL_LABELS = Object.freeze({
-  rescueOrder: "Rescue order",
-  rescueYear: "Rescue year",
   catId: "Cat ID",
   hueInt: "Hue",
-  hueName: "Hue name",
-  pale: "Pale",
+  pale: "Coat",
   facing: "Facing",
   expression: "Expression",
-  pattern: "Pattern",
   pose: "Pose"
 });
 const CAT_DETAIL_FIELD_ORDER = Object.freeze([
-  "rescueYear",
   "catId",
   "hueInt",
-  "hueName",
   "pale",
   "facing",
   "expression",
-  "pattern",
   "pose"
 ]);
 
@@ -846,7 +841,38 @@ function setCatDetailsStatus(message, isError = false) {
   catDetailsStatusEl.classList.toggle("error", isError);
 }
 
+function clearCatDetailsCardPresentation() {
+  catDetailsAttributeStripEl.replaceChildren();
+  catDetailsAttributeStripEl.hidden = true;
+  catDetailsCardEl.style.removeProperty("--cat-details-coat");
+  catDetailsCardEl.style.removeProperty("--cat-details-outline");
+}
+
+function renderCatDetailsAttributeStrip(detail) {
+  const attributes = [
+    `${detail.rescueYear} rescue`,
+    detail.hueName,
+    detail.pattern
+  ];
+  catDetailsAttributeStripEl.replaceChildren(...attributes.map((attribute) => {
+    const item = document.createElement("span");
+    item.textContent = attribute.toUpperCase();
+    return item;
+  }));
+  catDetailsAttributeStripEl.hidden = false;
+}
+
+function updateCatDetailsCardCoat(detail) {
+  const hue = ((detail.hueInt % 360) + 360) % 360;
+  const coatLightness = detail.pale ? 76 : 60;
+  const outlineLightness = detail.pale ? 42 : 38;
+  catDetailsCardEl.style.setProperty("--cat-details-coat", `hsl(${hue} 72% ${coatLightness}%)`);
+  catDetailsCardEl.style.setProperty("--cat-details-outline", `hsl(${hue} 68% ${outlineLightness}%)`);
+}
+
 function renderCatDetails(detail) {
+  updateCatDetailsCardCoat(detail);
+  renderCatDetailsAttributeStrip(detail);
   catDetailsTraitsEl.replaceChildren();
   for (const field of CAT_DETAIL_FIELD_ORDER) {
     const term = document.createElement("dt");
@@ -862,6 +888,7 @@ function loadCatDetailsForDialog(id) {
   const requestToken = catDetailsRequestToken + 1;
   catDetailsRequestToken = requestToken;
   catDetailsTraitsEl.replaceChildren();
+  clearCatDetailsCardPresentation();
   catDetailsRetryEl.hidden = true;
   setCatDetailsStatus("Loading MoonCat details…");
 

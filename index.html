@@ -147,9 +147,6 @@
       <div class="performanceMonitorRow"><span>FPS</span><span id="performanceMonitorCurrentFps">—</span></div>
       <div class="performanceMonitorRow"><span>Smoothed FPS</span><span id="performanceMonitorSmoothedFps">—</span></div>
       <div class="performanceMonitorRow"><span>Frame / avg ms</span><span><span id="performanceMonitorFrameTime">—</span> / <span id="performanceMonitorAverageFrameTime">—</span></span></div>
-      <div class="performanceMonitorRow"><span>Draw calls</span><span id="performanceMonitorDrawCalls">—</span></div>
-      <div class="performanceMonitorRow"><span>Triangles</span><span id="performanceMonitorTriangles">—</span></div>
-      <div class="performanceMonitorRow"><span>Points</span><span id="performanceMonitorPoints">—</span></div>
       <canvas id="performanceMonitorGraph" width="180" height="38" aria-label="Rolling frame-time graph"></canvas>
     </aside>
 
@@ -162,36 +159,36 @@
       <div id="pinnedTooltipLabel"></div>
     </div>
     <dialog id="catDetailsDialog" aria-labelledby="catDetailsTitle">
-      <div id="catDetailsDialogContent">
-        <header id="catDetailsHeader">
-          <div>
-            <div id="catDetailsEyebrow">MoonCat details</div>
-            <h2 id="catDetailsTitle">MoonCat</h2>
-          </div>
+      <article id="catDetailsCard" data-theme="rare-card">
+        <header id="catDetailsTitleLine">
+          <h2 id="catDetailsTitle">MoonCat</h2>
           <button id="catDetailsClose" type="button" aria-label="Close MoonCat details">×</button>
         </header>
-        <div id="catDetailsLayout">
+        <div id="catDetailsImageWindow">
           <div id="catDetailsPreviewFrame">
             <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
           </div>
-          <section id="catDetailsInfo" aria-live="polite">
-            <div id="catDetailsStatus">Loading MoonCat details…</div>
-            <dl id="catDetailsTraits"></dl>
-            <button id="catDetailsRetry" type="button" hidden>Retry details</button>
-            <div id="catDetailsLinks" aria-label="MoonCat links">
-              <a id="catDetailsChainStation" target="_blank" rel="noopener noreferrer">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
-                ChainStation
-              </a>
-              <a id="catDetailsOpenSea" target="_blank" rel="noopener noreferrer" title="OpenSea applies to acclimated MoonCats and may not resolve every cat.">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
-                OpenSea
-              </a>
-            </div>
-            <p id="catDetailsOpenSeaNote">OpenSea applies to acclimated MoonCats and may not resolve every cat.</p>
-          </section>
         </div>
-      </div>
+        <div id="catDetailsAttributeStrip" aria-live="polite" hidden></div>
+        <section id="catDetailsDetailPanel" aria-live="polite">
+          <div id="catDetailsStatus">Loading MoonCat details…</div>
+          <dl id="catDetailsTraits"></dl>
+          <button id="catDetailsRetry" type="button" hidden>Retry details</button>
+        </section>
+        <footer id="catDetailsFooter">
+          <div id="catDetailsLinks" aria-label="MoonCat links">
+            <a id="catDetailsChainStation" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
+              ChainStation
+            </a>
+            <a id="catDetailsOpenSea" target="_blank" rel="noopener noreferrer" title="OpenSea applies to acclimated MoonCats and may not resolve every cat.">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
+              OpenSea
+            </a>
+          </div>
+          <p id="catDetailsOpenSeaNote">OpenSea applies to acclimated MoonCats and may not resolve every cat.</p>
+        </footer>
+      </article>
     </dialog>
     <div id="loadingOverlay">
       <div id="loadingCard">

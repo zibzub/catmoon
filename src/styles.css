@@ -786,16 +786,15 @@ body {
 }
 
 #catDetailsDialog {
-  width: min(680px, calc(100vw - 24px));
+  width: min(470px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
-  max-height: min(720px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px);
   margin: auto;
   padding: 0;
-  border: 1px solid rgba(255, 105, 180, 0.72);
-  border-radius: 10px;
-  background: #0b0a10;
+  border: 0;
+  background: transparent;
   color: #f2f2f2;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.62);
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -803,49 +802,59 @@ body {
   background: rgba(2, 2, 5, 0.76);
 }
 
-#catDetailsDialogContent {
-  max-height: min(720px, calc(100dvh - 24px));
+#catDetailsCard {
+  --cat-details-coat: hsl(330 72% 60%);
+  --cat-details-outline: hsl(330 68% 38%);
+  display: grid;
+  width: 100%;
+  max-height: calc(100dvh - 24px);
   overflow: auto;
-  padding: 16px;
+  gap: 8px;
+  padding: 8px;
+  border: 6px solid #020202;
+  border-radius: 28px;
+  background: #080808;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.68);
   box-sizing: border-box;
 }
 
-#catDetailsHeader {
+#catDetailsTitleLine {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 15px;
-}
-
-#catDetailsEyebrow {
-  color: hotpink;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 9px 9px 14px;
+  border: 2px solid var(--cat-details-outline);
+  border-radius: 13px 13px 8px 8px;
+  box-shadow: inset 0 0 0 2px #f7f1e6;
+  background: var(--cat-details-coat);
+  color: #050505;
 }
 
 #catDetailsTitle {
-  margin: 3px 0 0;
-  color: #fff4fa;
-  font-size: 20px;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(17px, 4.8vw, 22px);
+  font-weight: 850;
   line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 #catDetailsClose {
   display: inline-grid;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(255, 105, 180, 0.55);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  color: #f2f2f2;
+  border: 2px solid #050505;
+  border-radius: 7px;
+  background: #111;
+  color: #fff;
   font: inherit;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
@@ -856,29 +865,32 @@ body {
 #catDetailsRetry:focus-visible,
 #catDetailsLinks a:hover,
 #catDetailsLinks a:focus-visible {
-  border-color: hotpink;
+  border-color: var(--cat-details-coat);
   outline: none;
 }
 
-#catDetailsLayout {
+#catDetailsImageWindow {
   display: grid;
-  grid-template-columns: minmax(168px, 0.8fr) minmax(0, 1.2fr);
-  align-items: start;
-  gap: 18px;
+  min-height: 0;
+  place-items: center;
+  padding: 10px;
+  border: 2px solid var(--cat-details-outline);
+  box-shadow: inset 0 0 0 2px #f7f1e6;
+  background: #e9e2d5;
 }
 
 #catDetailsPreviewFrame {
-  display: flex;
-  width: min(190px, 100%);
+  display: grid;
+  width: min(244px, 100%);
+  place-items: center;
   padding: 10px;
-  justify-self: center;
-  border: 1px solid rgba(255, 105, 180, 0.85);
-  background-color: #000;
+  border: 3px solid #050505;
+  background: #060606;
   box-sizing: border-box;
 }
 
 #catDetailsPreview {
-  width: min(168px, 100%);
+  width: min(220px, 100%);
   aspect-ratio: 21 / 22;
   background-repeat: no-repeat;
   box-sizing: border-box;
@@ -886,8 +898,35 @@ body {
   image-rendering: crisp-edges;
 }
 
-#catDetailsInfo {
+#catDetailsAttributeStrip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 9px;
+  padding: 7px 10px;
+  border: 2px solid var(--cat-details-outline);
+  border-radius: 8px;
+  background: var(--cat-details-coat);
+  color: #050505;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-align: center;
+}
+
+#catDetailsAttributeStrip span + span::before {
+  margin-right: 9px;
+  content: "·";
+}
+
+#catDetailsDetailPanel {
   min-width: 0;
+  padding: 12px;
+  border: 2px solid var(--cat-details-outline);
+  background: #151515;
+  background: color-mix(in srgb, var(--cat-details-coat) 12%, #090909);
+  color: #f8f4ed;
 }
 
 #catDetailsStatus {
@@ -899,7 +938,7 @@ body {
 }
 
 #catDetailsStatus.error {
-  color: hotpink;
+  color: var(--cat-details-coat);
 }
 
 #catDetailsTraits {
@@ -912,13 +951,13 @@ body {
 }
 
 #catDetailsTraits dt {
-  color: rgba(242, 242, 242, 0.63);
+  color: rgba(248, 244, 237, 0.68);
 }
 
 #catDetailsTraits dd {
   min-width: 0;
   margin: 0;
-  color: #fff4fa;
+  color: #fff;
   overflow-wrap: anywhere;
 }
 
@@ -932,19 +971,25 @@ body {
   min-height: 30px;
   margin-top: 12px;
   padding: 4px 8px;
-  border: 1px solid rgba(255, 105, 180, 0.45);
-  background: rgba(255, 255, 255, 0.06);
-  color: #f2f2f2;
+  border: 2px solid var(--cat-details-outline);
+  background: #080808;
+  color: #fff;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+#catDetailsFooter {
+  padding: 10px 11px 11px;
+  border: 2px solid var(--cat-details-outline);
+  border-radius: 8px 8px 13px 13px;
+  background: #0e0e0e;
 }
 
 #catDetailsLinks {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: 14px;
 }
 
 #catDetailsLinks a {
@@ -953,9 +998,9 @@ body {
   gap: 5px;
   min-height: 30px;
   padding: 4px 8px;
-  border: 1px solid rgba(255, 105, 180, 0.5);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff4fa;
+  border: 2px solid var(--cat-details-outline);
+  background: #f7f1e6;
+  color: #080808;
   font-size: 12px;
   font-weight: 650;
   line-height: 1;
@@ -980,14 +1025,26 @@ body {
 }
 
 @media (max-width: 520px) {
-  #catDetailsDialogContent {
-    padding: 13px;
+  #catDetailsDialog {
+    width: min(100vw - 16px, 470px);
+    max-width: calc(100vw - 16px);
   }
 
-  #catDetailsLayout {
-    grid-template-columns: minmax(0, 1fr);
+  #catDetailsCard {
+    max-height: calc(100dvh - 16px);
+    padding: 6px;
+    border-width: 5px;
+    border-radius: 22px;
   }
 
+  #catDetailsImageWindow,
+  #catDetailsDetailPanel {
+    padding: 8px;
+  }
+
+  #catDetailsFooter {
+    padding: 8px 9px 9px;
+  }
 }
 
 .tooltipCatId {

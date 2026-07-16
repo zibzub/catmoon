@@ -55,7 +55,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-Clicking the image in a pinned card opens an expanded panel with a larger atlas preview, rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
+Clicking the image in a pinned card opens an expanded, theme-ready collectible card. The current `rare-card` theme uses a black portrait shell with coat-hue framing, a larger atlas preview, a compact rescue/year-hue-pattern strip, remaining rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
 
 ## Filters
 
