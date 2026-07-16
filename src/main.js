@@ -47,6 +47,7 @@ import {
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
+import { createMoonCatDetailsLoader, moonCatDetailLinks } from "./js/cat-details.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
   createAfterimageEffects,
@@ -133,6 +134,15 @@ const {
   pinnedTooltipEl,
   pinnedTooltipPreviewEl,
   pinnedTooltipLabelEl,
+  catDetailsDialogEl,
+  catDetailsCloseEl,
+  catDetailsTitleEl,
+  catDetailsPreviewEl,
+  catDetailsStatusEl,
+  catDetailsTraitsEl,
+  catDetailsRetryEl,
+  catDetailsChainStationEl,
+  catDetailsOpenSeaEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
@@ -309,6 +319,8 @@ let pinnedCatLocalPoint = null;
 let moonCatNames = null;
 let moonCatNamesPromise = null;
 let moonCatNamesLoadFailed = false;
+let catDetailsDialogId = null;
+let catDetailsRequestToken = 0;
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -402,16 +414,20 @@ const {
 const {
   updateTooltipPreview,
   updatePinnedTooltipPreview,
+  updateDetailPreview,
   ensureTooltipPreviewAtlasLoaded,
   ensurePinnedTooltipPreviewAtlasLoaded,
   loadAllCatsAtlas
 } = createPreviewManager({
   tooltipPreviewEl,
   pinnedTooltipPreviewEl,
+  detailPreviewEl: catDetailsPreviewEl,
   getHoveredId: () => hoveredId,
   getPinnedId: () => pinnedCatId,
+  getDetailId: () => catDetailsDialogId,
   isTooltipPreviewEnabled: () => hoverPreviewImagesEnabled
 });
+const moonCatDetailsLoader = createMoonCatDetailsLoader();
 
 const {
   triFaceSlots,
@@ -563,10 +579,11 @@ function saveCatLinksSetting(enabled) {
 
 function updateCatLinksToggleUi() {
   catLinksToggleEl.checked = catLinksEnabled;
-  pinnedTooltipEl.classList.toggle(
-    "links-enabled",
-    catLinksEnabled && hoverPreviewImagesEnabled && pinnedCatId !== null
-  );
+  const detailsEnabled = catLinksEnabled && hoverPreviewImagesEnabled && pinnedCatId !== null;
+  pinnedTooltipEl.classList.toggle("details-enabled", detailsEnabled);
+  pinnedTooltipPreviewEl.tabIndex = detailsEnabled ? 0 : -1;
+  pinnedTooltipPreviewEl.setAttribute("aria-disabled", detailsEnabled ? "false" : "true");
+  if (!detailsEnabled) closeCatDetailsDialog();
 }
 
 function loadEarlyRescueZoneSetting() {
@@ -735,6 +752,9 @@ function ensureMoonCatNamesLoaded(id) {
       updateTooltipLabel(pinnedTooltipLabelEl, id);
       positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
     }
+    if (catDetailsDialogEl.open && catDetailsDialogId === id) {
+      updateCatDetailsTitle(id);
+    }
   });
 }
 
@@ -808,6 +828,7 @@ function updateHoverFromClient(clientX, clientY) {
 }
 
 function hidePinnedTooltip() {
+  closeCatDetailsDialog();
   pinnedCatId = null;
   pinnedCatLocalPoint = null;
   updatePinnedTooltipPreview(null);
@@ -817,6 +838,7 @@ function hidePinnedTooltip() {
 }
 
 function showPinnedTooltip(id, clientX, clientY, localPoint) {
+  if (catDetailsDialogEl.open && catDetailsDialogId !== id) closeCatDetailsDialog();
   pinnedCatId = id;
   pinnedTooltipAnchorX = clientX;
   pinnedTooltipAnchorY = clientY;
@@ -827,6 +849,101 @@ function showPinnedTooltip(id, clientX, clientY, localPoint) {
   positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
   ensureMoonCatNamesLoaded(id);
   updateCatLinksToggleUi();
+}
+
+const CAT_DETAIL_LABELS = Object.freeze({
+  rescueOrder: "Rescue order",
+  rescueYear: "Rescue year",
+  catId: "Cat ID",
+  hueInt: "Hue",
+  hueName: "Hue name",
+  pale: "Pale",
+  facing: "Facing",
+  expression: "Expression",
+  pattern: "Pattern",
+  pose: "Pose"
+});
+const CAT_DETAIL_FIELD_ORDER = Object.freeze([
+  "rescueOrder",
+  "rescueYear",
+  "catId",
+  "hueInt",
+  "hueName",
+  "pale",
+  "facing",
+  "expression",
+  "pattern",
+  "pose"
+]);
+
+function updateCatDetailsTitle(id) {
+  const name = moonCatNames?.[id];
+  catDetailsTitleEl.textContent = typeof name === "string" && name
+    ? `MoonCat #${id} — ${name}`
+    : `MoonCat #${id}`;
+}
+
+function setCatDetailsStatus(message, isError = false) {
+  catDetailsStatusEl.textContent = message;
+  catDetailsStatusEl.classList.toggle("error", isError);
+}
+
+function renderCatDetails(detail) {
+  catDetailsTraitsEl.replaceChildren();
+  for (const field of CAT_DETAIL_FIELD_ORDER) {
+    const term = document.createElement("dt");
+    term.textContent = CAT_DETAIL_LABELS[field];
+    const definition = document.createElement("dd");
+    definition.textContent = field === "pale" ? (detail.pale ? "Yes" : "No") : `${detail[field]}`;
+    if (field === "catId") definition.className = "catDetailsCatId";
+    catDetailsTraitsEl.append(term, definition);
+  }
+}
+
+function loadCatDetailsForDialog(id) {
+  const requestToken = catDetailsRequestToken + 1;
+  catDetailsRequestToken = requestToken;
+  catDetailsTraitsEl.replaceChildren();
+  catDetailsRetryEl.hidden = true;
+  setCatDetailsStatus("Loading MoonCat details…");
+
+  moonCatDetailsLoader.load(id).then((detail) => {
+    if (!catDetailsDialogEl.open || catDetailsDialogId !== id || pinnedCatId !== id || requestToken !== catDetailsRequestToken) return;
+    renderCatDetails(detail);
+    setCatDetailsStatus("");
+  }).catch((error) => {
+    if (!catDetailsDialogEl.open || catDetailsDialogId !== id || requestToken !== catDetailsRequestToken) return;
+    console.warn(`Could not load MoonCat details for ${id}.`, error);
+    setCatDetailsStatus("Could not load traits. Links and preview are still available.", true);
+    catDetailsRetryEl.hidden = false;
+  });
+}
+
+function openCatDetailsDialog() {
+  if (!catLinksEnabled || !hoverPreviewImagesEnabled || pinnedCatId === null) return;
+
+  const id = pinnedCatId;
+  catDetailsDialogId = id;
+  updateCatDetailsTitle(id);
+  const links = moonCatDetailLinks(id);
+  catDetailsChainStationEl.href = links.chainStation;
+  catDetailsOpenSeaEl.href = links.openSea;
+  updateDetailPreview(id);
+  loadAllCatsAtlas().then(() => {
+    if (catDetailsDialogEl.open && catDetailsDialogId === id) updateDetailPreview(id);
+  }).catch((error) => {
+    console.warn("Could not load the MoonCat detail preview atlas.", error);
+  });
+
+  if (!catDetailsDialogEl.open) catDetailsDialogEl.showModal();
+  loadCatDetailsForDialog(id);
+  ensureMoonCatNamesLoaded(id);
+}
+
+function closeCatDetailsDialog() {
+  catDetailsRequestToken += 1;
+  catDetailsDialogId = null;
+  if (catDetailsDialogEl.open) catDetailsDialogEl.close();
 }
 
 function togglePinnedCatFromClient(clientX, clientY) {
@@ -1954,9 +2071,33 @@ pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {
 pinnedTooltipPreviewEl.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  if (!catLinksEnabled || !hoverPreviewImagesEnabled || pinnedCatId === null) return;
+  openCatDetailsDialog();
+});
 
-  window.open(`https://mooncatrescue.com/mooncats/${pinnedCatId}`, "_blank", "noopener,noreferrer");
+pinnedTooltipPreviewEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  openCatDetailsDialog();
+});
+
+catDetailsCloseEl.addEventListener("click", () => {
+  closeCatDetailsDialog();
+});
+
+catDetailsRetryEl.addEventListener("click", () => {
+  if (catDetailsDialogId !== null) loadCatDetailsForDialog(catDetailsDialogId);
+});
+
+catDetailsDialogEl.addEventListener("click", (event) => {
+  if (event.target === catDetailsDialogEl) closeCatDetailsDialog();
+});
+
+catDetailsDialogEl.addEventListener("close", () => {
+  catDetailsRequestToken += 1;
+  catDetailsDialogId = null;
+  if (pinnedCatId !== null && !pinnedTooltipEl.classList.contains("image-off")) {
+    pinnedTooltipPreviewEl.focus();
+  }
 });
 
 walletFilterButtonEl.addEventListener("click", (event) => {

@@ -9,6 +9,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "build:details": "node tools/extract-mooncat-details.js",
     "build:names": "node tools/extract-mooncat-names.js",
     "dev": "vite",
     "build": "vite build",

@@ -54,7 +54,7 @@
           </label>
           <label id="catLinksControl" class="hudToggleControl" for="catLinksToggle">
             <input id="catLinksToggle" type="checkbox" checked>
-            <span class="hudToggleLabel">Cat links</span>
+            <span class="hudToggleLabel">Cat details</span>
           </label>
           <label id="earlyRescueZoneControl" class="hudToggleControl" for="earlyRescueZoneToggle">
             <input id="earlyRescueZoneToggle" type="checkbox">
@@ -141,7 +141,7 @@
             <li>Pinch or scrollwheel to zoom</li>
             <li>Twist or right-click+drag to rotate</li>
             <li>Tap/click a cat to pin its details</li>
-            <li>Enable Cat links, then click a pinned cat image to open it in chain station</li>
+            <li>Enable Cat details, then click a pinned cat image to open its expanded details</li>
             <li>Wallet accepts ETH address or ENS</li>
             <li>Early rescue zone is a rough face guide for the wallet, collection and named cats filters</li>
             <li>Report issues & get more info: <a href="https://github.com/zibzub/catmoon" target="_blank" rel="noopener noreferrer">github</a></li>
@@ -166,9 +166,39 @@
       <div id="tooltipLabel"></div>
     </div>
     <div id="pinnedTooltip" aria-hidden="true">
-      <div id="pinnedTooltipPreview" aria-hidden="true"></div>
+      <div id="pinnedTooltipPreview" role="button" tabindex="-1" aria-label="Open MoonCat details" aria-disabled="true"></div>
       <div id="pinnedTooltipLabel"></div>
     </div>
+    <dialog id="catDetailsDialog" aria-labelledby="catDetailsTitle">
+      <div id="catDetailsDialogContent">
+        <header id="catDetailsHeader">
+          <div>
+            <div id="catDetailsEyebrow">MoonCat details</div>
+            <h2 id="catDetailsTitle">MoonCat</h2>
+          </div>
+          <button id="catDetailsClose" type="button" aria-label="Close MoonCat details">×</button>
+        </header>
+        <div id="catDetailsLayout">
+          <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
+          <section id="catDetailsInfo" aria-live="polite">
+            <div id="catDetailsStatus">Loading MoonCat details…</div>
+            <dl id="catDetailsTraits"></dl>
+            <button id="catDetailsRetry" type="button" hidden>Retry details</button>
+            <div id="catDetailsLinks" aria-label="MoonCat links">
+              <a id="catDetailsChainStation" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
+                ChainStation
+              </a>
+              <a id="catDetailsOpenSea" target="_blank" rel="noopener noreferrer" title="OpenSea applies to acclimated MoonCats and may not resolve every cat.">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7-10 10"></path><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"></path></svg>
+                OpenSea
+              </a>
+            </div>
+            <p id="catDetailsOpenSeaNote">OpenSea applies to acclimated MoonCats and may not resolve every cat.</p>
+          </section>
+        </div>
+      </div>
+    </dialog>
     <div id="loadingOverlay">
       <div id="loadingCard">
         <div id="loadingSpinner"></div>

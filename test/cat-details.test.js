@@ -1,0 +1,103 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+
+import {
+  MOONCAT_DETAIL_FIELDS,
+  createMoonCatDetailsLoader,
+  moonCatDetailLinks,
+  moonCatDetailLocation,
+  validateMoonCatDetail,
+  validateMoonCatDetailShard
+} from "../src/js/cat-details.js";
+import { MAX_ID, RHOMBUS_CAT_COUNT, TRI_FACE_COUNT } from "../src/js/config.js";
+
+function makeDetail(rescueOrder) {
+  return {
+    rescueOrder,
+    rescueYear: 2021,
+    catId: `0x${String(rescueOrder).padStart(8, "0")}`,
+    hueInt: 120,
+    hueName: "green",
+    pale: false,
+    facing: "left",
+    expression: "happy",
+    pattern: "tabby",
+    pose: "standing"
+  };
+}
+
+function makeShard(faceIndex) {
+  return Array.from({ length: RHOMBUS_CAT_COUNT }, (_, slotId) => makeDetail((faceIndex * RHOMBUS_CAT_COUNT) + slotId));
+}
+
+test("detail locations map rescue-order boundaries to zero-padded face shards", () => {
+  assert.deepEqual(moonCatDetailLocation(0), {
+    rescueOrder: 0,
+    faceIndex: 0,
+    slotId: 0,
+    shardPath: "/data/mooncat-details/face-00.json"
+  });
+  assert.equal(moonCatDetailLocation(847).slotId, 847);
+  assert.deepEqual(moonCatDetailLocation(848), {
+    rescueOrder: 848,
+    faceIndex: 1,
+    slotId: 0,
+    shardPath: "/data/mooncat-details/face-01.json"
+  });
+  assert.equal(moonCatDetailLocation(MAX_ID).shardPath, "/data/mooncat-details/face-29.json");
+  assert.equal(moonCatDetailLocation(MAX_ID + 1), null);
+});
+
+test("detail links use the selected rescue order", () => {
+  assert.deepEqual(moonCatDetailLinks(42), {
+    chainStation: "https://mooncatrescue.com/mooncats/42",
+    openSea: "https://opensea.io/item/ethereum/0xc3f733ca98e0dad0386979eb96fb1722a1a05e69/42"
+  });
+});
+
+test("detail response validation rejects incomplete and mismatched records", () => {
+  const detail = makeDetail(0);
+  assert.deepEqual(validateMoonCatDetail(detail, 0), detail);
+  assert.equal(validateMoonCatDetail({ ...detail, pale: "false" }, 0), null);
+  assert.equal(validateMoonCatDetail({ ...detail, rescueOrder: 1 }, 0), null);
+  assert.equal(validateMoonCatDetailShard(makeShard(0), 0).length, RHOMBUS_CAT_COUNT);
+  assert.equal(validateMoonCatDetailShard(makeShard(0).slice(1), 0), null);
+});
+
+test("detail loader reuses successful face loads and retries failed loads", async () => {
+  let calls = 0;
+  const loader = createMoonCatDetailsLoader(async () => {
+    calls += 1;
+    return { ok: true, json: async () => makeShard(0) };
+  });
+  assert.equal((await loader.load(0)).rescueOrder, 0);
+  assert.equal((await loader.load(1)).rescueOrder, 1);
+  assert.equal(calls, 1);
+
+  let failedOnce = false;
+  const retryLoader = createMoonCatDetailsLoader(async () => {
+    if (!failedOnce) {
+      failedOnce = true;
+      return { ok: false, json: async () => [] };
+    }
+    return { ok: true, json: async () => makeShard(0) };
+  });
+  await assert.rejects(retryLoader.load(0));
+  assert.equal((await retryLoader.load(0)).rescueOrder, 0);
+});
+
+test("generated detail shards cover all rescue orders with the requested schema", async () => {
+  const directory = new URL("../public/data/mooncat-details/", import.meta.url);
+  const files = (await readdir(directory)).filter((file) => /^face-\d{2}\.json$/.test(file)).sort();
+  assert.equal(files.length, TRI_FACE_COUNT);
+
+  let entryCount = 0;
+  for (const [faceIndex, file] of files.entries()) {
+    const shard = JSON.parse(await readFile(new URL(file, directory), "utf8"));
+    assert.ok(validateMoonCatDetailShard(shard, faceIndex));
+    assert.deepEqual(Object.keys(shard[0]), MOONCAT_DETAIL_FIELDS);
+    entryCount += shard.length;
+  }
+  assert.equal(entryCount, MAX_ID + 1);
+});

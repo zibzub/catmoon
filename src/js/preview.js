@@ -27,8 +27,10 @@ function updatePreviewElement(previewEl, id, scale = PREVIEW_SCALE) {
 export function createPreviewManager({
   tooltipPreviewEl,
   pinnedTooltipPreviewEl,
+  detailPreviewEl,
   getHoveredId,
   getPinnedId,
+  getDetailId,
   isTooltipPreviewEnabled
 }) {
   let allCatsAtlasImage = null;
@@ -52,6 +54,15 @@ export function createPreviewManager({
     updateCardPreview(pinnedTooltipPreviewEl, id);
   }
 
+  function updateDetailPreview(id) {
+    if (!detailPreviewEl) return;
+    if (!allCatsAtlasImage) {
+      clearPreviewElement(detailPreviewEl);
+      return;
+    }
+    updatePreviewElement(detailPreviewEl, id, PREVIEW_SCALE * 2);
+  }
+
   function applyCachedPreviewAtlas() {
     if (!allCatsAtlasImage) return;
 
@@ -61,8 +72,12 @@ export function createPreviewManager({
     if (pinnedTooltipPreviewEl) {
       pinnedTooltipPreviewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
     }
+    if (detailPreviewEl) {
+      detailPreviewEl.style.backgroundImage = `url("${ALL_CATS_ATLAS_URL}")`;
+    }
     updateTooltipPreview(getHoveredId());
     updatePinnedTooltipPreview(getPinnedId());
+    updateDetailPreview(getDetailId?.() ?? null);
   }
 
   function loadAllCatsAtlas() {
@@ -110,6 +125,7 @@ export function createPreviewManager({
   return {
     updateTooltipPreview,
     updatePinnedTooltipPreview,
+    updateDetailPreview,
     applyCachedPreviewAtlas,
     ensureTooltipPreviewAtlasLoaded,
     ensurePinnedTooltipPreviewAtlasLoaded,

@@ -38,7 +38,7 @@ The lock button expands or collapses the settings panel.
 - Available toggles:
   - **Auto tumble**: turn automatic rotation on or off.
   - **Hover preview**: show or hide preview images in hover/pinned cards.
-  - **Cat links**: allow the pinned cat image to open the cat on [mooncatrescue.com](https://mooncatrescue.com)
+  - **Cat details**: allow the pinned cat image to open its expanded details panel.
   - **Early rescue zone**: show or hide a rough face-level guide for the earliest rescue-order area.
 
 Toggle preferences are stored locally in your browser. The help panel open/closed state is temporary for the current page session.
@@ -57,7 +57,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-When **Cat links** is enabled, clicking the image in a pinned card opens that cat on [mooncatrescue.com](https://mooncatrescue.com).
+When **Cat details** is enabled, clicking the image in a pinned card opens an expanded panel with a larger atlas preview, rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
 
 ## Filters
 
@@ -150,6 +150,7 @@ src/
     wallet.js
     filters.js
     preview.js
+    cat-details.js
     catmoon-geometry.js
     controls.js
 public/
@@ -162,6 +163,7 @@ public/
   data/
     mooncat-filters.json
     mooncat-names.json
+    mooncat-details/
   img/
     allcats.png
     tri-faces/
@@ -178,6 +180,7 @@ test/
 
 tools/
   extract-mooncat-names.js
+  extract-mooncat-details.js
 ```
 
 Vite bundles `src/main.js` and copies the static contents of `public/` unchanged into `dist/`. Three.js is installed as an npm dependency; the app uses normal `three` and `three/addons/...` imports.
@@ -231,6 +234,12 @@ Generate the names-only MoonCat data file from a local `mooncat_traits.json` sou
 
 ```bash
 npm run build:names
+```
+
+Generate compact, face-based detail shards from the same local source:
+
+```bash
+npm run build:details
 ```
 
 ## Cloudflare Pages
@@ -362,6 +371,16 @@ The generated names file is used for:
 - runtime Named Cats overlay generation
 
 The full traits file is not required by the browser app.
+
+## Detail Data
+
+Expanded MoonCat details load only one generated 848-cat face shard at a time from `public/data/mooncat-details/face-XX.json`. The browser caches completed face requests and retries failed requests on the next open or through the dialog retry button. The ignored root `mooncat_traits.json` is only used by the generator and is not served to browsers.
+
+Regenerate the committed shards after updating the local traits source:
+
+```bash
+npm run build:details
+```
 
 ## UI State
 
