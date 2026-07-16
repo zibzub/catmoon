@@ -881,12 +881,19 @@ body {
   gap: 18px;
 }
 
-#catDetailsPreview {
-  width: min(168px, 100%);
-  aspect-ratio: 21 / 22;
+#catDetailsPreviewFrame {
+  display: flex;
+  width: min(190px, 100%);
+  padding: 10px;
   justify-self: center;
   border: 1px solid rgba(255, 105, 180, 0.85);
   background-color: #000;
+  box-sizing: border-box;
+}
+
+#catDetailsPreview {
+  width: min(168px, 100%);
+  aspect-ratio: 21 / 22;
   background-repeat: no-repeat;
   box-sizing: border-box;
   image-rendering: pixelated;

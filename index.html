@@ -117,7 +117,7 @@
         <div id="rescueLookupControls">
           <label for="rescueLookupInput">Rescue ID</label>
           <div id="rescueLookupRow">
-            <input id="rescueLookupInput" type="text" inputmode="numeric" placeholder="0–25439" autocomplete="off" spellcheck="false" aria-describedby="rescueLookupStatus">
+            <input id="rescueLookupInput" type="text" inputmode="numeric" enterkeyhint="search" placeholder="0–25439" autocomplete="off" spellcheck="false" aria-describedby="rescueLookupStatus">
             <button id="rescueLookupButton" type="button">Find</button>
           </div>
           <div id="rescueLookupStatus" role="status" aria-live="polite"></div>
@@ -179,7 +179,9 @@
           <button id="catDetailsClose" type="button" aria-label="Close MoonCat details">×</button>
         </header>
         <div id="catDetailsLayout">
-          <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
+          <div id="catDetailsPreviewFrame">
+            <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
+          </div>
           <section id="catDetailsInfo" aria-live="polite">
             <div id="catDetailsStatus">Loading MoonCat details…</div>
             <dl id="catDetailsTraits"></dl>
