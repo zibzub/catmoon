@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Pixel Operator";
+  src: url("/fonts/PixelOperator.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pixel Operator Bold";
+  src: url("/fonts/PixelOperator-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700 900;
+  font-display: swap;
+}
+
 html,
 body {
   width: 100%;
@@ -803,6 +819,8 @@ body {
 }
 
 #catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]) {
+  width: min(624px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   overflow: auto;
 }
 
@@ -1028,35 +1046,6 @@ body {
   line-height: 1.35;
 }
 
-#catDetailsThemeControl {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  color: rgba(242, 242, 242, 0.78);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-#catDetailsThemeSelect {
-  min-height: 30px;
-  max-width: 150px;
-  padding: 3px 24px 3px 7px;
-  border: 2px solid var(--cat-details-outline);
-  border-radius: 5px;
-  background: #f7f1e6;
-  color: #080808;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-#catDetailsThemeSelect:hover,
-#catDetailsThemeSelect:focus-visible {
-  border-color: var(--cat-details-coat);
-  outline: none;
-}
-
 #catDetailsCard[data-theme="classic-pepe"] {
   width: min(404px, 100%);
   gap: 5px;
@@ -1198,19 +1187,6 @@ body {
   background: #fff9e7;
 }
 
-#catDetailsCard[data-theme="classic-pepe"] #catDetailsThemeControl {
-  flex: 0 1 auto;
-  margin-top: 0;
-  color: #d6f4ef;
-  font-family: ui-monospace, "Courier New", monospace;
-}
-
-#catDetailsCard[data-theme="classic-pepe"] #catDetailsThemeSelect {
-  border-color: var(--cat-details-outline);
-  border-radius: 3px;
-  background: #d6f4ef;
-}
-
 #catDetailsCard[data-theme="classic-pepe"] #catDetailsOpenSeaNote {
   width: 100%;
   margin-top: 0;
@@ -1220,16 +1196,24 @@ body {
 #catDetailsCard[data-theme="template-card"] {
   position: relative;
   display: block;
-  width: min(400px, 100%);
+  width: min(600px, 100%);
   aspect-ratio: 5 / 7;
-  max-height: none;
   margin: 0 auto;
+  font-family: "Pixel Operator Bold", "Pixel Operator", "Courier New", monospace;
   padding: 0;
-  overflow: auto;
+  overflow: visible;
   border: 0;
   border-radius: 0;
-  background: #020202;
-  box-shadow: inset 0 0 0 26px var(--cat-details-coat), 0 18px 48px rgba(0, 0, 0, 0.72);
+  background: transparent;
+  box-shadow: none;
+}
+
+#catDetailsCard[data-theme="template-card"]::before {
+  position: absolute;
+  z-index: 1;
+  inset: 3.8% 5.2% 3.6%;
+  content: "";
+  background: var(--cat-details-coat);
 }
 
 #catDetailsCard[data-theme="template-card"]::after {
@@ -1237,20 +1221,22 @@ body {
   z-index: 3;
   inset: 0;
   content: "";
-  background: url("/img/template_trans.png") center / 100% 100% no-repeat;
+  background: url("/img/template_full.png") center / 100% 100% no-repeat;
   pointer-events: none;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsTitleLine {
   position: absolute;
   z-index: 4;
-  top: 5.4%;
-  right: 8.3%;
-  left: 8.3%;
+  top: 5.5%;
+  right: 8.1%;
+  left: 8.1%;
   display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
-  min-height: 5.1%;
-  padding: 0 7px;
+  height: 5%;
+  padding: 0 14px;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -1260,63 +1246,72 @@ body {
 
 #catDetailsCard[data-theme="template-card"] #catDetailsTitle {
   min-width: 0;
+  width: 100%;
   overflow: hidden;
-  font-size: clamp(10px, 3.1vw, 14px);
+  font-size: clamp(20px, 3.4vw, 29px);
   font-weight: 850;
-  line-height: 1.15;
+  line-height: 1;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsClose {
-  width: 21px;
-  height: 21px;
-  margin-left: 5px;
-  border: 1px solid #0b0b09;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.82);
-  color: #fffdf3;
-  font-size: 15px;
+  display: none;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsImageWindow {
   position: absolute;
   z-index: 2;
-  top: 11.8%;
+  top: 12%;
   right: 8.5%;
   left: 8.5%;
   display: grid;
-  height: 43.7%;
+  height: 45%;
   padding: 0;
   border: 0;
   box-shadow: none;
-  background: #10100e;
+  background: #000;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsPreviewFrame {
-  width: min(244px, 100%);
-  padding: 7px;
+  width: min(320px, 74%);
+  height: 78%;
+  padding: 0;
+  overflow: hidden;
   border: 0;
-  background: #090909;
+  background: #000;
+}
+
+#catDetailsCard[data-theme="template-card"] #catDetailsPreview {
+  width: 168px;
+  height: 176px;
+  flex: 0 0 auto;
+  aspect-ratio: auto;
+  transform: scale(1.5);
+  transform-origin: center;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsAttributeStrip {
   position: absolute;
   z-index: 4;
-  top: 56.3%;
-  right: 8.3%;
-  left: 8.3%;
+  top: 56.1%;
+  right: 8.1%;
+  left: 8.1%;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  min-height: 4.9%;
-  padding: 0 7px;
+  height: 5.1%;
+  padding: 0 14px;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: #0b0b09;
-  font-size: clamp(8px, 2.5vw, 11px);
+  font-size: clamp(12px, 2.6vw, 25px);
   font-weight: 850;
-  line-height: 1.1;
+  line-height: 1;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1328,11 +1323,11 @@ body {
 #catDetailsCard[data-theme="template-card"] #catDetailsDetailPanel {
   position: absolute;
   z-index: 2;
-  top: 62.3%;
+  top: 62.6%;
   right: 8.5%;
   left: 8.5%;
-  height: 27.4%;
-  padding: 9px;
+  height: 27.2%;
+  padding: 0px 12px;
   overflow: auto;
   border: 0;
   background: #ccecf2;
@@ -1352,7 +1347,7 @@ body {
 #catDetailsCard[data-theme="template-card"] #catDetailsTraits {
   grid-template-columns: minmax(68px, 0.8fr) minmax(0, 1.2fr);
   gap: 3px 7px;
-  font-size: clamp(9px, 2.6vw, 12px);
+  font-size: clamp(9px, 2.6vw, 23px);
   line-height: 1.2;
 }
 
@@ -1374,64 +1369,14 @@ body {
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsFooter {
-  position: absolute;
-  z-index: 4;
-  right: 7.5%;
-  bottom: 2.4%;
-  left: 7.5%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 3px 5px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsLinks {
-  flex: 0 1 auto;
-  gap: 3px;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsLinks a {
-  min-height: 20px;
-  padding: 2px 4px;
-  border: 1px solid rgba(255, 253, 243, 0.7);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fffdf3;
-  font-size: 9px;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsLinks svg {
-  width: 10px;
-  height: 10px;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsThemeControl {
-  flex: 0 1 auto;
-  gap: 3px;
-  margin-top: 0;
-  color: rgba(255, 253, 243, 0.78);
-  font-size: 9px;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsThemeSelect {
-  min-height: 20px;
-  max-width: 108px;
-  padding: 1px 16px 1px 4px;
-  border: 1px solid rgba(255, 253, 243, 0.7);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fffdf3;
-  font-size: 9px;
-}
-
-#catDetailsCard[data-theme="template-card"] #catDetailsOpenSeaNote {
   display: none;
+}
+
+#catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus,
+#catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus-visible,
+#catDetailsCard[data-theme="template-card"]:focus,
+#catDetailsCard[data-theme="template-card"]:focus-visible {
+  outline: none;
 }
 
 @media (max-width: 520px) {
@@ -1473,9 +1418,24 @@ body {
     width: 100%;
   }
 
-  #catDetailsCard[data-theme="template-card"] #catDetailsFooter {
-    right: 6.5%;
-    left: 6.5%;
+  #catDetailsCard[data-theme="template-card"] #catDetailsPreviewFrame {
+    width: 76%;
+    height: 76%;
+  }
+
+  #catDetailsCard[data-theme="template-card"] #catDetailsPreview {
+    transform: scale(0.9);
+  }
+
+  #catDetailsCard[data-theme="template-card"] #catDetailsAttributeStrip {
+    font-size: clamp(15px, 5vw, 17px);
+  }
+
+  #catDetailsCard[data-theme="template-card"] #catDetailsTraits {
+    gap: 4px 8px;
+    font-size: clamp(14px, 4vw, 16px);
+    line-height: 1;
+    transform: translateY(-10px);
   }
 }
 

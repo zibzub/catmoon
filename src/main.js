@@ -50,8 +50,7 @@ import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
 import { createMoonCatDetailsLoader, moonCatDetailLinks } from "./js/cat-details.js";
 import {
   applyCatDetailsTheme,
-  loadCatDetailsTheme,
-  saveCatDetailsTheme
+  loadCatDetailsTheme
 } from "./js/cat-details-theme.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
@@ -148,7 +147,6 @@ const {
   catDetailsRetryEl,
   catDetailsChainStationEl,
   catDetailsOpenSeaEl,
-  catDetailsThemeSelectEl,
   statusEl,
   loadingOverlay,
   loadingProgressEl
@@ -167,7 +165,6 @@ let catDetailsTheme = loadCatDetailsTheme();
 
 function updateCatDetailsThemeUi() {
   catDetailsTheme = applyCatDetailsTheme(catDetailsCardEl, catDetailsTheme);
-  catDetailsThemeSelectEl.value = catDetailsTheme;
 }
 
 updateCatDetailsThemeUi();
@@ -892,7 +889,7 @@ function renderCatDetails(detail) {
     const term = document.createElement("dt");
     term.textContent = CAT_DETAIL_LABELS[field];
     const definition = document.createElement("dd");
-    definition.textContent = field === "pale" ? (detail.pale ? "Yes" : "No") : `${detail[field]}`;
+    definition.textContent = field === "pale" ? (detail.pale ? "Pale" : "Normal") : `${detail[field]}`;
     if (field === "catId") definition.className = "catDetailsCatId";
     catDetailsTraitsEl.append(term, definition);
   }
@@ -2066,11 +2063,6 @@ catDetailsCloseEl.addEventListener("click", () => {
 
 catDetailsRetryEl.addEventListener("click", () => {
   if (catDetailsDialogId !== null) loadCatDetailsForDialog(catDetailsDialogId);
-});
-
-catDetailsThemeSelectEl.addEventListener("change", () => {
-  catDetailsTheme = saveCatDetailsTheme(undefined, catDetailsThemeSelectEl.value);
-  updateCatDetailsThemeUi();
 });
 
 catDetailsDialogEl.addEventListener("click", (event) => {

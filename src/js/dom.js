@@ -78,7 +78,6 @@ export function getDomRefs() {
     catDetailsRetryEl: document.getElementById("catDetailsRetry"),
     catDetailsChainStationEl: document.getElementById("catDetailsChainStation"),
     catDetailsOpenSeaEl: document.getElementById("catDetailsOpenSea"),
-    catDetailsThemeSelectEl: document.getElementById("catDetailsThemeSelect"),
     statusEl: document.getElementById("status"),
     loadingOverlay: document.getElementById("loadingOverlay"),
     loadingProgressEl: document.getElementById("loadingProgress")

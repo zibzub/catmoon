@@ -11,6 +11,8 @@ import {
 } from "../src/js/cat-details-theme.js";
 
 test("detail-card themes normalize unknown values to the default", () => {
+  assert.equal(DEFAULT_CAT_DETAILS_THEME, "template-card");
+  assert.equal(normalizeCatDetailsTheme("rare-card"), "rare-card");
   assert.equal(normalizeCatDetailsTheme("classic-pepe"), "classic-pepe");
   assert.equal(normalizeCatDetailsTheme("template-card"), "template-card");
   assert.equal(normalizeCatDetailsTheme("unknown"), DEFAULT_CAT_DETAILS_THEME);
@@ -37,8 +39,8 @@ test("detail-card themes load and save safely through storage", () => {
 
 test("detail-card themes apply normalized values to card markup", () => {
   const card = { dataset: {} };
-  assert.equal(applyCatDetailsTheme(card, "template-card"), "template-card");
-  assert.equal(card.dataset.theme, "template-card");
+  assert.equal(applyCatDetailsTheme(card, "rare-card"), "rare-card");
+  assert.equal(card.dataset.theme, "rare-card");
   assert.equal(applyCatDetailsTheme(card, "unknown"), DEFAULT_CAT_DETAILS_THEME);
   assert.equal(card.dataset.theme, DEFAULT_CAT_DETAILS_THEME);
 });

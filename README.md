@@ -55,7 +55,7 @@ Clicking or pressing a cat pins its detail card on screen:
 - While a card is pinned, auto-tumble pauses.
 - If you tumble far enough away from the pinned cat, the pinned card clears automatically.
 
-Clicking the image in a pinned card opens an expanded, theme-ready collectible card. Its footer includes a Theme selector: **Modern** uses the `rare-card` black portrait shell with coat-hue framing, while **Classic Pepe** uses a narrower retro collectible-card treatment. **Template Frame** uses the local transparent card frame with the MoonCat image and detail regions mapped into its windows. The selected theme is stored locally in the browser and defaults safely to Modern. All themes include the larger atlas preview, a compact rescue/year-hue-pattern strip, remaining rescue traits, and explicit links to [ChainStation](https://mooncatrescue.com) and OpenSea. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
+Clicking the image in a pinned card opens an expanded, theme-ready collectible card. **Template Frame** is currently the default, using the local transparent frame with the MoonCat image and detail regions mapped into its windows; its in-card footer is intentionally blank for now. **Modern** (`rare-card`) and **Classic Pepe** remain valid stored themes internally, but theme selection is temporarily not exposed in the card UI. All themes include the larger atlas preview, a compact rescue/year-hue-pattern strip, and remaining rescue traits; the stored Modern and Classic Pepe themes retain their explicit [ChainStation](https://mooncatrescue.com) and OpenSea links. OpenSea links use the Acclimated MoonCats contract, so they may not resolve every cat.
 
 ## Filters
 
