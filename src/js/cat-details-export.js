@@ -1,3 +1,5 @@
+import { classifyGenesisDetail } from "./cat-details.js";
+
 // This matches the validated desktop Template Frame card exactly. Keeping the
 // export at the card's rendered size avoids a second, subtly different scale.
 export const DETAIL_CARD_EXPORT_SIZE = Object.freeze({ width: 600, height: 840 });
@@ -113,6 +115,38 @@ function drawTraitGrid(context, detail, detailsRect) {
   context.restore();
 }
 
+function createGenesisFoilGradient(context, coatRail, genesis) {
+  const gradient = context.createLinearGradient(
+    coatRail.x,
+    coatRail.y + coatRail.height,
+    coatRail.x + coatRail.width,
+    coatRail.y
+  );
+
+  const stops = genesis === "black"
+    ? [
+      [0, "#101218"],
+      [0.28, "#252a35"],
+      [0.44, "#11131a"],
+      [0.49, "#737a8b"],
+      [0.53, "#645675"],
+      [0.58, "#222632"],
+      [0.8, "#0b0d12"],
+      [1, "#171921"]
+    ]
+    : [
+      [0, "#e7e0d5"],
+      [0.25, "#fff9ed"],
+      [0.44, "#dcebed"],
+      [0.51, "#f1dce7"],
+      [0.58, "#e9d6ae"],
+      [0.76, "#f8f1e6"],
+      [1, "#e9e2d8"]
+    ];
+  stops.forEach(([offset, color]) => gradient.addColorStop(offset, color));
+  return gradient;
+}
+
 export function renderDetailCardCanvas({ canvas, templateImage, atlasImage, detail, title, coatColor }) {
   const context = canvas?.getContext?.("2d");
   const source = detailCardAtlasSourceRect(detail?.rescueOrder);
@@ -133,7 +167,10 @@ export function renderDetailCardCanvas({ canvas, templateImage, atlasImage, deta
   context.clearRect(0, 0, width, height);
   context.imageSmoothingEnabled = false;
 
-  context.fillStyle = coatColor || "#ff69b4";
+  const genesis = classifyGenesisDetail(detail);
+  context.fillStyle = genesis
+    ? createGenesisFoilGradient(context, coatRail, genesis)
+    : (coatColor || "#ff69b4");
   context.fillRect(coatRail.x, coatRail.y, coatRail.width, coatRail.height);
   context.fillStyle = "#000";
   context.fillRect(image.x, image.y, image.width, image.height);
