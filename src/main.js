@@ -156,6 +156,7 @@ const HYBRID_STARFIELD_ENABLED_STORAGE_KEY = "catmoon.hybridStarfieldEnabled.v1"
 const PINNED_TOOLTIP_DRIFT_LIMIT_PX = 140;
 const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
+const MOBILE_HUD_MEDIA_QUERY = "(max-width: 520px)";
 const RESCUE_LOOKUP_TARGET_DISTANCE = 1.5;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 
@@ -514,6 +515,15 @@ function updateHudHelpState() {
   hudHelpButton.title = label;
 }
 
+function collapseHudAfterMobileRescueLookup() {
+  if (!hudUnlocked || !(window.matchMedia?.(MOBILE_HUD_MEDIA_QUERY)?.matches ?? false)) return;
+
+  hudUnlocked = false;
+  hudHelpOpen = false;
+  updateHudHelpState();
+  updateHudLockState();
+}
+
 function loadHoverPreviewImageSetting() {
   try {
     return window.localStorage.getItem(HOVER_PREVIEW_STORAGE_KEY) !== "off";
@@ -864,7 +874,6 @@ const CAT_DETAIL_LABELS = Object.freeze({
   pose: "Pose"
 });
 const CAT_DETAIL_FIELD_ORDER = Object.freeze([
-  "rescueOrder",
   "rescueYear",
   "catId",
   "hueInt",
@@ -1077,6 +1086,7 @@ function focusRescueId() {
     onComplete() {
       pauseAutoRotate();
       showPinnedTooltip(id, window.innerWidth / 2, window.innerHeight / 2, target.localPoint);
+      collapseHudAfterMobileRescueLookup();
     }
   };
   setRescueLookupStatus("");
