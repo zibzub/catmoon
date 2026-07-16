@@ -168,7 +168,7 @@
           <div id="catDetailsPreviewFrame">
             <div id="catDetailsPreview" aria-label="MoonCat atlas preview"></div>
           </div>
-          <span id="catDetailsImageHint" aria-hidden="true">⇩</span>
+          <span id="catDetailsImageHint" class="catDetailsDownloadIcon" aria-hidden="true"></span>
         </div>
         <div id="catDetailsAttributeStrip" aria-live="polite" hidden></div>
         <section id="catDetailsDetailPanel" aria-live="polite">
@@ -192,13 +192,13 @@
         <div id="catDetailsActions" hidden>
           <div id="catDetailsActionsPanel" role="dialog" aria-modal="true" aria-label="MoonCat card actions">
             <a id="catDetailsActionsChainStation" target="_blank" rel="noopener noreferrer">
-              <span>ChainStation</span><span class="catDetailsActionIcon" aria-hidden="true">↗</span>
+              <span>ChainStation</span><span class="catDetailsActionIcon catDetailsExternalIcon" aria-hidden="true"></span>
             </a>
             <a id="catDetailsActionsOpenSea" target="_blank" rel="noopener noreferrer">
-              <span>OpenSea</span><span class="catDetailsActionIcon" aria-hidden="true">↗</span>
+              <span>OpenSea</span><span class="catDetailsActionIcon catDetailsExternalIcon" aria-hidden="true"></span>
             </a>
             <button id="catDetailsActionsSave" type="button">
-              <span>Save Card</span><span class="catDetailsActionIcon" aria-hidden="true">↓</span>
+              <span>Save Card</span><span class="catDetailsActionIcon catDetailsDownloadIcon" aria-hidden="true"></span>
             </button>
             <div id="catDetailsActionsStatus" role="status" aria-live="polite"></div>
           </div>

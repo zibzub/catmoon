@@ -49,6 +49,7 @@ import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
 import { createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks } from "./js/cat-details.js";
 import { downloadDetailCardPng } from "./js/cat-details-export.js";
+import { fitSingleLineText } from "./js/cat-details-text-fit.js";
 import {
   applyCatDetailsTheme,
   loadCatDetailsTheme
@@ -176,6 +177,30 @@ function updateCatDetailsThemeUi() {
 }
 
 updateCatDetailsThemeUi();
+
+let detailTextFitFrame = null;
+let detailImageActionsBlockedUntil = 0;
+const DETAIL_IMAGE_ACTION_GUARD_MS = 450;
+
+function fitTemplateCardText() {
+  if (catDetailsCardEl.dataset.theme !== "template-card") return;
+  fitSingleLineText(catDetailsTitleEl, { minFontSize: 16 });
+  fitSingleLineText(catDetailsAttributeStripEl, { minFontSize: 10 });
+}
+
+function scheduleTemplateCardTextFit() {
+  if (detailTextFitFrame !== null) return;
+  detailTextFitFrame = window.requestAnimationFrame(() => {
+    detailTextFitFrame = null;
+    fitTemplateCardText();
+  });
+}
+
+const detailTextFitObserver = typeof ResizeObserver === "function"
+  ? new ResizeObserver(scheduleTemplateCardTextFit)
+  : null;
+detailTextFitObserver?.observe(catDetailsCardEl);
+document.fonts?.ready?.then(scheduleTemplateCardTextFit);
 
 function loadRenderModeSetting() {
   try {
@@ -855,6 +880,7 @@ function updateCatDetailsTitle(id) {
   catDetailsTitleEl.textContent = typeof name === "string" && name
     ? `MoonCat ${id} : ${name}`
     : `MoonCat ${id}`;
+  scheduleTemplateCardTextFit();
 }
 
 function setCatDetailsStatus(message, isError = false) {
@@ -868,12 +894,12 @@ function setCatDetailsActionsStatus(message, isError = false) {
 }
 
 function closeCatDetailsActions({ restoreFocus = true } = {}) {
-  if (!catDetailsActionsOpen) return;
+  const wasOpen = catDetailsActionsOpen;
   catDetailsActionsOpen = false;
   catDetailsActionsEl.hidden = true;
   catDetailsImageWindowEl.setAttribute("aria-expanded", "false");
   setCatDetailsActionsStatus("");
-  if (restoreFocus && catDetailsDialogEl.open) catDetailsImageWindowEl.focus();
+  if (restoreFocus && wasOpen && catDetailsDialogEl.open) catDetailsImageWindowEl.focus();
 }
 
 function openCatDetailsActions() {
@@ -904,6 +930,7 @@ function renderCatDetailsAttributeStrip(detail) {
     return item;
   }));
   catDetailsAttributeStripEl.hidden = false;
+  scheduleTemplateCardTextFit();
 }
 
 function updateCatDetailsCardCoat(detail) {
@@ -965,6 +992,8 @@ function loadCatDetailsForDialog(id) {
 function openCatDetailsDialog() {
   if (pinnedCatId === null) return;
 
+  closeCatDetailsActions({ restoreFocus: false });
+  detailImageActionsBlockedUntil = performance.now() + DETAIL_IMAGE_ACTION_GUARD_MS;
   const id = pinnedCatId;
   catDetailsDialogId = id;
   updateCatDetailsTitle(id);
@@ -981,6 +1010,7 @@ function openCatDetailsDialog() {
   });
 
   if (!catDetailsDialogEl.open) catDetailsDialogEl.showModal();
+  scheduleTemplateCardTextFit();
   loadCatDetailsForDialog(id);
   ensureMoonCatNamesLoaded(id);
 }
@@ -1235,6 +1265,7 @@ function resize() {
   });
   performanceMonitor.resize();
   controls.handleResize?.();
+  scheduleTemplateCardTextFit();
   updateHoverFromPointer();
 }
 
@@ -2120,7 +2151,11 @@ catDetailsRetryEl.addEventListener("click", () => {
   if (catDetailsDialogId !== null) loadCatDetailsForDialog(catDetailsDialogId);
 });
 
-catDetailsImageWindowEl.addEventListener("click", () => {
+catDetailsImageWindowEl.addEventListener("click", (event) => {
+  if (performance.now() < detailImageActionsBlockedUntil) {
+    event.preventDefault();
+    return;
+  }
   openCatDetailsActions();
 });
 
@@ -2178,9 +2213,7 @@ catDetailsDialogEl.addEventListener("cancel", (event) => {
 });
 
 catDetailsDialogEl.addEventListener("close", () => {
-  catDetailsActionsOpen = false;
-  catDetailsActionsEl.hidden = true;
-  catDetailsImageWindowEl.setAttribute("aria-expanded", "false");
+  closeCatDetailsActions({ restoreFocus: false });
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
   catDetailsDialogDetail = null;

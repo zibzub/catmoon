@@ -1248,6 +1248,7 @@ body {
   min-width: 0;
   width: 100%;
   overflow: hidden;
+  overflow-wrap: normal;
   font-size: clamp(20px, 3.4vw, 29px);
   font-weight: 850;
   line-height: 1;
@@ -1284,20 +1285,12 @@ body {
 #catDetailsCard[data-theme="template-card"] #catDetailsImageHint {
   position: absolute;
   z-index: 4;
-  right: auto;
+  right: 10px;
   bottom: 8px;
-  left: 10px;
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border: 1px solid rgba(255, 105, 180, 0.58);
-  border-radius: 50%;
-  background: rgba(5, 5, 10, 0.58);
-  color: rgba(255, 220, 240, 0.78);
-  font-family: "Pixel Operator Bold", "Pixel Operator", monospace;
-  font-size: 15px;
-  line-height: 1;
+  left: auto;
+  width: 32px;
+  height: 34px;
+  color: hotpink;
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
@@ -1327,6 +1320,7 @@ body {
   right: 8.1%;
   left: 8.1%;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   height: 5.1%;
@@ -1346,6 +1340,11 @@ body {
 
 #catDetailsCard[data-theme="template-card"] #catDetailsAttributeStrip span + span::before {
   color: #302f25;
+}
+
+#catDetailsCard[data-theme="template-card"] #catDetailsAttributeStrip span {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsDetailPanel {
@@ -1433,6 +1432,7 @@ body {
 #catDetailsActionsPanel button {
   display: flex;
   width: 100%;
+  gap: 8px;
   height: 52px;
   min-height: 52px;
   align-items: center;
@@ -1453,10 +1453,38 @@ body {
 
 .catDetailsActionIcon {
   display: inline-block;
-  min-width: 1em;
-  font-size: 0.78em;
-  line-height: 1;
-  text-align: center;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  background-color: currentColor;
+  color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.catDetailsExternalIcon {
+  mask-image: url("/icons/external-link.svg");
+  -webkit-mask-image: url("/icons/external-link.svg");
+}
+
+.catDetailsDownloadIcon {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  color: currentColor;
+  mask-image: url("/icons/download.svg");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: url("/icons/download.svg");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
 }
 
 #catDetailsActionsPanel a:hover,
@@ -1466,7 +1494,7 @@ body {
   border-color: hotpink;
   background: rgba(34, 17, 31, 0.9);
   box-shadow: 0 0 12px rgba(255, 105, 180, 0.9);
-  outline: 2px solid hotpink;
+  outline: none;
   outline-offset: 2px;
 }
 
@@ -1573,10 +1601,9 @@ body {
 
   #catDetailsCard[data-theme="template-card"] #catDetailsImageHint {
     bottom: 6px;
-    left: 8px;
-    width: 19px;
-    height: 19px;
-    font-size: 13px;
+    right: 8px;
+    width: 28px;
+    height: 30px;
   }
 }
 
