@@ -811,10 +811,8 @@ body {
 }
 
 #walletFilterActions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: 4px;
+  flex: 0 0 72px;
+  width: 72px;
 }
 
 #walletFilterInputWrap {
@@ -862,6 +860,12 @@ body {
 #walletFilterClear[hidden] {
   display: none;
 }
+
+#walletFilterRow {
+  align-items: flex-start;
+}
+
+
 
 #walletHistoryDropdown {
   position: absolute;
@@ -944,6 +948,21 @@ body {
   border-color: rgba(255, 105, 180, 0.8);
   background: rgba(255, 105, 180, 0.1);
   font-weight: 700;
+}
+
+#walletFilterMetaRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+#walletHideMoonToggle {
+  flex: 0 0 auto;
+  min-width: 88px;
+  height: 28px;
+  padding: 3px 9px;
+  font-size: 12px;
 }
 
 #walletHideMoonToggle[hidden] {
@@ -1121,6 +1140,12 @@ input:focus {
   color: #d7d7d7;
   font-size: 11px;
   line-height: 1.25;
+}
+
+#walletFilterStatus {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 2px;
 }
 
 #walletFilterStatus.error,
