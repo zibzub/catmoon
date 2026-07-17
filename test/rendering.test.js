@@ -130,7 +130,7 @@ test("Tracer Moon keeps its configured intensity", () => {
   assert.equal(AFTERIMAGE_INTENSITY_SHADER.uniforms.intensity.value, AFTERIMAGE_DEFAULTS.intensity);
 });
 
-test("Afterimage separates RGB persistence and intensity while preserving current-frame alpha", () => {
+test("Afterimage preserves RGB trails and accumulates alpha for hidden surfaces", () => {
   assert.equal(
     ALPHA_PRESERVING_AFTERIMAGE_SHADER.uniforms.persistence.value,
     AFTERIMAGE_DEFAULTS.persistence
@@ -145,7 +145,15 @@ test("Afterimage separates RGB persistence and intensity while preserving curren
   );
   assert.match(
     ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader,
-    /gl_FragColor = vec4\(trailTarget, currentFrame\.a\)/
+    /float historyAlpha = oldFrame\.a \* persistence/
+  );
+  assert.match(
+    ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader,
+    /float trailAlpha = max\(currentFrame\.a, historyAlpha\)/
+  );
+  assert.match(
+    ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader,
+    /gl_FragColor = vec4\(trailTarget, trailAlpha\)/
   );
   assert.equal(
     AFTERIMAGE_INTENSITY_SHADER.uniforms.intensity.value,
@@ -157,11 +165,18 @@ test("Afterimage separates RGB persistence and intensity while preserving curren
   );
   assert.match(
     AFTERIMAGE_INTENSITY_SHADER.fragmentShader,
-    /gl_FragColor = vec4\(trail, currentFrame\.a\)/
+    /float trailAlpha = trailTarget\.a \* intensity/
+  );
+  assert.match(
+    AFTERIMAGE_INTENSITY_SHADER.fragmentShader,
+    /float outputAlpha = max\(currentFrame\.a, trailAlpha\)/
+  );
+  assert.match(
+    AFTERIMAGE_INTENSITY_SHADER.fragmentShader,
+    /gl_FragColor = vec4\(trail, outputAlpha\)/
   );
   assert.doesNotMatch(ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader, /intensity/);
   assert.doesNotMatch(AFTERIMAGE_INTENSITY_SHADER.fragmentShader, /persistence/);
-  assert.doesNotMatch(ALPHA_PRESERVING_AFTERIMAGE_SHADER.fragmentShader, /oldFrame\.a/);
 });
 
 test("depth of field uses restrained defaults and restores clean-frame alpha", () => {

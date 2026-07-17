@@ -95,9 +95,11 @@ export const ALPHA_PRESERVING_AFTERIMAGE_SHADER = {
     void main() {
       vec4 oldFrame = texture2D(tOld, vUv);
       vec4 currentFrame = texture2D(tNew, vUv);
+      float historyAlpha = oldFrame.a * persistence;
       vec3 history = oldFrame.rgb * persistence * step(vec3(0.1), oldFrame.rgb);
       vec3 trailTarget = max(currentFrame.rgb, history);
-      gl_FragColor = vec4(trailTarget, currentFrame.a);
+      float trailAlpha = max(currentFrame.a, historyAlpha);
+      gl_FragColor = vec4(trailTarget, trailAlpha);
     }
   `
 };
@@ -127,7 +129,9 @@ export const AFTERIMAGE_INTENSITY_SHADER = {
       vec4 trailTarget = texture2D(tTrail, vUv);
       vec4 currentFrame = texture2D(tCurrent, vUv);
       vec3 trail = mix(currentFrame.rgb, trailTarget.rgb, intensity);
-      gl_FragColor = vec4(trail, currentFrame.a);
+      float trailAlpha = trailTarget.a * intensity;
+      float outputAlpha = max(currentFrame.a, trailAlpha);
+      gl_FragColor = vec4(trail, outputAlpha);
     }
   `
 };
