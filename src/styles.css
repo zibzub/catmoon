@@ -127,6 +127,7 @@ body {
   min-height: 44px;
   padding: 46px 11px 11px;
   border: 1px solid rgba(255, 105, 180, 0.55);
+  border-radius: 5px;
   background: rgba(0, 0, 0, 0.72);
   box-sizing: border-box;
   pointer-events: auto;
@@ -157,6 +158,7 @@ body {
   height: 28px;
   padding: 0;
   border: 1px solid rgba(255, 105, 180, 0.5);
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.06);
   color: #f2f2f2;
   font: inherit;
@@ -201,6 +203,52 @@ body {
 #hudHelpButton[aria-expanded="true"] {
   background: rgba(255, 105, 180, 0.16);
   color: #fff4fa;
+}
+
+.hudSectionLabel {
+  display: block;
+  align-self: flex-start;
+  margin: 0 0 2px;
+  color: rgba(255, 170, 215, 0.9);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.hudSectionLabel::before {
+  margin-right: 5px;
+  color: hotpink;
+  content: "//";
+  opacity: 0.8;
+}
+
+#renderModeControl,
+#filterControls,
+#rescueLookupControls,
+#walletControls {
+  position: relative;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+#renderModeControl::before,
+#filterControls::before,
+#rescueLookupControls::before,
+#walletControls::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    rgba(255, 105, 180, 0.75),
+    rgba(255, 105, 180, 0.05)
+  );
+  pointer-events: none;
 }
 
 #activeFilterBadge {
@@ -730,6 +778,172 @@ body {
 #rescueLookupButton:hover {
   border-color: hotpink;
   outline: none;
+}
+
+#rescueLookupButton,
+#walletFilterButton {
+  min-width: 72px;
+  border-color: rgba(255, 105, 180, 0.8);
+  background: rgba(255, 105, 180, 0.1);
+  font-weight: 700;
+}
+
+select,
+input {
+  border-color: rgba(255, 105, 180, 0.3);
+}
+
+select:hover,
+input:hover {
+  border-color: rgba(255, 105, 180, 0.55);
+}
+
+select:focus,
+input:focus {
+  border-color: hotpink;
+  box-shadow: 0 0 0 1px rgba(255, 105, 180, 0.22);
+}
+
+.hudToggleControl {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 9px 7px;
+  box-sizing: border-box;
+
+  border: 1px solid rgba(255, 105, 180, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 105, 180, 0.035),
+      transparent 58%
+    ),
+    rgba(8, 8, 13, 0.92);
+  color: rgba(232, 226, 234, 0.78);
+
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: left;
+
+  cursor: pointer;
+  overflow: hidden;
+  pointer-events: auto;
+  user-select: none;
+
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    color 140ms ease;
+}
+
+.hudToggleControl::before {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255, 105, 180, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 105, 180, 0.06);
+  content: "";
+  box-sizing: border-box;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.hudToggleControl::after {
+  position: absolute;
+  right: 7px;
+  bottom: 6px;
+  min-width: 25px;
+  padding: 2px 5px;
+  border: 1px solid rgba(255, 105, 180, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(225, 210, 220, 0.42);
+  content: "OFF";
+  box-sizing: border-box;
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.hudToggleControl:has(input:checked) {
+  border-color: rgba(255, 105, 180, 0.9);
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(255, 105, 180, 0.2),
+      transparent 47%
+    ),
+    linear-gradient(
+      160deg,
+      rgba(255, 105, 180, 0.18),
+      rgba(17, 10, 17, 0.96) 70%
+    );
+  color: #fff4fa;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 105, 180, 0.12),
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    0 0 14px rgba(255, 105, 180, 0.12);
+}
+
+.hudToggleControl:has(input:checked)::before {
+  border-color: #ffc1df;
+  background: hotpink;
+  box-shadow:
+    0 0 5px hotpink,
+    0 0 11px rgba(255, 105, 180, 0.65);
+}
+
+.hudToggleControl:has(input:checked)::after {
+  border-color: rgba(255, 180, 220, 0.55);
+  background: rgba(255, 105, 180, 0.15);
+  color: #ffd4e9;
+  content: "ON";
+}
+
+.hudToggleControl:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 105, 180, 0.55);
+  color: #f4edf2;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hudToggleControl:active {
+  transform: translateY(0);
+}
+
+.hudToggleControl:focus-within {
+  outline: 1px solid rgba(255, 155, 205, 0.95);
+  outline-offset: 2px;
+}
+
+.hudToggleLabel {
+  display: block;
+  min-width: 0;
+  padding-right: 22px;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+#hud input[type="text"]:not(#walletFilterClear),
+#hud select,
+#rescueLookupButton,
+#walletFilterButton,
+#depthOfFieldReset {
+  border-radius: 5px;
 }
 
 #walletFilterClear:hover,

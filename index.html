@@ -62,7 +62,7 @@
           </label>
         </div>
         <label id="renderModeControl" for="renderModeSelect">
-          Render
+          <span class="hudSectionLabel">Render mode</span>
           <select id="renderModeSelect" aria-label="Render mode">
             <option value="pixel">Pixel Moon</option>
             <option value="smooth">Smooth Moon</option>
@@ -72,7 +72,7 @@
           </select>
         </label>
         <section id="depthOfFieldControls" aria-labelledby="depthOfFieldControlsTitle" hidden>
-          <div id="depthOfFieldControlsTitle">Depth of Field</div>
+          <div class="hudSectionLabel" id="depthOfFieldControlsTitle">Depth of Field</div>
           <label class="depthOfFieldControl" for="depthOfFieldFocus">
             <span><span>Focus</span><output id="depthOfFieldFocusValue" for="depthOfFieldFocus"></output></span>
             <input id="depthOfFieldFocus" type="range">
@@ -88,7 +88,7 @@
           <button id="depthOfFieldReset" type="button">Reset DOF</button>
         </section>
         <label id="filterControls" for="catFilter">
-          Filter
+          <span class="hudSectionLabel">Filter cats</span>
           <select id="catFilter">
             <option value="all">All Cats</option>
             <option value="wallet" hidden>Wallet Cats</option>
@@ -107,7 +107,7 @@
         </label>
         <div id="activeFilterStat" aria-live="polite"></div>
         <div id="rescueLookupControls">
-          <label for="rescueLookupInput">Rescue ID</label>
+          <label class="hudSectionLabel" for="rescueLookupInput">Find Rescue</label>
           <div id="rescueLookupRow">
             <input id="rescueLookupInput" type="text" inputmode="numeric" enterkeyhint="search" placeholder="0–25439" autocomplete="off" spellcheck="false" aria-describedby="rescueLookupStatus">
             <button id="rescueLookupButton" type="button">Find</button>
@@ -115,7 +115,7 @@
           <div id="rescueLookupStatus" role="status" aria-live="polite"></div>
         </div>
         <div id="walletControls">
-          <label for="walletFilterInput">Wallet</label>
+          <label class="hudSectionLabel" for="walletFilterInput">Look up wallet</label>
           <div id="walletFilterRow">
             <div id="walletFilterInputWrap">
               <input id="walletFilterInput" type="text" placeholder="0x... or name.eth" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" aria-autocomplete="list" aria-expanded="false" aria-controls="walletHistoryDropdown">
