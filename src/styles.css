@@ -250,18 +250,6 @@ body {
   background: hotpink;
 }
 
-/* #renderModeControl[data-render-mode="smooth"] #renderModeIcon {
-  width: 12px;
-  height: 10px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 30%,
-    #fff4fa 0 12%,
-    #ff9dcc 30%,
-    #c42c79 75%
-  );
-} */
-
 #renderModeControl[data-render-mode="smooth"] #renderModeIcon {
   width: 10px;
   height: 10px;
@@ -269,28 +257,6 @@ body {
   border-radius: 50%;
   background: hotpink;
 }
-
-/* #renderModeControl[data-render-mode="afterimage"] #renderModeIcon {
-  border: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 105, 180, 0.28));
-}
-
-#renderModeControl[data-render-mode="afterimage"] #renderModeIcon::before,
-#renderModeControl[data-render-mode="afterimage"] #renderModeIcon::after {
-  left: 1px;
-  width: 11px;
-  height: 2px;
-  background: hotpink;
-}
-
-#renderModeControl[data-render-mode="afterimage"] #renderModeIcon::before {
-  top: 2px;
-  opacity: 0.45;
-}
-
-#renderModeControl[data-render-mode="afterimage"] #renderModeIcon::after {
-  top: 6px;
-} */
 
 #renderModeControl[data-render-mode="afterimage"] #renderModeIcon {
   width: 15px;
@@ -331,20 +297,6 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle, hotpink 0 2px, transparent 2px 4px, rgba(255, 105, 180, 0.25) 4px 5px, transparent 5px);
 }
-
-/* #renderModeControl[data-render-mode="lit"] #renderModeIcon {
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 32%, #fff8d8 0 20%, #ffd36e 21% 48%, #8d4b79 49% 100%);
-}
-
-#renderModeControl[data-render-mode="lit"] #renderModeIcon::after {
-  top: -1px;
-  right: -1px;
-  width: 8px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(20, 10, 24, 0.95);
-} */
 
 #renderModeControl[data-render-mode="lit"] #renderModeIcon {
   width: 10px;
