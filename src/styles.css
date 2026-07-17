@@ -810,6 +810,13 @@ body {
   gap: 6px;
 }
 
+#walletFilterActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
 #walletFilterInputWrap {
   position: relative;
   display: flex;
@@ -900,7 +907,8 @@ body {
 }
 
 #walletFilterButton,
-#rescueLookupButton {
+#rescueLookupButton,
+#walletHideMoonToggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -920,6 +928,8 @@ body {
 #walletFilterInput:focus-visible,
 #walletFilterButton:focus-visible,
 #walletFilterButton:hover,
+#walletHideMoonToggle:focus-visible,
+#walletHideMoonToggle:hover,
 #rescueLookupInput:focus-visible,
 #rescueLookupButton:focus-visible,
 #rescueLookupButton:hover {
@@ -928,11 +938,16 @@ body {
 }
 
 #rescueLookupButton,
-#walletFilterButton {
+#walletFilterButton,
+#walletHideMoonToggle {
   min-width: 72px;
   border-color: rgba(255, 105, 180, 0.8);
   background: rgba(255, 105, 180, 0.1);
   font-weight: 700;
+}
+
+#walletHideMoonToggle[hidden] {
+  display: none;
 }
 
 select,
@@ -1089,6 +1104,7 @@ input:focus {
 #hud select,
 #rescueLookupButton,
 #walletFilterButton,
+#walletHideMoonToggle,
 #depthOfFieldReset {
   border-radius: 5px;
 }

@@ -130,6 +130,7 @@ const {
   walletFilterClearEl,
   walletFilterButtonEl,
   walletFilterStatusEl,
+  walletHideMoonToggleEl,
   walletHistoryDropdownEl,
   activeFilterBadgeEl,
   activeFilterNameEl,
@@ -350,6 +351,7 @@ let hudHelpOpen = false;
 let activeFilter = "all";
 let activeFilterSet = null;
 let activeFilterCounts = null;
+let walletHideMoonEnabled = false;
 let walletFilterInput = "";
 let walletFilterIds = [];
 let walletFilterLabel = "";
@@ -639,6 +641,13 @@ function updateEarlyRescueZoneAppearance() {
 function updateEarlyRescueZoneToggleUi() {
   earlyRescueZoneToggleEl.checked = earlyRescueZoneEnabled;
   updateEarlyRescueZoneAppearance();
+}
+
+function updateWalletHideMoonToggleUi() {
+  const isWalletFilter = activeFilter === WALLET_FILTER_KEY;
+  walletHideMoonToggleEl.hidden = !isWalletFilter;
+  walletHideMoonToggleEl.textContent = walletHideMoonEnabled ? "Show Moon" : "Hide Moon";
+  walletHideMoonToggleEl.setAttribute("aria-pressed", walletHideMoonEnabled ? "true" : "false");
 }
 
 function clearTooltipHideTimer() {
@@ -1631,26 +1640,30 @@ function updateActiveFilterBadge() {
 }
 
 function updateFilterAppearance() {
+  if (activeFilter !== WALLET_FILTER_KEY) walletHideMoonEnabled = false;
   updateActiveFilterBadge();
+  updateWalletHideMoonToggleUi();
   if (!triacontahedron?.userData) return;
 
   const isFiltered = activeFilter !== "all";
   const overlayTextures = filterTextureCache.get(activeFilter);
   const overlaysReady = isFiltered && overlayTextures;
   const isWalletFilter = activeFilter === WALLET_FILTER_KEY;
+  const hideWalletMoon = isWalletFilter && walletHideMoonEnabled;
 
   for (const mesh of triacontahedron.userData.baseMeshes || []) {
+    mesh.visible = !hideWalletMoon;
     mesh.material.transparent = isFiltered;
     mesh.material.opacity = isFiltered ? FILTER_BASE_OPACITY : 1;
     mesh.material.needsUpdate = true;
   }
 
   for (const mesh of triacontahedron.userData.backingMeshes || []) {
-    mesh.visible = isFiltered;
+    mesh.visible = isFiltered && !hideWalletMoon;
   }
 
   for (const mesh of triacontahedron.userData.edgeMeshes || []) {
-    mesh.visible = isFiltered;
+    mesh.visible = isFiltered && !hideWalletMoon;
   }
 
   (triacontahedron.userData.overlayMeshes || []).forEach((mesh, faceIndex) => {
@@ -1678,7 +1691,9 @@ function updateFilterAppearance() {
     mesh.visible = true;
   });
 
-  const shouldShowEarlyRescueZone = earlyRescueZoneEnabled && EARLY_RESCUE_ZONE_VISIBLE_FILTERS.has(activeFilter);
+  const shouldShowEarlyRescueZone = !hideWalletMoon
+    && earlyRescueZoneEnabled
+    && EARLY_RESCUE_ZONE_VISIBLE_FILTERS.has(activeFilter);
   for (const mesh of triacontahedron.userData.earlyRescueZoneMeshes || []) {
     mesh.visible = shouldShowEarlyRescueZone;
   }
@@ -1688,6 +1703,7 @@ async function setActiveFilter(filterKey, { focus = false, updateUrl = true } = 
   focusInteractionVersion += 1;
   cancelFocusAnimation();
   scheduleAutoRotateResume();
+  if (filterKey !== WALLET_FILTER_KEY) walletHideMoonEnabled = false;
   const token = filterSelectionToken + 1;
   filterSelectionToken = token;
   clearWalletFilterState();
@@ -2299,6 +2315,14 @@ walletFilterButtonEl.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   applyWalletFilter();
+});
+
+walletHideMoonToggleEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (activeFilter !== WALLET_FILTER_KEY) return;
+  walletHideMoonEnabled = !walletHideMoonEnabled;
+  updateFilterAppearance();
 });
 
 walletFilterClearEl.addEventListener("click", (event) => {

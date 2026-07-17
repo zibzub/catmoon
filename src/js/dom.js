@@ -59,6 +59,7 @@ export function getDomRefs() {
     walletFilterClearEl: document.getElementById("walletFilterClear"),
     walletFilterButtonEl: document.getElementById("walletFilterButton"),
     walletFilterStatusEl: document.getElementById("walletFilterStatus"),
+    walletHideMoonToggleEl: document.getElementById("walletHideMoonToggle"),
     walletHistoryDropdownEl: document.getElementById("walletHistoryDropdown"),
     activeFilterBadgeEl: document.getElementById("activeFilterBadge"),
     activeFilterNameEl: document.getElementById("activeFilterName"),
