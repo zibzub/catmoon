@@ -41,6 +41,7 @@ export function getDomRefs() {
     performanceMonitorDrawCallsEl: document.getElementById("performanceMonitorDrawCalls"),
     performanceMonitorTrianglesEl: document.getElementById("performanceMonitorTriangles"),
     performanceMonitorPointsEl: document.getElementById("performanceMonitorPoints"),
+    renderModeControlEl: document.getElementById("renderModeControl"),
     renderModeSelectEl: document.getElementById("renderModeSelect"),
     depthOfFieldControlsEl: document.getElementById("depthOfFieldControls"),
     depthOfFieldFocusInputEl: document.getElementById("depthOfFieldFocus"),

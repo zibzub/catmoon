@@ -112,6 +112,7 @@ const {
   performanceMonitorDrawCallsEl,
   performanceMonitorTrianglesEl,
   performanceMonitorPointsEl,
+  renderModeControlEl,
   renderModeSelectEl,
   depthOfFieldControlsEl,
   depthOfFieldFocusInputEl,
@@ -247,6 +248,7 @@ function updatePerformanceMonitorToggleUi() {
 
 function updateRenderModeUi() {
   renderModeSelectEl.value = renderMode;
+  renderModeControlEl.dataset.renderMode = renderMode;
   updateDepthOfFieldControlsUi();
 }
 
