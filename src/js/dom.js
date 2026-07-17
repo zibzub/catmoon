@@ -37,6 +37,7 @@ export function getDomRefs() {
     performanceMonitorSmoothedFpsEl: document.getElementById("performanceMonitorSmoothedFps"),
     performanceMonitorFrameTimeEl: document.getElementById("performanceMonitorFrameTime"),
     performanceMonitorAverageFrameTimeEl: document.getElementById("performanceMonitorAverageFrameTime"),
+    performanceMonitorCameraDistanceEl: document.getElementById("performanceMonitorCameraDistance"),
     performanceMonitorDrawCallsEl: document.getElementById("performanceMonitorDrawCalls"),
     performanceMonitorTrianglesEl: document.getElementById("performanceMonitorTriangles"),
     performanceMonitorPointsEl: document.getElementById("performanceMonitorPoints"),

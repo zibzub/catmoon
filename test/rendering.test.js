@@ -11,6 +11,7 @@ import {
   DEPTH_OF_FIELD_CONTROL_META,
   DEPTH_OF_FIELD_DEFAULTS,
   DEPTH_OF_FIELD_PASS_ORDER,
+  DEPTH_OF_FIELD_STORAGE_KEY,
   LIT_MOON_LIGHTING_DEFAULTS,
   applyDepthOfFieldSettings,
   clampDepthOfFieldValue,
@@ -165,9 +166,9 @@ test("Afterimage separates RGB persistence and intensity while preserving curren
 
 test("depth of field uses restrained defaults and restores clean-frame alpha", () => {
   assert.deepEqual(DEPTH_OF_FIELD_DEFAULTS, {
-    focus: 2.45,
-    aperture: 0.0025,
-    maxBlur: 0.004
+    focus: 3,
+    aperture: 0.0055,
+    maxBlur: 0.005
   });
   assert.deepEqual(DEPTH_OF_FIELD_PASS_ORDER, [
     "RenderPass",
@@ -211,6 +212,7 @@ test("Depth of Field controls normalize defaults, ranges, and persistence defens
   assert.equal(clampDepthOfFieldValue("aperture", 0), DEPTH_OF_FIELD_CONTROL_META.aperture.min);
   assert.equal(clampDepthOfFieldValue("maxBlur", "bad"), DEPTH_OF_FIELD_DEFAULTS.maxBlur);
 
+  assert.equal(DEPTH_OF_FIELD_STORAGE_KEY, "catmoon.depthOfFieldSettings.v2");
   const values = new Map([["catmoon.depthOfFieldSettings.v1", JSON.stringify({
     focus: 1.75,
     aperture: "bad",
@@ -220,6 +222,12 @@ test("Depth of Field controls normalize defaults, ranges, and persistence defens
     getItem(key) { return values.get(key) ?? null; },
     setItem(key, value) { values.set(key, value); }
   };
+  assert.deepEqual(loadDepthOfFieldSettings(storage), DEPTH_OF_FIELD_DEFAULTS);
+  values.set(DEPTH_OF_FIELD_STORAGE_KEY, JSON.stringify({
+    focus: 1.75,
+    aperture: "bad",
+    maxBlur: 0.03
+  }));
   assert.deepEqual(loadDepthOfFieldSettings(storage), {
     focus: 1.75,
     aperture: DEPTH_OF_FIELD_DEFAULTS.aperture,

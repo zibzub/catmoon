@@ -62,13 +62,18 @@ test("renderer stats are safely formatted and monitor enable/disable stays in pl
     attributes: {},
     setAttribute(name, value) { this.attributes[name] = value; }
   };
-  const monitor = createPerformanceMonitor({ container });
+  const cameraDistanceEl = { textContent: "—" };
+  const monitor = createPerformanceMonitor({ container, cameraDistanceEl });
   assert.equal(monitor.enabled, false);
   assert.equal(container.hidden, true);
 
   monitor.setEnabled(true);
-  monitor.update(1000, null);
-  monitor.update(1016, { info: { render: { calls: 2, triangles: 10, points: 3 } } });
+  monitor.update(1000, null, 3.15);
+  monitor.update(1016, { info: { render: { calls: 2, triangles: 10, points: 3 } } }, 2.875);
+  assert.equal(cameraDistanceEl.textContent, "2.88");
+  let distanceSnapshot = monitor.getSnapshot();
+  assert.equal(distanceSnapshot.cameraDistance, 2.875);
+
   let snapshot = monitor.getSnapshot();
   assert.equal(snapshot.sampleCount, 1);
   assert.equal(snapshot.frameTimeMs, 16);

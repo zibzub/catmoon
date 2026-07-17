@@ -80,6 +80,7 @@ export function createPerformanceMonitor({
   smoothedFpsEl,
   frameTimeEl,
   averageFrameTimeEl,
+  cameraDistanceEl,
   drawCallsEl,
   trianglesEl,
   pointsEl,
@@ -93,6 +94,7 @@ export function createPerformanceMonitor({
   let currentFps = 0;
   let smoothedFps = 0;
   let frameTimeMs = 0;
+  let cameraDistance = null;
   let rendererStats = { drawCalls: 0, triangles: 0, points: 0 };
 
   function setOverlayVisibility(visible) {
@@ -134,6 +136,7 @@ export function createPerformanceMonitor({
     if (smoothedFpsEl) smoothedFpsEl.textContent = formatNumber(smoothedFps);
     if (frameTimeEl) frameTimeEl.textContent = formatNumber(frameTimeMs, 2);
     if (averageFrameTimeEl) averageFrameTimeEl.textContent = formatNumber(history.average(), 2);
+    if (cameraDistanceEl) cameraDistanceEl.textContent = formatNumber(cameraDistance, 2);
     if (drawCallsEl) drawCallsEl.textContent = formatCount(rendererStats.drawCalls);
     if (trianglesEl) trianglesEl.textContent = formatCount(rendererStats.triangles);
     if (pointsEl) pointsEl.textContent = formatCount(rendererStats.points);
@@ -160,6 +163,7 @@ export function createPerformanceMonitor({
         currentFps,
         smoothedFps,
         frameTimeMs,
+        cameraDistance,
         averageFrameTimeMs: history.average(),
         sampleCount: history.size,
         rendererStats: { ...rendererStats }
@@ -168,12 +172,14 @@ export function createPerformanceMonitor({
     setEnabled(nextEnabled) {
       enabled = Boolean(nextEnabled);
       resetSamples();
+      cameraDistance = null;
       setOverlayVisibility(enabled);
       if (enabled) updateDisplay(null);
       return enabled;
     },
-    update(timestamp, renderer) {
+    update(timestamp, renderer, nextCameraDistance = null) {
       if (!enabled || !Number.isFinite(timestamp)) return;
+      cameraDistance = Number.isFinite(nextCameraDistance) ? nextCameraDistance : null;
       if (previousTimestamp === null) {
         previousTimestamp = timestamp;
         return;

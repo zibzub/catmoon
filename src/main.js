@@ -108,6 +108,7 @@ const {
   performanceMonitorSmoothedFpsEl,
   performanceMonitorFrameTimeEl,
   performanceMonitorAverageFrameTimeEl,
+  performanceMonitorCameraDistanceEl,
   performanceMonitorDrawCallsEl,
   performanceMonitorTrianglesEl,
   performanceMonitorPointsEl,
@@ -170,6 +171,7 @@ const HOVER_INTENT_DELAY_MS = 180;
 const TOUCH_HOVER_COOLDOWN_MS = 300;
 const MOBILE_HUD_MEDIA_QUERY = "(max-width: 520px)";
 const RESCUE_LOOKUP_TARGET_DISTANCE = 1.5;
+const BOKEH_MOON_CAMERA_DISTANCE = 2.3;
 const EARLY_RESCUE_ZONE_VISIBLE_FILTERS = new Set(["named", "characters", WALLET_FILTER_KEY]);
 let catDetailsTheme = loadCatDetailsTheme();
 
@@ -302,6 +304,7 @@ const performanceMonitor = createPerformanceMonitor({
   smoothedFpsEl: performanceMonitorSmoothedFpsEl,
   frameTimeEl: performanceMonitorFrameTimeEl,
   averageFrameTimeEl: performanceMonitorAverageFrameTimeEl,
+  cameraDistanceEl: performanceMonitorCameraDistanceEl,
   drawCallsEl: performanceMonitorDrawCallsEl,
   trianglesEl: performanceMonitorTrianglesEl,
   pointsEl: performanceMonitorPointsEl
@@ -321,6 +324,16 @@ controls.staticMoving = false;
 controls.dynamicDampingFactor = 0.08 / DRAG_RELEASE_MOMENTUM_MULTIPLIER;
 controls.minDistance = TRI_MIN_DISTANCE;
 controls.maxDistance = TRI_MAX_DISTANCE;
+
+function setBokehMoonCameraDistance() {
+  const targetDistance = clamp(BOKEH_MOON_CAMERA_DISTANCE, TRI_MIN_DISTANCE, TRI_MAX_DISTANCE);
+  if (camera.position.lengthSq() > Number.EPSILON) {
+    camera.position.setLength(targetDistance);
+  } else {
+    camera.position.set(0, 0, targetDistance);
+  }
+  camera.lookAt(0, 0, 0);
+}
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -1336,7 +1349,7 @@ function animate() {
   } else {
     rendering.render(scene, camera);
   }
-  performanceMonitor.update(now, renderer);
+  performanceMonitor.update(now, renderer, camera.position.length());
 }
 
 function disposeTexture(texture) {
@@ -2136,7 +2149,9 @@ performanceMonitorToggleEl.addEventListener("change", () => {
 });
 
 renderModeSelectEl.addEventListener("change", () => {
+  const wasDepthOfField = modeUsesDepthOfField(renderMode);
   renderMode = textureManager.setMode(renderModeSelectEl.value);
+  if (!wasDepthOfField && modeUsesDepthOfField(renderMode)) setBokehMoonCameraDistance();
   updatePostProcessingModes();
   updateLitMoonMode();
   saveRenderModeSetting(renderMode);
@@ -2385,5 +2400,6 @@ controlsApi = setupCatMoonControls({
 
 window.addEventListener("resize", resize);
 resize();
+if (modeUsesDepthOfField(renderMode)) setBokehMoonCameraDistance();
 updatePostProcessingModes();
 updateLitMoonMode();

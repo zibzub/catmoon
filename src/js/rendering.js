@@ -33,11 +33,11 @@ export const AFTERIMAGE_DEFAULTS = Object.freeze({
   intensity: 0.2
 });
 export const DEPTH_OF_FIELD_DEFAULTS = Object.freeze({
-  focus: 2.45,
-  aperture: 0.0025,
-  maxBlur: 0.004
+  focus: 3,
+  aperture: 0.0055,
+  maxBlur: 0.005
 });
-export const DEPTH_OF_FIELD_STORAGE_KEY = "catmoon.depthOfFieldSettings.v1";
+export const DEPTH_OF_FIELD_STORAGE_KEY = "catmoon.depthOfFieldSettings.v2";
 export const DEPTH_OF_FIELD_CONTROL_META = Object.freeze({
   focus: Object.freeze({ min: 1.5, max: 3.5, step: 0.01, decimals: 2 }),
   aperture: Object.freeze({ min: 0.0005, max: 0.02, step: 0.0005, decimals: 4 }),
