@@ -72,8 +72,6 @@ The expanded card has its own top-right close control and also supports Escape a
 - **OpenSea** — this uses the Acclimated MoonCats contract, so a link may not resolve for every cat
 - **Save Card** — exports a 600 × 840 PNG card
 
-The default expanded-card treatment is **Template Frame**. Stored **Modern** (`rare-card`) and **Classic Pepe** themes are still supported for saved preferences, but theme selection is not currently exposed in the card UI. Detail data includes a larger atlas preview, rescue/year/hue/pattern summary, and remaining traits.
-
 ### Filters
 
 Use **Filter cats** to highlight a group while dimming the rest of the moon. Available filters are:
@@ -85,8 +83,8 @@ Use **Filter cats** to highlight a group while dimming the rest of the moon. Ava
 - Character Cats
 - Day 1 Rescues
 - Week 1 Rescues
-- 2017, 2018, 2019, 2020, and 2021 Rescues
 - All Early Rescues
+- 2021 Rescues
 
 The active-filter badge resets back to All Cats. Named Cats and Wallet Cats use browser-generated overlays from the MoonCat atlas; most other built-in filters use prepared overlay textures.
 
