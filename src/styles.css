@@ -1582,6 +1582,10 @@ body {
   outline: none;
 }
 
+#catDetailsCard[data-theme="template-card"] {
+  color-scheme: only light;
+}
+
 @media (max-width: 520px) {
   #catDetailsDialog {
     width: min(100vw - 16px, 470px);
