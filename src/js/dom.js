@@ -65,6 +65,7 @@ export function getDomRefs() {
     tooltipPreviewEl: document.getElementById("tooltipPreview"),
     tooltipLabelEl: document.getElementById("tooltipLabel"),
     pinnedTooltipEl: document.getElementById("pinnedTooltip"),
+    pinnedTooltipCloseEl: document.getElementById("pinnedTooltipClose"),
     pinnedTooltipPreviewEl: document.getElementById("pinnedTooltipPreview"),
     pinnedTooltipLabelEl: document.getElementById("pinnedTooltipLabel"),
     catDetailsDialogEl: document.getElementById("catDetailsDialog"),

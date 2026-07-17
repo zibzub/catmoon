@@ -136,6 +136,7 @@ const {
   tooltipPreviewEl,
   tooltipLabelEl,
   pinnedTooltipEl,
+  pinnedTooltipCloseEl,
   pinnedTooltipPreviewEl,
   pinnedTooltipLabelEl,
   catDetailsDialogEl,
@@ -2152,6 +2153,17 @@ rescueLookupInputEl.addEventListener("keydown", (event) => {
 pinnedTooltipPreviewEl.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   event.stopPropagation();
+});
+
+pinnedTooltipCloseEl.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+pinnedTooltipCloseEl.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  hidePinnedTooltip();
 });
 
 pinnedTooltipPreviewEl.addEventListener("click", (event) => {
