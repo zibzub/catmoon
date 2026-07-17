@@ -358,6 +358,8 @@ let pinnedCatId = null;
 let pinnedTooltipAnchorX = 0;
 let pinnedTooltipAnchorY = 0;
 let pinnedCatLocalPoint = null;
+let pinnedTooltipFromRescueLookup = false;
+let pinnedTooltipAutoTumbleWasEnabled = false;
 let moonCatNames = null;
 let moonCatNamesPromise = null;
 let moonCatNamesLoadFailed = false;
@@ -836,21 +838,30 @@ function updateHoverFromClient(clientX, clientY) {
 }
 
 function hidePinnedTooltip() {
+  const shouldResumeAutoTumble =
+    pinnedTooltipFromRescueLookup
+    && pinnedTooltipAutoTumbleWasEnabled
+    && autoTumbleEnabled;
   closeCatDetailsDialog();
   pinnedCatId = null;
   pinnedCatLocalPoint = null;
+  pinnedTooltipFromRescueLookup = false;
+  pinnedTooltipAutoTumbleWasEnabled = false;
   updatePinnedTooltipPreview(null);
   pinnedTooltipEl.style.display = "none";
   pinnedTooltipEl.setAttribute("aria-hidden", "true");
   updateCatDetailsUi();
+  if (shouldResumeAutoTumble) startAutoRotateNow();
 }
 
-function showPinnedTooltip(id, clientX, clientY, localPoint) {
+function showPinnedTooltip(id, clientX, clientY, localPoint, { fromRescueLookup = false, autoTumbleWasEnabled = false } = {}) {
   if (catDetailsDialogEl.open && catDetailsDialogId !== id) closeCatDetailsDialog();
   pinnedCatId = id;
   pinnedTooltipAnchorX = clientX;
   pinnedTooltipAnchorY = clientY;
   pinnedCatLocalPoint = localPoint.clone();
+  pinnedTooltipFromRescueLookup = fromRescueLookup;
+  pinnedTooltipAutoTumbleWasEnabled = fromRescueLookup && autoTumbleWasEnabled;
   updatePinnedTooltipPreview(id);
   ensurePinnedTooltipPreviewAtlasLoaded();
   updateTooltipLabel(pinnedTooltipLabelEl, id);
@@ -1170,6 +1181,9 @@ function focusRescueId() {
 
   focusInteractionVersion += 1;
   cancelFocusAnimation();
+  pinnedTooltipFromRescueLookup = false;
+  pinnedTooltipAutoTumbleWasEnabled = false;
+  const lookupAutoTumbleWasEnabled = autoTumbleEnabled;
   const targetDistance = clamp(RESCUE_LOOKUP_TARGET_DISTANCE, TRI_MIN_DISTANCE, TRI_MAX_DISTANCE);
   const startCameraPosition = camera.position.clone();
   const targetCameraPosition = camera.position.clone().setLength(targetDistance);
@@ -1182,7 +1196,13 @@ function focusRescueId() {
     targetCameraPosition,
     onComplete() {
       pauseAutoRotate();
-      showPinnedTooltip(id, window.innerWidth / 2, window.innerHeight / 2, target.localPoint);
+      showPinnedTooltip(
+        id,
+        window.innerWidth / 2,
+        window.innerHeight / 2,
+        target.localPoint,
+        { fromRescueLookup: true, autoTumbleWasEnabled: lookupAutoTumbleWasEnabled }
+      );
       collapseHudAfterMobileRescueLookup();
     }
   };
