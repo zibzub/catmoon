@@ -23,7 +23,12 @@ body {
   overflow: hidden;
   background: #050507;
   color: #e8e8e8;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 .corner-control {
@@ -356,9 +361,15 @@ body {
 
 .hudToggleControl:has(input:checked) {
   border-color: rgba(255, 105, 180, 0.95);
-  background: linear-gradient(180deg, rgba(255, 105, 180, 0.22), rgba(12, 12, 18, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 105, 180, 0.22),
+    rgba(12, 12, 18, 0.94)
+  );
   color: #fff4fa;
-  box-shadow: 0 0 0 1px rgba(255, 105, 180, 0.18) inset, 0 0 18px rgba(255, 105, 180, 0.15);
+  box-shadow:
+    0 0 0 1px rgba(255, 105, 180, 0.18) inset,
+    0 0 18px rgba(255, 105, 180, 0.15);
 }
 
 .hudToggleControl::after {
@@ -773,21 +784,21 @@ body {
 #pinnedTooltipClose {
   position: absolute;
   z-index: 2;
-  top: 3px;
-  right: 3px;
+  top: 4px;
+  right: 9px;
   display: inline-grid;
   width: 24px;
   height: 24px;
   place-items: center;
   padding: 0;
-  border: 1px solid currentColor;
+  border: 0px solid currentColor;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.72);
+  background: transparent;
   color: hotpink;
   font: inherit;
   font-size: 18px;
   line-height: 1;
-  opacity: 0.3;
+  opacity: 0.7;
   pointer-events: auto;
   cursor: pointer;
   transition: opacity 120ms ease;
@@ -911,16 +922,17 @@ body {
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
-  border: 2px solid #050505;
-  border-radius: 7px;
-  background: #111;
-  color: #fff;
+  border: 0;
+  background: transparent;
+  color: hotpink;
   font: inherit;
-  font-size: 20px;
+  font-size: 30px;
   line-height: 1;
   cursor: pointer;
-  opacity: 0.4;
-  transition: opacity 120ms ease, border-color 120ms ease;
+  opacity: 0.7;
+  transition:
+    opacity 120ms ease,
+    border-color 120ms ease;
 }
 
 #catDetailsClose:hover,
@@ -1117,7 +1129,9 @@ body {
   padding: 8px 8px 8px 13px;
   border: 3px solid #050505;
   border-radius: 18px;
-  box-shadow: inset 0 0 0 2px #d8ceb6, 0 0 0 2px var(--cat-details-outline);
+  box-shadow:
+    inset 0 0 0 2px #d8ceb6,
+    0 0 0 2px var(--cat-details-outline);
   background: #fff9e7;
   color: #10100d;
 }
@@ -1168,7 +1182,10 @@ body {
   letter-spacing: 0.04em;
 }
 
-#catDetailsCard[data-theme="classic-pepe"] #catDetailsAttributeStrip span + span::before {
+#catDetailsCard[data-theme="classic-pepe"]
+  #catDetailsAttributeStrip
+  span
+  + span::before {
   color: var(--cat-details-outline);
 }
 
@@ -1177,7 +1194,9 @@ body {
   padding: 10px;
   border: 3px solid #080808;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65), 0 0 0 2px var(--cat-details-outline);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.65),
+    0 0 0 2px var(--cat-details-outline);
   background: #d6f4ef;
   background: color-mix(in srgb, var(--cat-details-coat) 19%, #d6f4ef);
   color: #17221f;
@@ -1251,7 +1270,8 @@ body {
   width: min(600px, 100%);
   aspect-ratio: 5 / 7;
   margin: 0 auto;
-  font-family: "Pixel Operator Bold", "Pixel Operator", "Courier New", monospace;
+  font-family:
+    "Pixel Operator Bold", "Pixel Operator", "Courier New", monospace;
   padding: 0;
   overflow: visible;
   border: 0;
@@ -1300,7 +1320,8 @@ body {
 }
 
 @keyframes catDetailsBlackGenesisFoil {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
 
@@ -1310,7 +1331,8 @@ body {
 }
 
 @keyframes catDetailsWhiteGenesisFoil {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
 
@@ -1392,7 +1414,8 @@ body {
   cursor: pointer;
 }
 
-#catDetailsCard[data-theme="template-card"] #catDetailsImageWindow:focus-visible {
+#catDetailsCard[data-theme="template-card"]
+  #catDetailsImageWindow:focus-visible {
   z-index: 4;
   outline: 3px solid hotpink;
   outline-offset: -3px;
@@ -1454,7 +1477,10 @@ body {
   white-space: nowrap;
 }
 
-#catDetailsCard[data-theme="template-card"] #catDetailsAttributeStrip span + span::before {
+#catDetailsCard[data-theme="template-card"]
+  #catDetailsAttributeStrip
+  span
+  + span::before {
   color: #302f25;
 }
 
@@ -1557,14 +1583,17 @@ body {
   padding: 7px 18px;
   border: 3px solid hotpink;
   border-radius: 999px;
-  background: rgba(9, 9, 14, 0.90);
+  background: rgba(9, 9, 14, 0.9);
   color: rgba(255, 247, 252, 0.94);
   font-family: "Pixel Operator Bold", "Pixel Operator", monospace;
   font-size: 23px;
   line-height: 1;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .catDetailsActionIcon {
@@ -1593,7 +1622,7 @@ body {
   height: 15px;
   background-color: currentColor;
   color: currentColor;
-  opacity: 0.4;
+  opacity: 0.5;
   mask-image: url("/icons/download.svg");
   mask-position: center;
   mask-repeat: no-repeat;
@@ -1634,7 +1663,9 @@ body {
 }
 
 #catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus,
-#catDetailsDialog:has(#catDetailsCard[data-theme="template-card"]):focus-visible,
+#catDetailsDialog:has(
+    #catDetailsCard[data-theme="template-card"]
+  ):focus-visible,
 #catDetailsCard[data-theme="template-card"]:focus,
 #catDetailsCard[data-theme="template-card"]:focus-visible {
   outline: none;
@@ -1655,6 +1686,22 @@ body {
     padding: 6px;
     border-width: 5px;
     border-radius: 22px;
+  }
+
+  #catDetailsCard[data-theme="template-card"] #catDetailsClose {
+    top: -6%;
+    right: 1%;
+    width: 32px;
+    height: 32px;
+    font-size: 25px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.8;
+  }
+
+   #catDetailsCard[data-theme="template-card"] #catDetailsClose:focus-visible {
+    outline: 2px solid hotpink;
   }
 
   #catDetailsImageWindow,
@@ -1755,7 +1802,9 @@ body {
   box-sizing: border-box;
   opacity: 1;
   visibility: visible;
-  transition: opacity 280ms ease, visibility 280ms ease;
+  transition:
+    opacity 280ms ease,
+    visibility 280ms ease;
 }
 
 #loadingOverlay.hidden {

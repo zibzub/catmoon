@@ -1034,6 +1034,7 @@ function openCatDetailsDialog() {
   });
 
   if (!catDetailsDialogEl.open) catDetailsDialogEl.showModal();
+  catDetailsDialogEl.focus({ preventScroll: true });
   scheduleTemplateCardTextFit();
   loadCatDetailsForDialog(id);
   ensureMoonCatNamesLoaded(id);
