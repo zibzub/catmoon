@@ -55,6 +55,15 @@ Depth-of-field values are saved locally. They do not affect the other render mod
 
 Enter a whole rescue-order ID from `0` through `25439`, then select **Find**. CatMoon rotates and zooms to place that MoonCat in view, then pins its preview at the centre of the screen. Auto tumble remains paused while that lookup-created preview is pinned; closing it resumes tumble only when Auto tumble is enabled.
 
+Rescue selections can also be shared or bookmarked with URL parameters:
+
+```text
+https://catmoon.zibzub.art/?rescue=1234
+https://catmoon.zibzub.art/?rescue=1234&view=details
+```
+
+The first form focuses and pins Rescue `1234`; the `view=details` form also opens its existing detail card after the focus animation. `view=pin` and unknown view values use the pinned-preview form. Pinning, opening details, closing details, and clearing a selection update these parameters without adding a browser history entry, while preserving wallet parameters, other query parameters, and the URL hash.
+
 ### Hover, pinned previews, and detail cards
 
 On desktop, a short hover-intent delay reveals a compact MoonCat preview. On touch devices, transient hover previews are suppressed during gestures to keep tumbling clear.
@@ -141,6 +150,7 @@ src/
     performance-monitor.js      Optional diagnostics monitor
     controls.js                 Pointer, touch, tumble, roll, and zoom input
     catmoon-geometry.js         Rhombic triacontahedron and rescue mapping
+    rescue-url.js               Shareable rescue-selection URL helpers
     filters.js                  Filter data and overlay loading
     preview.js                  Atlas preview management
     wallet.js                   Wallet URL and local-history helpers

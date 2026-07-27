@@ -56,6 +56,11 @@ import {
 } from "./js/cat-details-theme.js";
 import { setupCatMoonControls } from "./js/controls.js";
 import {
+  normalizeRescueView,
+  parseRescueUrlState,
+  updateRescueUrl
+} from "./js/rescue-url.js";
+import {
   createAfterimageEffects,
   createCatMoonRenderer,
   createDepthOfFieldEffects,
@@ -384,6 +389,7 @@ let catDetailsDialogId = null;
 let catDetailsRequestToken = 0;
 let catDetailsDialogDetail = null;
 let catDetailsActionsOpen = false;
+let suppressDetailCloseUrlSync = false;
 const walletFilterOptionEl = Array.from(catFilterEl.options).find((option) => option.value === WALLET_FILTER_KEY);
 let controlsApi = null;
 let focusAnimation = null;
@@ -861,12 +867,24 @@ function updateHoverFromClient(clientX, clientY) {
   return hoveredId;
 }
 
-function hidePinnedTooltip() {
+function syncRescueUrl(rescueId, view = "pin") {
+  if (!window.history?.replaceState) return;
+
+  const currentUrl = new URL(window.location.href);
+  const nextUrl = updateRescueUrl(currentUrl, { rescueId, view });
+  const currentPath = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
+  const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+  if (currentPath === nextPath) return;
+
+  window.history.replaceState(null, "", nextPath);
+}
+
+function hidePinnedTooltip({ syncUrl = true } = {}) {
   const shouldResumeAutoTumble =
     pinnedTooltipFromRescueLookup
     && pinnedTooltipAutoTumbleWasEnabled
     && autoTumbleEnabled;
-  closeCatDetailsDialog();
+  closeCatDetailsDialog({ syncUrl: false });
   pinnedCatId = null;
   pinnedCatLocalPoint = null;
   pinnedTooltipFromRescueLookup = false;
@@ -875,11 +893,16 @@ function hidePinnedTooltip() {
   pinnedTooltipEl.style.display = "none";
   pinnedTooltipEl.setAttribute("aria-hidden", "true");
   updateCatDetailsUi();
+  if (syncUrl) syncRescueUrl(null);
   if (shouldResumeAutoTumble) startAutoRotateNow();
 }
 
-function showPinnedTooltip(id, clientX, clientY, localPoint, { fromRescueLookup = false, autoTumbleWasEnabled = false } = {}) {
-  if (catDetailsDialogEl.open && catDetailsDialogId !== id) closeCatDetailsDialog();
+function showPinnedTooltip(id, clientX, clientY, localPoint, {
+  fromRescueLookup = false,
+  autoTumbleWasEnabled = false,
+  syncUrl = true
+} = {}) {
+  if (catDetailsDialogEl.open && catDetailsDialogId !== id) closeCatDetailsDialog({ syncUrl: false });
   pinnedCatId = id;
   pinnedTooltipAnchorX = clientX;
   pinnedTooltipAnchorY = clientY;
@@ -892,6 +915,7 @@ function showPinnedTooltip(id, clientX, clientY, localPoint, { fromRescueLookup 
   positionTooltipElement(pinnedTooltipEl, pinnedTooltipAnchorX, pinnedTooltipAnchorY);
   ensureMoonCatNamesLoaded(id);
   updateCatDetailsUi();
+  if (syncUrl) syncRescueUrl(id);
 }
 
 const CAT_DETAIL_LABELS = Object.freeze({
@@ -1073,14 +1097,21 @@ function openCatDetailsDialog() {
   scheduleTemplateCardTextFit();
   loadCatDetailsForDialog(id);
   ensureMoonCatNamesLoaded(id);
+  syncRescueUrl(id, "details");
 }
 
-function closeCatDetailsDialog() {
+function closeCatDetailsDialog({ syncUrl = true } = {}) {
   closeCatDetailsActions({ restoreFocus: false });
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
   catDetailsDialogDetail = null;
-  if (catDetailsDialogEl.open) catDetailsDialogEl.close();
+  if (catDetailsDialogEl.open) {
+    suppressDetailCloseUrlSync = !syncUrl;
+    catDetailsDialogEl.close();
+    suppressDetailCloseUrlSync = false;
+  } else if (syncUrl && pinnedCatId !== null) {
+    syncRescueUrl(pinnedCatId);
+  }
 }
 
 function togglePinnedCatFromClient(clientX, clientY) {
@@ -1180,27 +1211,32 @@ function getFocusTargetQuaternion(normal, up) {
   return targetBasisQuaternion.multiply(canonicalQuaternion.invert()).normalize();
 }
 
-function focusRescueId() {
-  const id = parseRescueId(rescueLookupInputEl.value);
+function focusRescueId({
+  id = parseRescueId(rescueLookupInputEl.value),
+  view = "pin",
+  syncUrl = true,
+  reportErrors = true
+} = {}) {
+  const normalizedView = normalizeRescueView(view);
   if (id === null) {
-    setRescueLookupStatus(`Enter a whole Rescue ID from 0 to ${MAX_ID}.`, true);
-    return;
+    if (reportErrors) setRescueLookupStatus(`Enter a whole Rescue ID from 0 to ${MAX_ID}.`, true);
+    return false;
   }
   if (!triacontahedron || !activeObject || controlsApi?.hasActiveInput()) {
-    setRescueLookupStatus("CatMoon is still loading.", true);
-    return;
+    if (reportErrors) setRescueLookupStatus("CatMoon is still loading.", true);
+    return false;
   }
 
   const target = getRescueTargetData(id, triacontahedron);
   if (!target) {
-    setRescueLookupStatus("That Rescue ID is unavailable right now.", true);
-    return;
+    if (reportErrors) setRescueLookupStatus("That Rescue ID is unavailable right now.", true);
+    return false;
   }
 
   const targetQuaternion = getFocusTargetQuaternion(target.normal, target.up);
   if (!targetQuaternion) {
-    setRescueLookupStatus("That Rescue ID could not be focused.", true);
-    return;
+    if (reportErrors) setRescueLookupStatus("That Rescue ID could not be focused.", true);
+    return false;
   }
 
   focusInteractionVersion += 1;
@@ -1225,13 +1261,19 @@ function focusRescueId() {
         window.innerWidth / 2,
         window.innerHeight / 2,
         target.localPoint,
-        { fromRescueLookup: true, autoTumbleWasEnabled: lookupAutoTumbleWasEnabled }
+        {
+          fromRescueLookup: true,
+          autoTumbleWasEnabled: lookupAutoTumbleWasEnabled,
+          syncUrl
+        }
       );
       collapseHudAfterMobileRescueLookup();
+      if (normalizedView === "details") openCatDetailsDialog();
     }
   };
   setRescueLookupStatus("");
   pauseAutoRotate();
+  return true;
 }
 
 function focusFace(faceIndex) {
@@ -2033,6 +2075,34 @@ async function syncWalletFilterFromUrl() {
   await applyWalletFilter({ updateUrl: false });
 }
 
+async function syncRescueStateFromUrl() {
+  const rescueState = parseRescueUrlState(window.location.href);
+  if (!rescueState) {
+    if (pinnedCatId !== null || catDetailsDialogEl.open) {
+      hidePinnedTooltip({ syncUrl: false });
+    }
+    return;
+  }
+
+  syncRescueUrl(rescueState.rescueId, rescueState.view);
+  rescueLookupInputEl.value = String(rescueState.rescueId);
+  if (pinnedCatId === rescueState.rescueId && !focusAnimation) {
+    if (rescueState.view === "details") {
+      openCatDetailsDialog();
+    } else if (catDetailsDialogEl.open) {
+      closeCatDetailsDialog({ syncUrl: false });
+    }
+    return;
+  }
+
+  focusRescueId({
+    id: rescueState.rescueId,
+    view: rescueState.view,
+    syncUrl: false,
+    reportErrors: false
+  });
+}
+
 window.triFaceTextureStats = triTextureStats;
 
 async function initializeScene() {
@@ -2088,9 +2158,18 @@ sceneReadyPromise.catch((error) => {
   statusEl.textContent = "Could not initialize CatMoon scene.";
 });
 sceneReadyPromise.then(
-  () => applyWalletFromUrl().catch((error) => {
-    console.error("Could not apply CatMoon wallet lookup from URL.", error);
-  }),
+  async () => {
+    try {
+      await applyWalletFromUrl();
+    } catch (error) {
+      console.error("Could not apply CatMoon wallet lookup from URL.", error);
+    }
+    try {
+      await syncRescueStateFromUrl();
+    } catch (error) {
+      console.error("Could not apply CatMoon rescue lookup from URL.", error);
+    }
+  },
   () => {}
 );
 
@@ -2306,6 +2385,9 @@ catDetailsDialogEl.addEventListener("close", () => {
   catDetailsRequestToken += 1;
   catDetailsDialogId = null;
   catDetailsDialogDetail = null;
+  if (!suppressDetailCloseUrlSync && pinnedCatId !== null) {
+    syncRescueUrl(pinnedCatId);
+  }
   if (pinnedCatId !== null) {
     pinnedTooltipPreviewEl.focus();
   }
@@ -2402,7 +2484,10 @@ renderer.domElement.addEventListener("wheel", () => {
 
 window.addEventListener("popstate", () => {
   sceneReadyPromise
-    .then(() => syncWalletFilterFromUrl())
+    .then(async () => {
+      await syncWalletFilterFromUrl();
+      await syncRescueStateFromUrl();
+    })
     .catch(() => {});
 });
 
