@@ -1,8 +1,6 @@
 export const DEFAULT_CAT_DETAILS_THEME = "template-card";
 export const CAT_DETAILS_THEMES = Object.freeze([
-  DEFAULT_CAT_DETAILS_THEME,
-  "rare-card",
-  "classic-pepe"
+  DEFAULT_CAT_DETAILS_THEME
 ]);
 export const CAT_DETAILS_THEME_STORAGE_KEY = "catmoon.detailsTheme.v1";
 
