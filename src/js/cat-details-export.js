@@ -10,10 +10,12 @@ export const DETAIL_CARD_EXPORT_LAYOUT = Object.freeze({
   image: Object.freeze({ x: 0.085, y: 0.12, width: 0.83, height: 0.435 }),
   summary: Object.freeze({ x: 0.081, y: 0.561, width: 0.838, height: 0.051 }),
   details: Object.freeze({ x: 0.085, y: 0.626, width: 0.83, height: 0.272 }),
+  classificationFooter: Object.freeze({ x: 0.081, y: 0.912, width: 0.838, height: 0.042 }),
   detailsPadding: 12,
   preview: Object.freeze({ width: 252, height: 264 }),
   titleFontSize: 29,
   summaryFontSize: 25,
+  classificationFooterFontSize: 25,
   traitFontSize: 23,
   traitLineHeight: 1.2,
   traitGap: 3,
@@ -147,7 +149,15 @@ function createGenesisFoilGradient(context, coatRail, genesis) {
   return gradient;
 }
 
-export function renderDetailCardCanvas({ canvas, templateImage, atlasImage, detail, title, coatColor }) {
+export function renderDetailCardCanvas({
+  canvas,
+  templateImage,
+  atlasImage,
+  detail,
+  title,
+  coatColor,
+  classificationFooter = ""
+}) {
   const context = canvas?.getContext?.("2d");
   const source = detailCardAtlasSourceRect(detail?.rescueOrder);
   if (!context || !templateImage || !atlasImage || !detail || !source) {
@@ -162,6 +172,7 @@ export function renderDetailCardCanvas({ canvas, templateImage, atlasImage, deta
   const titleRect = rectFromLayout(layout.title, size);
   const summaryRect = rectFromLayout(layout.summary, size);
   const details = rectFromLayout(layout.details, size);
+  const classificationRect = rectFromLayout(layout.classificationFooter, size);
   canvas.width = width;
   canvas.height = height;
   context.clearRect(0, 0, width, height);
@@ -192,6 +203,18 @@ export function renderDetailCardCanvas({ canvas, templateImage, atlasImage, deta
   drawCenteredText(context, title, titleRect.x, titleRect.y, titleRect.width, titleRect.height, `700 ${layout.titleFontSize}px "Pixel Operator Bold", monospace`, "#0b0b09");
   drawCenteredText(context, detailCardExportSummary(detail), summaryRect.x, summaryRect.y, summaryRect.width, summaryRect.height, `700 ${layout.summaryFontSize}px "Pixel Operator Bold", monospace`, "#0b0b09");
   drawTraitGrid(context, detail, details);
+  if (classificationFooter) {
+    drawCenteredText(
+      context,
+      classificationFooter,
+      classificationRect.x,
+      classificationRect.y,
+      classificationRect.width,
+      classificationRect.height,
+      `700 ${layout.classificationFooterFontSize}px "Pixel Operator Bold", monospace`,
+      "#0b0b09"
+    );
+  }
   return canvas;
 }
 
@@ -199,7 +222,8 @@ async function ensureExportFonts(documentRef) {
   if (!documentRef?.fonts?.load) return;
   await Promise.all([
     documentRef.fonts.load(`${DETAIL_CARD_EXPORT_LAYOUT.titleFontSize}px "Pixel Operator Bold"`),
-    documentRef.fonts.load(`${DETAIL_CARD_EXPORT_LAYOUT.traitFontSize}px "Pixel Operator"`)
+    documentRef.fonts.load(`${DETAIL_CARD_EXPORT_LAYOUT.traitFontSize}px "Pixel Operator"`),
+    documentRef.fonts.load(`${DETAIL_CARD_EXPORT_LAYOUT.classificationFooterFontSize}px "Pixel Operator Bold"`)
   ]);
 }
 
@@ -207,6 +231,7 @@ export async function downloadDetailCardPng({
   detail,
   title,
   coatColor,
+  classificationFooter = "",
   documentRef = globalThis.document,
   urlRef = globalThis.URL,
   ImageCtor = globalThis.Image,
@@ -227,7 +252,8 @@ export async function downloadDetailCardPng({
     atlasImage,
     detail,
     title,
-    coatColor
+    coatColor,
+    classificationFooter
   });
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not encode the card PNG.")), "image/png");

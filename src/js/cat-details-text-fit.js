@@ -23,6 +23,23 @@ export function isSingleLineFit({ availableWidth, measuredWidth }) {
     && measuredWidth <= availableWidth;
 }
 
+const CLASSIFICATION_DISPLAY_NAMES = Object.freeze({
+  pinkpanther: "pink panther",
+});
+
+export function formatClassificationFooterText(classifications) {
+  const text =
+    typeof classifications === "string" ? classifications.trim() : "";
+
+  if (!text) return "";
+
+  return text
+    .split(/\s*,\s*/)
+    .map((value) => CLASSIFICATION_DISPLAY_NAMES[value.toLowerCase()] ?? value)
+    .join(" • ")
+    .toUpperCase();
+}
+
 export function fitSingleLineText(element, {
   minFontSize = 12,
   step = 0.25

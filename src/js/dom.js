@@ -78,6 +78,7 @@ export function getDomRefs() {
     catDetailsImageWindowEl: document.getElementById("catDetailsImageWindow"),
     catDetailsPreviewEl: document.getElementById("catDetailsPreview"),
     catDetailsAttributeStripEl: document.getElementById("catDetailsAttributeStrip"),
+    catDetailsClassificationFooterEl: document.getElementById("catDetailsClassificationFooter"),
     catDetailsStatusEl: document.getElementById("catDetailsStatus"),
     catDetailsTraitsEl: document.getElementById("catDetailsTraits"),
     catDetailsRetryEl: document.getElementById("catDetailsRetry"),

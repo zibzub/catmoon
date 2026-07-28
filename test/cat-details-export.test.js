@@ -79,6 +79,45 @@ test("detail-card export uses one desktop-card layout without panel overlap", ()
   assert.equal(gradientCalls.length, 0);
 });
 
+test("detail-card export includes the visible classification footer label", () => {
+  const calls = [];
+  const context = {
+    clearRect() {},
+    fillRect() {},
+    drawImage() {},
+    save() {},
+    restore() {},
+    beginPath() {},
+    rect() {},
+    clip() {},
+    measureText: (text) => ({ width: String(text).length * 5 }),
+    fillText: (...args) => calls.push(args)
+  };
+
+  renderDetailCardCanvas({
+    canvas: { getContext: () => context },
+    templateImage: {},
+    atlasImage: {},
+    title: "MoonCat 42",
+    coatColor: "#abcdef",
+    classificationFooter: "DAY 1 • CHARACTER: ZOMBIE",
+    detail: {
+      rescueOrder: 42,
+      rescueYear: 2017,
+      hueName: "skyblue",
+      pattern: "tortie",
+      catId: "0x0000000000000000000000000000000000000042",
+      hueInt: 210,
+      pale: false,
+      facing: "left",
+      expression: "happy",
+      pose: "standing"
+    }
+  });
+
+  assert.ok(calls.some(([text]) => text === "DAY 1 • CHARACTER: ZOMBIE"));
+});
+
 function makeGenesisExportContext() {
   const gradientCalls = [];
   const context = {

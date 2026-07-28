@@ -47,9 +47,16 @@ import {
 import { createFilterManager } from "./js/filters.js";
 import { createPreviewManager } from "./js/preview.js";
 import { createCatMoonGeometry, parseRescueId } from "./js/catmoon-geometry.js";
-import { classifyGenesisDetail, createMoonCatDetailsLoader, getCatClickAction, moonCatDetailLinks, formatMoonCatHue } from "./js/cat-details.js";
+import {
+  classifyGenesisDetail,
+  createMoonCatDetailsLoader,
+  formatMoonCatClassifications,
+  getCatClickAction,
+  moonCatDetailLinks,
+  formatMoonCatHue
+} from "./js/cat-details.js";
 import { downloadDetailCardPng } from "./js/cat-details-export.js";
-import { fitSingleLineText } from "./js/cat-details-text-fit.js";
+import { fitSingleLineText, formatClassificationFooterText } from "./js/cat-details-text-fit.js";
 import {
   applyCatDetailsTheme,
   loadCatDetailsTheme
@@ -154,6 +161,7 @@ const {
   catDetailsImageWindowEl,
   catDetailsPreviewEl,
   catDetailsAttributeStripEl,
+  catDetailsClassificationFooterEl,
   catDetailsStatusEl,
   catDetailsTraitsEl,
   catDetailsRetryEl,
@@ -196,6 +204,9 @@ function fitTemplateCardText() {
   if (catDetailsCardEl.dataset.theme !== "template-card") return;
   fitSingleLineText(catDetailsTitleEl, { minFontSize: 16 });
   fitSingleLineText(catDetailsAttributeStripEl, { minFontSize: 10 });
+  if (!catDetailsClassificationFooterEl.hidden) {
+    fitSingleLineText(catDetailsClassificationFooterEl, { minFontSize: 17 });
+  }
 }
 
 function scheduleTemplateCardTextFit() {
@@ -473,6 +484,7 @@ function makePlaceholderTexture() {
 
 const {
   filterTextureCache,
+  ensureClassificationDataLoaded,
   ensureFilterDataLoaded,
   ensureFilterCountsLoaded,
   ensureFilterManifestLoaded,
@@ -974,6 +986,9 @@ function openCatDetailsActions() {
 function clearCatDetailsCardPresentation() {
   catDetailsAttributeStripEl.replaceChildren();
   catDetailsAttributeStripEl.hidden = true;
+  catDetailsClassificationFooterEl.textContent = "";
+  catDetailsClassificationFooterEl.hidden = true;
+  catDetailsClassificationFooterEl.style.removeProperty("font-size");
   catDetailsCardEl.removeAttribute("data-genesis");
   catDetailsCardEl.style.removeProperty("--cat-details-coat");
   catDetailsCardEl.style.removeProperty("--cat-details-outline");
@@ -1031,7 +1046,7 @@ function updateCatDetailsCardCoat(detail) {
   );
 }
 
-function renderCatDetails(detail) {
+function renderCatDetails(detail, classificationData = null) {
   updateCatDetailsCardCoat(detail);
   renderCatDetailsAttributeStrip(detail);
   catDetailsTraitsEl.replaceChildren();
@@ -1048,6 +1063,14 @@ function renderCatDetails(detail) {
     if (field === "catId") definition.className = "catDetailsCatId";
     catDetailsTraitsEl.append(term, definition);
   }
+
+  const classifications = classificationData
+    ? formatMoonCatClassifications(detail.rescueOrder, classificationData)
+    : null;
+  catDetailsClassificationFooterEl.textContent = formatClassificationFooterText(classifications);
+  catDetailsClassificationFooterEl.hidden = !classifications;
+  catDetailsClassificationFooterEl.style.removeProperty("font-size");
+  if (classifications) scheduleTemplateCardTextFit();
 }
 
 function loadCatDetailsForDialog(id) {
@@ -1064,6 +1087,12 @@ function loadCatDetailsForDialog(id) {
     catDetailsDialogDetail = detail;
     renderCatDetails(detail);
     setCatDetailsStatus("");
+    ensureClassificationDataLoaded().then((classificationData) => {
+      if (!catDetailsDialogEl.open || catDetailsDialogId !== id || pinnedCatId !== id || requestToken !== catDetailsRequestToken) return;
+      renderCatDetails(detail, classificationData);
+    }).catch((error) => {
+      console.warn("Could not load MoonCat classification data.", error);
+    });
   }).catch((error) => {
     if (!catDetailsDialogEl.open || catDetailsDialogId !== id || requestToken !== catDetailsRequestToken) return;
     console.warn(`Could not load MoonCat details for ${id}.`, error);
@@ -2359,7 +2388,10 @@ catDetailsActionsSaveEl.addEventListener("click", async () => {
     await downloadDetailCardPng({
       detail: catDetailsDialogDetail,
       title: catDetailsTitleEl.textContent,
-      coatColor: getComputedStyle(catDetailsCardEl).getPropertyValue("--cat-details-coat").trim()
+      coatColor: getComputedStyle(catDetailsCardEl).getPropertyValue("--cat-details-coat").trim(),
+      classificationFooter: catDetailsClassificationFooterEl.hidden
+        ? ""
+        : catDetailsClassificationFooterEl.textContent
     });
     setCatDetailsActionsStatus("Card saved.");
   } catch (error) {

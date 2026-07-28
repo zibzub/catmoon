@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 
 import {
   classifyGenesisDetail,
+  formatMoonCatClassifications,
   MOONCAT_DETAIL_FIELDS,
   createMoonCatDetailsLoader,
   getCatClickAction,
@@ -67,6 +68,37 @@ test("Genesis detail classification requires the source-backed sentinel pair", (
   assert.equal(classifyGenesisDetail({ hueInt: 1000, hueName: "white" }), null);
   assert.equal(classifyGenesisDetail({ hueInt: 2000, hueName: "black" }), null);
   assert.equal(classifyGenesisDetail({ hueInt: 120, hueName: "green" }), null);
+});
+
+test("MoonCat classifications use inclusive early boundaries and mutually exclusive week one", () => {
+  const classificationData = {
+    week1Ids: new Set([0, 492, 903, 904, 1200]),
+    characterCategorySets: new Map([
+      ["zombie", new Set([491, 904])]
+    ])
+  };
+
+  assert.equal(formatMoonCatClassifications(0, classificationData), "day 1");
+  assert.equal(formatMoonCatClassifications(491, classificationData), "day 1, zombie");
+  assert.equal(formatMoonCatClassifications(492, classificationData), "day 2");
+  assert.equal(formatMoonCatClassifications(903, classificationData), "day 2");
+  assert.equal(formatMoonCatClassifications(904, classificationData), "week 1, zombie");
+  assert.equal(formatMoonCatClassifications(1200, classificationData), "week 1");
+});
+
+test("MoonCat classifications show one exact character subtype or no row value", () => {
+  const classificationData = {
+    week1Ids: new Set(),
+    characterCategorySets: new Map([
+      ["garfield", new Set([1000])],
+      ["pikachu", new Set([1000, 1001])]
+    ])
+  };
+
+  assert.equal(formatMoonCatClassifications(1000, classificationData), "garfield");
+  assert.equal(formatMoonCatClassifications(1001, classificationData), "pikachu");
+  assert.equal(formatMoonCatClassifications(1002, classificationData), null);
+  assert.equal(formatMoonCatClassifications(-1, classificationData), null);
 });
 
 test("scene-cat click decisions pin, open, repin, and clear without HUD state", () => {

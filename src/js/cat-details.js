@@ -1,4 +1,9 @@
-import { MAX_ID, RHOMBUS_CAT_COUNT, TRI_FACE_COUNT } from "./config.js";
+import {
+  CHARACTER_CATEGORY_KEYS,
+  MAX_ID,
+  RHOMBUS_CAT_COUNT,
+  TRI_FACE_COUNT
+} from "./config.js";
 
 export const MOONCAT_DETAIL_FIELDS = Object.freeze([
   "rescueOrder",
@@ -28,6 +33,29 @@ export function classifyGenesisDetail(detail) {
   if (detail?.hueInt === 1000 && hueName === "black") return "black";
   if (detail?.hueInt === 2000 && hueName === "white") return "white";
   return null;
+}
+
+export function formatMoonCatClassifications(
+  rescueOrder,
+  { week1Ids = new Set(), characterCategorySets = new Map() } = {}
+) {
+  if (!isValidRescueOrder(rescueOrder)) return null;
+
+  const classifications = [];
+  if (rescueOrder <= 491) {
+    classifications.push("day 1");
+  } else if (rescueOrder <= 903) {
+    classifications.push("day 2");
+  } else if (week1Ids.has(rescueOrder)) {
+    classifications.push("week 1");
+  }
+
+  const characterKey = CHARACTER_CATEGORY_KEYS.find((key) => (
+    characterCategorySets.get(key)?.has(rescueOrder)
+  ));
+  if (characterKey) classifications.push(`${characterKey}`);
+
+  return classifications.length ? classifications.join(", ") : null;
 }
 
 export function getCatClickAction(pinnedCatId, clickedCatId) {

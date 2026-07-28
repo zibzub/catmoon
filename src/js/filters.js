@@ -3,6 +3,7 @@ import {
   FILTER_DEFINITIONS,
   FILTER_MANIFEST_URL,
   MOONCAT_NAMES_URL,
+  CHARACTER_CATEGORY_KEYS,
   PRELOAD_FILTER_KEYS,
   TRI_FACE_COUNT,
   TRI_FACE_TEX_H,
@@ -73,6 +74,15 @@ function filterDefinitionCount(filters, definition, idSet) {
   return idSet instanceof Set ? idSet.size : null;
 }
 
+function classificationSets(filters) {
+  return {
+    week1Ids: categoryIdSet(filters, "week1"),
+    characterCategorySets: new Map(
+      CHARACTER_CATEGORY_KEYS.map((key) => [key, categoryIdSet(filters, key)])
+    )
+  };
+}
+
 function validateFilterManifest(manifest) {
   return manifest
     && manifest.version === 1
@@ -123,7 +133,11 @@ export function createFilterManager({ textureLoader, applyTextureSettings }) {
     } else if (Number.isInteger(filters.catCount)) {
       filterCounts.all = filters.catCount;
     }
-    return { filterSets, filterCounts };
+    return {
+      filterSets,
+      filterCounts,
+      classificationSets: classificationSets(filters)
+    };
   }
 
   function ensureFilterDataLoaded() {
@@ -138,6 +152,13 @@ export function createFilterManager({ textureLoader, applyTextureSettings }) {
       filterCountsPromise = ensureFilterDataLoaded().then(() => filterDataPromise.then(({ filterCounts }) => filterCounts));
     }
     return filterCountsPromise;
+  }
+
+  function ensureClassificationDataLoaded() {
+    if (!filterDataPromise) {
+      filterDataPromise = loadFilterData();
+    }
+    return filterDataPromise.then(({ classificationSets: sets }) => sets);
   }
 
   async function loadFilterManifest() {
@@ -238,6 +259,7 @@ export function createFilterManager({ textureLoader, applyTextureSettings }) {
 
   return {
     filterTextureCache,
+    ensureClassificationDataLoaded,
     ensureFilterDataLoaded,
     ensureFilterCountsLoaded,
     ensureFilterManifestLoaded,

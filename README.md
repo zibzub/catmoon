@@ -81,6 +81,8 @@ The expanded card has its own top-right close control and also supports Escape a
 - **OpenSea** — this uses the Acclimated MoonCats contract, so a link may not resolve for every cat
 - **Save Card** — exports a 600 × 840 PNG card
 
+The bottom of the template card shows a centered classification label when applicable. Early rescue labels are `day 1` or `day 2`; later canonical Week 1 members show `week 1`, and character members add their exact subtype such as `character: zombie`.
+
 ### Filters
 
 Use **Filter cats** to highlight a group while dimming the rest of the moon. Available filters are:

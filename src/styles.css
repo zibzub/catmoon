@@ -1426,6 +1426,10 @@ input:focus {
   background: #0e0e0e;
 }
 
+#catDetailsClassificationFooter {
+  display: none;
+}
+
 #catDetailsLinks {
   display: flex;
   flex-wrap: wrap;
@@ -1892,6 +1896,31 @@ input:focus {
 }
 
 #catDetailsCard[data-theme="template-card"] #catDetailsFooter {
+  display: none;
+}
+
+#catDetailsCard[data-theme="template-card"] #catDetailsClassificationFooter {
+  position: absolute;
+  z-index: 4;
+  top: 91.2%;
+  right: 8.1%;
+  left: 8.1%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 4.2%;
+  padding: 0 12px;
+  overflow: hidden;
+  color: #0b0b09;
+  font-size: clamp(17px, 2.6vw, 25px);
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#catDetailsCard[data-theme="template-card"] #catDetailsClassificationFooter[hidden] {
   display: none;
 }
 

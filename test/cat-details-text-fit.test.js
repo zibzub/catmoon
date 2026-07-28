@@ -1,7 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { calculateFittedFontSize, isSingleLineFit } from "../src/js/cat-details-text-fit.js";
+import {
+  calculateFittedFontSize,
+  formatClassificationFooterText,
+  isSingleLineFit
+} from "../src/js/cat-details-text-fit.js";
+
+test("classification footer formats prefix-free labels for display", () => {
+  assert.equal(formatClassificationFooterText("day 1, zombie"), "DAY 1 • ZOMBIE");
+  assert.equal(formatClassificationFooterText("day 1, pinkpanther"), "DAY 1 • PINK PANTHER");
+  assert.equal(formatClassificationFooterText("day 2"), "DAY 2");
+  assert.equal(formatClassificationFooterText("pikachu"), "PIKACHU");
+  assert.equal(formatClassificationFooterText(null), "");
+});
 
 test("single-line fit treats nowrap content width as the available measure", () => {
   assert.equal(isSingleLineFit({ availableWidth: 300, measuredWidth: 300 }), true);
