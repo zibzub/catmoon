@@ -15,8 +15,9 @@ export const DETAIL_CARD_EXPORT_LAYOUT = Object.freeze({
   preview: Object.freeze({ width: 252, height: 264 }),
   titleFontSize: 29,
   summaryFontSize: 25,
+  summaryLetterSpacing: 1.5,
   classificationFooterFontSize: 25,
-  traitFontSize: 23,
+  traitFontSize: 24,
   traitLineHeight: 1.2,
   traitGap: 3,
   traitColumnGap: 7
@@ -65,6 +66,35 @@ function drawCenteredText(context, text, x, y, width, height, font, color) {
   context.restore();
 }
 
+function measureSpacedText(context, text, letterSpacing) {
+  const glyphWidth = [...text].reduce(
+    (total, character) => total + context.measureText(character).width,
+    0
+  );
+  return glyphWidth + (Math.max(0, [...text].length - 1) * letterSpacing);
+}
+
+function drawCenteredSpacedText(context, text, x, y, width, height, font, color, letterSpacing) {
+  context.save();
+  context.font = font;
+  context.fillStyle = color;
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+
+  let rendered = String(text);
+  while (rendered.length > 1 && measureSpacedText(context, rendered, letterSpacing) > width) {
+    rendered = `${rendered.slice(0, -2)}…`;
+  }
+
+  let cursorX = x + ((width - measureSpacedText(context, rendered, letterSpacing)) / 2);
+  const centerY = y + (height / 2);
+  for (const character of rendered) {
+    context.fillText(character, cursorX, centerY);
+    cursorX += context.measureText(character).width + letterSpacing;
+  }
+  context.restore();
+}
+
 function rectFromLayout({ x, y, width, height }, canvasSize) {
   return {
     x: x * canvasSize.width,
@@ -108,7 +138,7 @@ function drawTraitGrid(context, detail, detailsRect) {
   traits.forEach(([label, value], row) => {
     const y = firstRowY + (row * (lineHeight + layout.traitGap));
     context.fillStyle = "#36545a";
-    context.font = `${layout.traitFontSize}px "Pixel Operator", monospace`;
+    context.font = `700 ${layout.traitFontSize}px "Pixel Operator", monospace`;
     context.fillText(fitTextToWidth(context, label, labelWidth), contentX, y);
     context.fillStyle = "#102126";
     context.font = `700 ${layout.traitFontSize}px "Pixel Operator Bold", monospace`;
@@ -201,7 +231,17 @@ export function renderDetailCardCanvas({
   context.drawImage(templateImage, 0, 0, width, height);
 
   drawCenteredText(context, title, titleRect.x, titleRect.y, titleRect.width, titleRect.height, `700 ${layout.titleFontSize}px "Pixel Operator Bold", monospace`, "#0b0b09");
-  drawCenteredText(context, detailCardExportSummary(detail), summaryRect.x, summaryRect.y, summaryRect.width, summaryRect.height, `700 ${layout.summaryFontSize}px "Pixel Operator Bold", monospace`, "#0b0b09");
+  drawCenteredSpacedText(
+    context,
+    detailCardExportSummary(detail),
+    summaryRect.x,
+    summaryRect.y,
+    summaryRect.width,
+    summaryRect.height,
+    `600 ${layout.summaryFontSize}px "Pixel Operator Bold", monospace`,
+    "#0b0b09",
+    layout.summaryLetterSpacing
+  );
   drawTraitGrid(context, detail, details);
   if (classificationFooter) {
     const classificationColor = genesis === "black" ? "#fff" : "#0b0b09";
