@@ -1065,7 +1065,11 @@ function renderCatDetails(detail, classificationData = null) {
   }
 
   const classifications = classificationData
-    ? formatMoonCatClassifications(detail.rescueOrder, classificationData)
+    ? formatMoonCatClassifications(
+      detail.rescueOrder,
+      classificationData,
+      { genesis: Boolean(classifyGenesisDetail(detail)) }
+    )
     : null;
   catDetailsClassificationFooterEl.textContent = formatClassificationFooterText(classifications);
   catDetailsClassificationFooterEl.hidden = !classifications;

@@ -37,7 +37,8 @@ export function classifyGenesisDetail(detail) {
 
 export function formatMoonCatClassifications(
   rescueOrder,
-  { week1Ids = new Set(), characterCategorySets = new Map() } = {}
+  { week1Ids = new Set(), characterCategorySets = new Map() } = {},
+  { genesis = false } = {}
 ) {
   if (!isValidRescueOrder(rescueOrder)) return null;
 
@@ -50,10 +51,14 @@ export function formatMoonCatClassifications(
     classifications.push("week 1");
   }
 
-  const characterKey = CHARACTER_CATEGORY_KEYS.find((key) => (
-    characterCategorySets.get(key)?.has(rescueOrder)
-  ));
-  if (characterKey) classifications.push(`${characterKey}`);
+  if (genesis) {
+    classifications.push("genesis");
+  } else {
+    const characterKey = CHARACTER_CATEGORY_KEYS.find((key) => (
+      characterCategorySets.get(key)?.has(rescueOrder)
+    ));
+    if (characterKey) classifications.push(`${characterKey}`);
+  }
 
   return classifications.length ? classifications.join(", ") : null;
 }

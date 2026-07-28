@@ -81,7 +81,9 @@ The expanded card has its own top-right close control and also supports Escape a
 - **OpenSea** — this uses the Acclimated MoonCats contract, so a link may not resolve for every cat
 - **Save Card** — exports a 600 × 840 PNG card
 
-The bottom of the template card shows a centered classification label when applicable. Early rescue labels are `day 1` or `day 2`; later canonical Week 1 members show `week 1`, and character members add their exact subtype such as `character: zombie`.
+The bottom of the template card shows a centered classification label when applicable. Early rescue labels are `day 1` or `day 2`; later canonical Week 1 members show `week 1`. Genesis cats append `genesis` after rescue timing, so the visible order is `DAY 1 • GENESIS`, and Genesis suppresses any character subtype. Non-Genesis character members show their exact subtype such as `character: zombie`.
+
+Black Genesis cards use a white classification label for contrast; white Genesis and ordinary cards retain the dark label color.
 
 ### Filters
 

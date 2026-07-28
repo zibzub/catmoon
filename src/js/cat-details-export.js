@@ -204,6 +204,7 @@ export function renderDetailCardCanvas({
   drawCenteredText(context, detailCardExportSummary(detail), summaryRect.x, summaryRect.y, summaryRect.width, summaryRect.height, `700 ${layout.summaryFontSize}px "Pixel Operator Bold", monospace`, "#0b0b09");
   drawTraitGrid(context, detail, details);
   if (classificationFooter) {
+    const classificationColor = genesis === "black" ? "#fff" : "#0b0b09";
     drawCenteredText(
       context,
       classificationFooter,
@@ -212,7 +213,7 @@ export function renderDetailCardCanvas({
       classificationRect.width,
       classificationRect.height,
       `700 ${layout.classificationFooterFontSize}px "Pixel Operator Bold", monospace`,
-      "#0b0b09"
+      classificationColor
     );
   }
   return canvas;

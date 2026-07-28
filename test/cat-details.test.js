@@ -101,6 +101,21 @@ test("MoonCat classifications show one exact character subtype or no row value",
   assert.equal(formatMoonCatClassifications(-1, classificationData), null);
 });
 
+test("Genesis classifications follow rescue timing and suppress character collisions", () => {
+  const classificationData = {
+    week1Ids: new Set([492, 904, 1200]),
+    characterCategorySets: new Map([
+      ["zombie", new Set([491, 492, 904, 1200])]
+    ])
+  };
+
+  assert.equal(formatMoonCatClassifications(491, classificationData, { genesis: true }), "day 1, genesis");
+  assert.equal(formatMoonCatClassifications(492, classificationData, { genesis: true }), "day 2, genesis");
+  assert.equal(formatMoonCatClassifications(904, classificationData, { genesis: true }), "week 1, genesis");
+  assert.equal(formatMoonCatClassifications(1000, classificationData, { genesis: true }), "genesis");
+  assert.equal(formatMoonCatClassifications(491, classificationData), "day 1, zombie");
+});
+
 test("scene-cat click decisions pin, open, repin, and clear without HUD state", () => {
   assert.equal(getCatClickAction(null, 42), "pin");
   assert.equal(getCatClickAction(42, 42), "open");

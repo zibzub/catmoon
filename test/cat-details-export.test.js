@@ -118,6 +118,61 @@ test("detail-card export includes the visible classification footer label", () =
   assert.ok(calls.some(([text]) => text === "DAY 1 • CHARACTER: ZOMBIE"));
 });
 
+test("detail-card export uses white classification text only for black Genesis", () => {
+  function renderFooterColor(detail) {
+    let fillStyle = "";
+    const calls = [];
+    const context = {
+      clearRect() {},
+      fillRect() {},
+      drawImage() {},
+      save() {},
+      restore() {},
+      beginPath() {},
+      rect() {},
+      clip() {},
+      measureText: (text) => ({ width: String(text).length * 5 }),
+      createLinearGradient: () => ({ addColorStop() {} }),
+      set fillStyle(value) {
+        fillStyle = value;
+      },
+      get fillStyle() {
+        return fillStyle;
+      },
+      fillText: (text) => calls.push({ text, color: fillStyle })
+    };
+
+    renderDetailCardCanvas({
+      canvas: { getContext: () => context },
+      templateImage: {},
+      atlasImage: {},
+      title: "MoonCat 42",
+      coatColor: "#abcdef",
+      classificationFooter: "GENESIS",
+      detail
+    });
+
+    return calls.find(({ text }) => text === "GENESIS")?.color;
+  }
+
+  const detail = {
+    rescueOrder: 42,
+    rescueYear: 2017,
+    hueName: "green",
+    pattern: "solid",
+    catId: "0x0000002a",
+    hueInt: 120,
+    pale: false,
+    facing: "left",
+    expression: "happy",
+    pose: "standing"
+  };
+
+  assert.equal(renderFooterColor({ ...detail, hueInt: 1000, hueName: "black" }), "#fff");
+  assert.equal(renderFooterColor({ ...detail, hueInt: 2000, hueName: "white" }), "#0b0b09");
+  assert.equal(renderFooterColor(detail), "#0b0b09");
+});
+
 function makeGenesisExportContext() {
   const gradientCalls = [];
   const context = {

@@ -1924,6 +1924,10 @@ input:focus {
   display: none;
 }
 
+#catDetailsCard[data-theme="template-card"][data-genesis="black"] #catDetailsClassificationFooter {
+  color: #fff;
+}
+
 #catDetailsActions[hidden] {
   display: none;
 }
