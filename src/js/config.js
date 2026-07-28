@@ -52,7 +52,7 @@ export const CHARACTER_CATEGORY_KEYS = [
 export const FILTER_DEFINITIONS = [
   { key: "named", names: true, setOnly: true },
   { key: "genesis", category: "genesis" },
-  { key: "characters", categories: CHARACTER_CATEGORY_KEYS },
+  { key: "characters", categories: CHARACTER_CATEGORY_KEYS, setOnly: true },
   { key: "day1", category: "day1" },
   { key: "week1", category: "week1" },
   { key: "2017", category: "2017" },

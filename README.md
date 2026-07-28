@@ -99,7 +99,7 @@ Use **Filter cats** to highlight a group while dimming the rest of the moon. Ava
 - All Early Rescues
 - 2021 Rescues
 
-The active-filter badge resets back to All Cats. Named Cats and Wallet Cats use browser-generated overlays from the MoonCat atlas; most other built-in filters use prepared overlay textures.
+The active-filter badge resets back to All Cats. Named Cats, Character Cats, and Wallet Cats use browser-generated overlays from the MoonCat atlas; most other built-in filters use prepared overlay textures.
 
 **Early rescue zone** marks faces 0–6, roughly rescue orders 0–5935. It is a broad visual guide, not an exact early-rescue selector. It appears only with Named Cats, Character Cats, and Wallet Cats, where it is useful context.
 

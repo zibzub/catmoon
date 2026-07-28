@@ -36,9 +36,6 @@ function filterDefinitionIdSet(filters, definition) {
     }
     return new Set(Object.keys(filters.names).map((id) => Number(id)).filter(Number.isInteger));
   }
-  if (definition.key === "characters" && Array.isArray(filters.presets?.characters?.ids)) {
-    return new Set(filters.presets.characters.ids);
-  }
   if (definition.category) {
     return categoryIdSet(filters, definition.category);
   }
@@ -64,9 +61,6 @@ function filterDefinitionCount(filters, definition, idSet) {
     return filters.names && typeof filters.names === "object"
       ? Object.keys(filters.names).length
       : null;
-  }
-  if (definition.key === "characters" && Number.isInteger(filters.presets?.characters?.count)) {
-    return filters.presets.characters.count;
   }
   if (definition.category) {
     return categoryCount(filters, definition.category);
