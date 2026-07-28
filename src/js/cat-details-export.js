@@ -112,6 +112,27 @@ function fitTextToWidth(context, text, width) {
   return rendered;
 }
 
+function mixHexColors(foreground, background, foregroundWeight) {
+  const parseHex = (value) => {
+    const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value || "").trim());
+    if (!match) return null;
+    const hex = match[1].length === 3
+      ? [...match[1]].map((digit) => `${digit}${digit}`).join("")
+      : match[1];
+    return [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  };
+
+  const foregroundRgb = parseHex(foreground);
+  const backgroundRgb = parseHex(background);
+  if (!foregroundRgb || !backgroundRgb) return background;
+
+  const weight = Math.min(1, Math.max(0, Number(foregroundWeight) || 0));
+  const mixed = foregroundRgb.map((channel, index) => (
+    Math.round((channel * weight) + (backgroundRgb[index] * (1 - weight)))
+  ));
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
 function drawTraitGrid(context, detail, detailsRect) {
   const layout = DETAIL_CARD_EXPORT_LAYOUT;
   const traits = [
@@ -137,7 +158,7 @@ function drawTraitGrid(context, detail, detailsRect) {
   context.textBaseline = "top";
   traits.forEach(([label, value], row) => {
     const y = firstRowY + (row * (lineHeight + layout.traitGap));
-    context.fillStyle = "#36545a";
+    context.fillStyle = "rgba(16, 33, 38, 0.66)";
     context.font = `700 ${layout.traitFontSize}px "Pixel Operator", monospace`;
     context.fillText(fitTextToWidth(context, label, labelWidth), contentX, y);
     context.fillStyle = "#102126";
@@ -226,7 +247,7 @@ export function renderDetailCardCanvas({
     layout.preview.width,
     layout.preview.height
   );
-  context.fillStyle = "#ccecf2";
+  context.fillStyle = mixHexColors(coatColor, "#ccecf2", 0.16);
   context.fillRect(details.x, details.y, details.width, details.height);
   context.drawImage(templateImage, 0, 0, width, height);
 
