@@ -10,7 +10,9 @@
   "type": "module",
   "scripts": {
     "build:details": "node tools/extract-mooncat-details.js",
-    "build:names": "node tools/extract-mooncat-names.js",
+    "sync:names": "node tools/sync-mooncat-names.js",
+    "build:names": "npm run sync:names",
+    "build:names:legacy-traits": "node tools/extract-mooncat-names.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

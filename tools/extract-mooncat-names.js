@@ -1,3 +1,6 @@
+// LEGACY ONLY: derives names from the local mooncat_traits.json snapshot.
+// Use `npm run sync:names` for the canonical mooncat-name-index mirror.
+
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
