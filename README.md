@@ -231,6 +231,8 @@ npm run build:details
 
 `npm run build:names` remains a compatibility alias for the canonical sync. The explicitly named `npm run build:names:legacy-traits` command uses the local root-level `mooncat_traits.json` extractor and is not the current-name source. That source is not required by the browser app.
 
+The `Sync MoonCat names` GitHub Actions workflow runs the canonical sync every six hours and can also be started manually from the repository's **Actions** tab with **Run workflow**. After running the repository tests and checks, it commits and pushes only `public/data/mooncat-names.json` when the mirrored data changed.
+
 ### Cloudflare Pages and wallet API
 
 Recommended Pages settings:
