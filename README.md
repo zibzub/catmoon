@@ -174,7 +174,7 @@ public/
   _headers
 test/                           Node test files by module/feature
 tools/
-  sync-mooncat-names.js       Canonical mooncat-name-index mirror updater
+  sync-mooncat-names.js       Canonical mooncatdao/name-index mirror updater
   extract-mooncat-names.js    Legacy local-traits name extractor
   extract-mooncat-details.js
 ```
@@ -227,7 +227,7 @@ npm run build:names:legacy-traits
 npm run build:details
 ```
 
-`npm run sync:names` is the canonical command for updating `public/data/mooncat-names.json`. It mirrors `data/names-simple.json` from `mooncatdao/mooncat-name-index` and validates rescue-order keys and string values before atomically installing the deterministic output. Set `MOONCAT_NAMES_SOURCE_URL` to use a maintained fork or an offline test fixture.
+`npm run sync:names` is the canonical command for updating `public/data/mooncat-names.json`. It mirrors `data/names-simple.json` from `mooncatdao/name-index` and validates rescue-order keys and string values before atomically installing the deterministic output. Set `MOONCAT_NAMES_SOURCE_URL` to use a maintained fork or an offline test fixture.
 
 `npm run build:names` remains a compatibility alias for the canonical sync. The explicitly named `npm run build:names:legacy-traits` command uses the local root-level `mooncat_traits.json` extractor and is not the current-name source. That source is not required by the browser app.
 
@@ -276,7 +276,7 @@ Key assets and generated data:
 | `public/img/allcats.png` | Full atlas, lazy-loaded for previews and runtime overlays. |
 | `public/img/filters/` | Built-in filter overlays and manifest. |
 | `public/data/mooncat-filters.json` | Static filter categories. |
-| `public/data/mooncat-names.json` | Deterministic mirror of `mooncat-name-index/data/names-simple.json`. |
+| `public/data/mooncat-names.json` | Deterministic mirror of `name-index/data/names-simple.json`. |
 | `public/data/mooncat-details/face-XX.json` | Generated 848-cat detail shards. |
 
 The early-rescue guide is a lightweight Three.js mesh layer over faces 0–6; it does not use a generated PNG. Expanded details fetch only the needed face shard, cache successful requests, and can retry a failed fetch. Update names with `npm run sync:names` and details with `npm run build:details`.

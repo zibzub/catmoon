@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
-export const DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/mooncatdao/mooncat-name-index/main/data/names-simple.json";
+export const DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/mooncatdao/name-index/main/data/names-simple.json";
 export const DEFAULT_OUTPUT_PATH = path.join(repoRoot, "public", "data", "mooncat-names.json");
 export const MAX_RESCUE_ORDER = 25439;
 
