@@ -2,6 +2,8 @@ name: Sync MoonCat names
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [mooncat-names-updated]
   schedule:
     - cron: "0 */6 * * *"
 
