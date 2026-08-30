@@ -12,6 +12,11 @@ const OWNED_MOONCATS_FALLBACK_URLS = [
   "https://api.mooncatrescue.com/owned-mooncats",
   "https://api.mooncat.community/owned-mooncats"
 ];
+const ALLOWED_CORS_ORIGINS = new Set([
+  "https://catlab.pages.dev",
+  "https://catlab.zibzub.art",
+  "https://catmoon.zibzub.art"
+]);
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -23,7 +28,7 @@ export async function onRequestGet(context) {
       error: "Missing address query parameter.",
       ids: [],
       count: 0
-    }, 400, "no-store");
+    }, 400, "no-store", {}, request);
   }
 
   if (input.length > MAX_LOOKUP_INPUT_LENGTH) {
@@ -32,7 +37,7 @@ export async function onRequestGet(context) {
       input,
       ids: [],
       count: 0
-    }, 400, "no-store");
+    }, 400, "no-store", {}, request);
   }
 
   if (!LOOKUP_INPUT_PATTERN.test(input)) {
@@ -41,7 +46,7 @@ export async function onRequestGet(context) {
       input,
       ids: [],
       count: 0
-    }, 400, "no-store");
+    }, 400, "no-store", {}, request);
   }
 
   const cache = globalThis.caches?.default;
@@ -52,7 +57,7 @@ export async function onRequestGet(context) {
       return responseWithHeaders(cachedResponse, {
         "x-catmoon-cache": "hit",
         "cache-control": SUCCESS_CACHE_CONTROL
-      });
+      }, request);
     }
   }
 
@@ -69,7 +74,7 @@ export async function onRequestGet(context) {
       ownershipTypes: result.ownershipTypes
     }, 200, SUCCESS_CACHE_CONTROL, {
       "x-catmoon-cache": "miss"
-    });
+    }, request);
 
     if (cache && cacheKey) {
       await writeCache(cache, cacheKey, response.clone(), context);
@@ -85,8 +90,22 @@ export async function onRequestGet(context) {
       ids: [],
       count: 0,
       source: "mooncatrescue"
-    }, status, "no-store");
+    }, status, "no-store", {}, request);
   }
+}
+
+export function onRequestOptions(context) {
+  const headers = new Headers({
+    allow: "GET, OPTIONS"
+  });
+  applyCorsHeaders(headers, context.request);
+
+  if (hasAllowedOrigin(context.request)) {
+    headers.set("access-control-allow-methods", "GET, OPTIONS");
+    headers.set("access-control-allow-headers", "Accept");
+  }
+
+  return new Response(null, { status: 204, headers });
 }
 
 function getWalletCacheKey(url, input) {
@@ -310,11 +329,12 @@ class HttpError extends Error {
   }
 }
 
-function responseWithHeaders(response, extraHeaders = {}) {
+function responseWithHeaders(response, extraHeaders = {}, request) {
   const headers = new Headers(response.headers);
   for (const [key, value] of Object.entries(extraHeaders)) {
     headers.set(key, value);
   }
+  applyCorsHeaders(headers, request);
 
   return new Response(response.body, {
     status: response.status,
@@ -323,13 +343,33 @@ function responseWithHeaders(response, extraHeaders = {}) {
   });
 }
 
-function jsonResponse(body, status = 200, cacheControl = "public, max-age=60", extraHeaders = {}) {
+function jsonResponse(body, status = 200, cacheControl = "public, max-age=60", extraHeaders = {}, request) {
+  const headers = new Headers({
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": cacheControl,
+    ...extraHeaders
+  });
+  applyCorsHeaders(headers, request);
+
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": cacheControl,
-      ...extraHeaders
-    }
+    headers
   });
+}
+
+function hasAllowedOrigin(request) {
+  return ALLOWED_CORS_ORIGINS.has(request.headers.get("Origin"));
+}
+
+function applyCorsHeaders(headers, request) {
+  headers.delete("access-control-allow-origin");
+  if (!request || !hasAllowedOrigin(request)) return;
+
+  headers.set("access-control-allow-origin", request.headers.get("Origin"));
+  const vary = headers.get("Vary");
+  if (!vary) {
+    headers.set("Vary", "Origin");
+  } else if (!vary.split(",").some((value) => value.trim().toLowerCase() === "origin")) {
+    headers.set("Vary", `${vary}, Origin`);
+  }
 }
